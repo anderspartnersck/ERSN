@@ -2,7 +2,7 @@
 
 The video build of the board game. Six players, one collapsing market, and a Lounge almost nobody reaches.
 
-## ▶ [PLAY IT IN YOUR BROWSER](https://anderspartnersck.github.io/ER-N/)
+## ▶ [PLAY IT IN YOUR BROWSER](https://anderspartnersck.github.io/ERSN/)
 
 A Castle Killscreen game by **Anders & Partners**.
 
