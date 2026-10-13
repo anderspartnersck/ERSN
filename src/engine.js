@@ -35,7 +35,7 @@
   const BURNOUT_RISK = 8;   // "If your Risk reaches 8: … you BURN OUT" (RULES.md)
 
   // ---- CANONICAL BOARD TRACK ---------------------------------------------------
-  // Re-scoped to the PRINTED GOLDEN board (assets/board/golden2.png) — now the canonical
+  // Re-scoped to the PRINTED GOLDEN board (golden2 art, retired 2026-10-13 — the track it fixed stays) — now the canonical
   // truth. 12-position ring traced in path order from the START button (bottom-left):
   //   0-3  LEFT column bottom->top   : MARKET($) · ASSET(Ae) · SEC(shield+eye) · MARKET($)
   //   4    TOP-RIGHT "TO MARKET" door (blank gold — NOT a deck space, can't end on it)

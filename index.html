@@ -1062,11 +1062,6 @@ Promise.all([load(A.board),load(A.env),load(A.juice),load(A.pawn),load(A.accr),.
 let liftImgs=[], liftPad=null;
 Promise.all([1,2,3,4,5].map(n=>load(`assets/sprites/teleporter/lift${n}.png`))).then(r=>{ liftImgs=r; });
 load('assets/sprites/teleporter/pad.png').then(img=>{ liftPad=img; });
-// $90M GOLDEN board energy frames (golden2-bw1..3) — Joe's 3-density renders of the print board, used
-// as a faithful "living gold" breath: the static print art stays, a gold-tinted shimmer ping-pongs the
-// frames over it and swells with the game's energy. Gold-keyed on the fly (the renders are alpha masks).
-let goldenFrames=[];
-// (retired with the golden boards 2026-10-13 — no longer preloaded; drawGoldenBreath no-ops without them)
 // BRIBE coin (assets/sprites/coin-bribe.png) — Joe's painted $ coin. Spins up off the pawn on buy/spend.
 let coinBribeImg=null; load('assets/sprites/coin-bribe.png').then(img=>{ coinBribeImg=img; });
 let coinFX=[];   // {x,y,start,spend} — board coin flourishes
@@ -1172,9 +1167,9 @@ const BOARDS=[
   {f:'juiceflows',  label:'JUICE FLOWS',   layout:'hole', live:true},
   {f:'juiceflux',   label:'JUICE FLUX',    layout:'hole', live:true},
   {f:'coreprint',   label:'CORE BOARD ▦',  layout:'core'},   // the real printed PORTRAIT core board (1513×2400)
-  // RETIRED 2026-10-13 (Joe: "obsolete"): the printed-GOLDEN family — GOLDEN (PRINT) golden2, GOLD LEAF,
-  // I ♥ GOLD, SLATE, BLUEPRINT golden-bwlt, NOIR (+ the golden2-bw1..3 breath layers, board-final).
-  // The PLATES replace them. LAYOUTS.golden is kept only so an old #board= capture hash still places pawns.
+  // RETIRED + DELETED 2026-10-13 (Joe: "obsolete"): the printed-GOLDEN family (GOLDEN PRINT, GOLD LEAF,
+  // I ♥ GOLD, SLATE, BLUEPRINT, NOIR, the living-gold breath layers, board-final) — the PLATES replace it.
+  // LAYOUTS.golden stays as the fallback placement for an unknown board key.
   {f:'coreboard',   label:'CORE',          layout:'golden'},
 ];
 const BOARD_DEF=f=>BOARDS.find(b=>b.f===f)||{layout:'golden'};
@@ -2344,8 +2339,6 @@ function drawBoard(ts){
   if(boardLive) drawJuiceFlow(cxp, cyp, holeR, now, holeHot);
   if(boardLive && !imploding && !boardPlate) drawJuiceText(cxp, cyp, holeR, now);
 
-  // ---- $90M GOLDEN PRINT board: faithful "living gold" energy breath (no spinning vortex) ----
-  drawGoldenBreath(now);
   // ---- the 12 SPACE PLAQUES + serpentine bead-trail (black-hole boards; under halos + pawns) ----
   drawSpaces(now);
   // ---- ASSET / MARKET / SEC deck-pile marker chips (black-hole boards) ----
@@ -3085,9 +3078,6 @@ function drawDoorFX(now){
 // in step off these: CHARGE = beam materialises (pawn holds, trembling) · ASCEND = ride up, rider
 // dissolves into the light · SETTLE = spent beam discharges while the rider lands at the Lounge.
 const LIFT_CHARGE=500, LIFT_ASCEND=800, LIFT_SETTLE=450, LIFT_DUR=LIFT_CHARGE+LIFT_ASCEND+LIFT_SETTLE;
-// $90M GOLDEN print board "living gold" breath — gold-tinted shimmer of the 3 energy renders, ping-
-// ponged for a smooth pulse and swelling with vortexKick/collapse. Faithful: the colour print board
-// shows through; this only adds light. golden2 art only (the recolors don't match these masks).
 // BRIBE coin flourish — a painted $ coin spins up off the pawn when a Bribe is bought (rises + settles)
 // or spent (flips away + fades). Spin = horizontal squash through edge-on. Additive sparkle. Render-only.
 function drawCoinFX(now){
@@ -3124,18 +3114,6 @@ function drawDeckMarkers(now){
     ctx.drawImage(img, x-w/2, y-h/2+bob, w, h);
     ctx.restore();
   }
-}
-function drawGoldenBreath(now){
-  if(!boardGolden || S.board!=='golden2' || imploding || goldenFrames.length<2) return;
-  const r=boardRect(); const seq=[0,1,2,1], per=1150, t=(now/per)%seq.length, i=Math.floor(t), f=t-i;
-  const ga=silhouette(goldenFrames[seq[i]],'#e7b54a'), gb=silhouette(goldenFrames[seq[(i+1)%seq.length]],'#e7b54a');
-  if(!ga||!gb) return;
-  const energy=Math.min(1,(vortexKick||0)*0.9+(collapsing?0.45:0));
-  const base=0.09+0.07*(0.5+0.5*Math.sin(now/1300))+0.20*energy;
-  ctx.save(); ctx.globalCompositeOperation='lighter';
-  ctx.globalAlpha=base*(1-f); ctx.drawImage(ga.cv, r.bx,r.by,r.bw,r.bh);
-  ctx.globalAlpha=base*f;     ctx.drawImage(gb.cv, r.bx,r.by,r.bw,r.bh);
-  ctx.restore();
 }
 function drawLiftFX(now){
   if(!liftFX || !liftImgs.length || !liftImgs[0]) return;
