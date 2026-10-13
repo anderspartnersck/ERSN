@@ -1066,13 +1066,17 @@ load('assets/sprites/teleporter/pad.png').then(img=>{ liftPad=img; });
 // as a faithful "living gold" breath: the static print art stays, a gold-tinted shimmer ping-pongs the
 // frames over it and swells with the game's energy. Gold-keyed on the fly (the renders are alpha masks).
 let goldenFrames=[];
-Promise.all([1,2,3].map(n=>load(`assets/board/golden2-bw${n}.png`))).then(r=>{ goldenFrames=r.filter(Boolean); });
+// (retired with the golden boards 2026-10-13 — no longer preloaded; drawGoldenBreath no-ops without them)
 // BRIBE coin (assets/sprites/coin-bribe.png) — Joe's painted $ coin. Spins up off the pawn on buy/spend.
 let coinBribeImg=null; load('assets/sprites/coin-bribe.png').then(img=>{ coinBribeImg=img; });
 let coinFX=[];   // {x,y,start,spend} — board coin flourishes
 // DECK MARKER chips (ASSET=bank · MARKET=$ · SEC=watchdog) — mark the deck piles on the black-hole
 // boards (which paint no deck labels); the active deck bobs/glows when a card is drawn from it.
 let deckMarks={};
+// THE PLATES — engraved line-art sprites (scripts/make_plate_engravings.py): white on alpha, recoloured
+// per plate by silhouette() and cut in three passes (engr) so they read as engravings in the plate.
+const plateSpr={};
+['market','asset','sec','door','lounge','up','hole'].forEach(k=>load(`assets/sprites/plate/${k}.png`).then(im=>{ if(im) plateSpr[k]=im; }));
 Promise.all([['Asset','asset'],['Market','market'],['SEC','sec']].map(([k,f])=>
   load(`assets/sprites/markers/${f}.png`).then(img=>{ if(img) deckMarks[k]=img; })));
 
@@ -1143,6 +1147,21 @@ const S={count:4, expansion:true, seats:[], edition:'benchmark', board:'blank-co
 // `bend` = gravitational frame-drag strength (0 = static print; the central region spirals into the
 // hole). Distortion boards bend hardest; the live blanks get a soft warp; painted heroes stay clean.
 const BOARDS=[
+  // THE PLATES (Joe, 2026-10-13) — blank gemstone/metal plates: title, START medallion and the SEC GLOBAL
+  // RISK ladder are painted; EVERY space is drawn in code (layout 'plate') so pawns read big and clean.
+  // Per-plate `start` = the painted START medallion, `ladder` = the painted 0-8 cells (cx, y of 0, step, w).
+  // `eng` = how the engravings are cut: gems get a GOLD INLAY (light ink, dark shadow); the metal plates
+  // get a DEBOSSED cut (dark ink, a light catch on the lower edge). `mote` = the juice falling into the hole.
+  {f:'plate-emerald',label:'EMERALD',     layout:'plate', live:true, start:{x:0.180,y:0.817}, ladder:{cx:0.924,y0:0.370,step:0.0233,w:0.038},
+     eng:{ink:'#e8cc86',hi:'#fff3cc',sh:'#020a05',well:0.30,mote:'#f3d68e'}},
+  {f:'plate-ruby',   label:'RUBY',        layout:'plate', live:true, start:{x:0.177,y:0.822}, ladder:{cx:0.923,y0:0.320,step:0.0314,w:0.042},
+     eng:{ink:'#e8c27a',hi:'#fff0c8',sh:'#140204',well:0.30,mote:'#f3d68e'}},
+  {f:'plate-onyx',   label:'ONYX',        layout:'plate', live:true, mono:true, start:{x:0.177,y:0.822}, ladder:{cx:0.923,y0:0.320,step:0.0314,w:0.042},
+     eng:{ink:'#d6dbe4',hi:'#ffffff',sh:'#000000',well:0.25,mote:'#e6ebf3'}},
+  {f:'plate-gold',   label:'GOLD PLAQUE', layout:'plate', live:true, start:{x:0.177,y:0.841}, ladder:{cx:0.928,y0:0.3125,step:0.03125,w:0.044},
+     eng:{ink:'#4f3509',hi:'#fff2b8',sh:'#2a1a03',deboss:true,well:0.10,mote:'#3d2706'}},
+  {f:'plate-silver', label:'SILVER',      layout:'plate', live:true, mono:true, start:{x:0.177,y:0.841}, ladder:{cx:0.928,y0:0.3156,step:0.0312,w:0.044},
+     eng:{ink:'#30333a',hi:'#ffffff',sh:'#121317',deboss:true,well:0.10,mote:'#1f2126'}},
   {f:'blank-color', label:'EVENT HORIZON ◉', layout:'hole', live:true, bend:0},  // hero: lens OFF — painted swirl + spinning accretion + motes carry it; the frame-drag lens only serrated the disc
   {f:'blank-bw',    label:'BLUEPRINT ◉',     layout:'hole', live:true, mono:true, bend:0}, // grayscale X-ray, mono live hole — lens OFF (same reason)
   {f:'distortion3', label:'DISTORTION III',layout:'hole', live:true, bend:1.0},   // bent boards: the hole drags the room
@@ -1153,12 +1172,9 @@ const BOARDS=[
   {f:'juiceflows',  label:'JUICE FLOWS',   layout:'hole', live:true},
   {f:'juiceflux',   label:'JUICE FLUX',    layout:'hole', live:true},
   {f:'coreprint',   label:'CORE BOARD ▦',  layout:'core'},   // the real printed PORTRAIT core board (1513×2400)
-  {f:'golden2',     label:'GOLDEN (PRINT)',layout:'golden'},
-  {f:'golden-final',label:'GOLD LEAF',     layout:'golden'},
-  {f:'ilovegold',   label:'I ♥ GOLD',      layout:'golden'},
-  {f:'golden2-gray',label:'SLATE',         layout:'golden'},
-  {f:'golden-bwlt', label:'BLUEPRINT',     layout:'golden'},
-  {f:'golden-bwdark',label:'NOIR',         layout:'golden'},
+  // RETIRED 2026-10-13 (Joe: "obsolete"): the printed-GOLDEN family — GOLDEN (PRINT) golden2, GOLD LEAF,
+  // I ♥ GOLD, SLATE, BLUEPRINT golden-bwlt, NOIR (+ the golden2-bw1..3 breath layers, board-final).
+  // The PLATES replace them. LAYOUTS.golden is kept only so an old #board= capture hash still places pawns.
   {f:'coreboard',   label:'CORE',          layout:'golden'},
 ];
 const BOARD_DEF=f=>BOARDS.find(b=>b.f===f)||{layout:'golden'};
@@ -1179,7 +1195,7 @@ const BOARD_HOLE={
 };
 // swap the live board surface to the chosen variant (loads + caches, applies its layout + palette, repaints)
 function setBoard(f){ S.board=f; const def=BOARD_DEF(f); A.board=boardSrc(f);
-  applyLayout(def.layout); boardMono=!!def.mono; boardLive=!!def.live; boardBend=def.bend||0;
+  applyLayout(def.layout); if(def.start) START_NORM=def.start; boardLadder=def.ladder||null; PLATE_ENG=def.eng||null; boardMono=!!def.mono; boardLive=!!def.live; boardBend=def.bend||0;
   if(BOARD_HOLE[f]) HOLE_NORM={...BOARD_HOLE[f]};   // lock the FX onto THIS board's painted hole
   try{const o=JSON.parse(localStorage.getItem('ersnHole.'+f)); if(o&&typeof o.x==='number') HOLE_NORM={x:o.x,y:o.y,r:o.r};}catch(e){}   // saved CAL override
   load(A.board).then(img=>{ if(img && S.board===f) boardImg=img; }); }
@@ -1235,7 +1251,7 @@ function buildBoardSelect(){
     const t=document.createElement('div'); t.className='bthumb'+(S.board===b.f?' on':'');
     t.innerHTML=`<img src="${boardSrc(b.f)}" alt="${b.label}"><div class="bl">${b.label}</div>`;
     // self-hide a thumbnail whose art isn't present yet (e.g. Joe's 0614 boards before they're copied in)
-    t.querySelector('img').onerror=()=>{ t.remove(); if(S.board===b.f) setBoard('golden2'); };
+    t.querySelector('img').onerror=()=>{ t.remove(); if(S.board===b.f) setBoard('blank-color'); };
     t.onclick=()=>{ setBoard(b.f); buildBoardSelect(); try{window.SFX&&SFX.play('select',0.4);}catch(e){} };
     seg.appendChild(t);
   });
@@ -1328,7 +1344,7 @@ function spawnSparks(x,y,n){ for(let i=0;i<(n||12);i++){ const a=Math.random()*6
   sparkBursts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1.5,age:0,life:0.4+Math.random()*0.4,hue:30+Math.random()*26}); } }
 // SHOT RIG hook: zero every per-frame transient FX so a capture is a clean, deterministic steady state
 // (these decay frame-by-frame, so a wall-clock capture window would otherwise catch them at a random phase).
-window.__settleForShot=()=>{ landDie(); vortexKick=0; flashT=0; juiceMotes.length=0; landPulses.length=0; sparkBursts.length=0; dieFX=null; cardFX=null; drawAnim=null; holeFrenzy=0; imploding=false;
+window.__settleForShot=()=>{ landDie(); vortexKick=0; flashT=0; juiceMotes.length=0; landPulses.length=0; sparkBursts.length=0; dieFX=null; cardFX=null; drawAnim=null; doorFX=null; holeFrenzy=0; imploding=false;
   for(const k in pawns){ const w=pawns[k]; if(w){ w.x=w.tx; w.y=w.ty; w.vx=0; w.vy=0; w.hop=0; w.burn=null; w.lift=null; w.liftA=1; w.offX=undefined; if(w.queue) w.queue.length=0; } }   // snap pawns (no mid-hop / no airy drift / no burn or lift FX) for a settled shot
   try{ clearTimeout(barkTimer); const b=$('#bark'); if(b) b.classList.remove('on'); }catch(e){}                      // clear any fading bark
 };
@@ -1391,6 +1407,23 @@ const LAYOUTS={
     // bottom deck row "ASSET DECK · MARKET DECK · SEC DECK · DISCARD"
     decks:{ASSET:{x:0.44,y:0.955}, MARKET:{x:0.58,y:0.955}, SEC:{x:0.71,y:0.955}},
   },
+  // THE PLATES — blank gem/metal plates; every space is drawn in code as an ENGRAVING (drawPlateSpaces).
+  // Same serpentine as the others: 0-3 up the left column, the TO MARKET door top-centre under the
+  // title, 5-8 down the right column (clear of the painted SEC ladder), 9-11 along the bottom back
+  // toward the painted START medallion. Measured off the 4267×6400 plates (all five share it).
+  plate:{
+    aspect:0.6667,
+    tiles:[
+      {x:0.170,y:0.640},{x:0.170,y:0.520},{x:0.170,y:0.400},{x:0.170,y:0.280}, // 0-3 left col bottom->top
+      {x:0.465,y:0.228},                                                        // 4 TO MARKET door (top centre)
+      {x:0.760,y:0.280},{x:0.760,y:0.400},{x:0.760,y:0.520},{x:0.760,y:0.640}, // 5-8 right col top->bottom
+      {x:0.735,y:0.800},{x:0.570,y:0.800},{x:0.405,y:0.800},                    // 9-11 bottom row R->L
+    ],
+    // the engraved black hole fills the open centre; the EXECUTIVE LOUNGE is the top-left corner (as on
+    // the printed board), straight up from its entrance at space 3; the deck piles sit along the bottom.
+    hole:{x:0.465,y:0.515,r:0.17}, start:{x:0.177,y:0.830}, lounge:{x:0.150,y:0.095},
+    decks:{ASSET:{x:0.455,y:0.905}, MARKET:{x:0.590,y:0.905}, SEC:{x:0.725,y:0.905}},
+  },
   // the REAL printed CORE board (assets/board/coreprint.png) — rotated to PORTRAIT like the others
   // (aspect 0.63): title top, START bottom-left, decks along the bottom, a winding path around the
   // central ANDERS TOWER / Executive Lounge (the win destination — a tower, NOT a hole, so vortex off).
@@ -1418,8 +1451,10 @@ function applyLayout(key){ const L=LAYOUTS[key]||LAYOUTS.golden;
   BOARD_ASPECT=L.aspect||0.6657; boardVortex=(key==='hole'); LOOP_N_UI=TILE_NORM.length;
   // the GOLDEN print + CORE boards already PAINT their space emblems (deck names, TO MARKET, TO EXEC
   // LOUNGE, discard, legend); only the black-hole boards have blank tiles → draw the emblems in code there.
-  boardNeedsEmblems=(key==='hole'); boardGolden=(key==='golden'); }
-let boardNeedsEmblems=true, boardGolden=false;
+  boardNeedsEmblems=(key==='hole'||key==='plate'); boardGolden=(key==='golden'); boardPlate=(key==='plate'); }
+let boardNeedsEmblems=true, boardGolden=false, boardPlate=false;
+let PLATE_ENG=null;     // the active plate's engraving palette (BOARDS[].eng)
+let boardLadder=null;   // per-board painted SEC ladder {cx,y0,step,w} (the plates); null = the hole-board default
 let collapseMorph=0;   // 0 normal .. 1 fully collapsed into the hole
 let imploding=false, imStart=0;   // game-end finale: the whole board spirals into the $90M hole
 const DOORS=new Set([4]);
@@ -1854,12 +1889,13 @@ function handleEvent(ev){
     case 'play': { logLine(`&nbsp;&nbsp;↳ plays <i>${ev.card}</i>`); spotlight(ev.card, `${ev.player} plays`); bark(ev.player,'play',0.5);
       const c=CARD_BY_NAME[ev.card];
       if(c && c.art && CAP.at==null){ load(c.art).then(im=>{ if(im) cardFX={art:im,start:clock()}; }); }   // the $90M hole swallows the spent card
-      if(ev.card==='90 Million Dollar Black Hole' && CAP.at==null && boardVortex){ holeFrenzy=clock()+2600; vortexKick=1; spawnJuiceFlow(40); }   // the namesake card — the hole GOES NUTS (only boards with a hole)
+      if(ev.card==='90 Million Dollar Black Hole' && CAP.at==null && (boardVortex||boardPlate)){ holeFrenzy=clock()+2600; vortexKick=1; spawnJuiceFlow(40); }   // the namesake card — the hole GOES NUTS (only boards with a hole)
       if(c && ['Clean','Dirty','Conditional'].includes(c.ctype)) sfx(c.deck==='AdvAsset'?'playAdvAsset':'playAsset');
       else if(c && (c.deck==='Market'||c.deck==='AdvMarket')) sfx('drawMarket');
       else sfx('select',0.4); break; }
     // TO MARKET door — taking it is the +1 Final Favor play; merely crossing it is not
-    case 'door': sfx('door', ev.took ? 0.75 : 0.45); break;
+    case 'door': { sfx('door', ev.took ? 0.75 : 0.45);
+      const pw=pawns[ev.player]; if(pw) pw.doorTook=!!ev.took; break; }   // the door FLARES when the pawn hops through it (drawDoorFX)
     case 'secImmunity': logLine(`&nbsp;&nbsp;↳ <span class="good">🛡 ${ev.player} uses SEC Immunity — ignores ${ev.card}</span>`); sfx('secImmunity',0.7); break;
     case 'react': logLine(`&nbsp;&nbsp;↳ <span style="color:#f0cf7a">⚡ ${ev.player} reacts: ${ev.card}</span>`); spotlight(ev.card, `${ev.player} reacts`); bark(ev.player,'react',0.7); sfx('makeSel'); break;
     case 'reveal': logLine(`&nbsp;&nbsp;↳ <span style="color:#f0cf7a">🔍 ${ev.by} sees ${ev.target}'s hidden cards</span>`); showReveal(ev); break;
@@ -1875,7 +1911,7 @@ function handleEvent(ev){
     case 'globalsec': logLine(`&nbsp;&nbsp;↳ <span class="sec">GLOBAL SEC ▲ ${ev.value}</span> — ${ev.why||''}`); if(ev.value>=6){ sfx('drawSEC',0.4); duck(0.16,900); sharkySay('bigSec',0.5);} break;
     case 'shadowsec': logLine(`&nbsp;&nbsp;↳ <span class="sh">SHADOW SEC ▲ ${ev.value}</span> — ${ev.why||''}`); sfx('shadow',0.6); duck(0.14,1000); vortexKick=1; break;
     case 'burnout': logLine(`&nbsp;&nbsp;↳ <span class="sec">🔥 BURNOUT — ${ev.player}</span>`); sfx('burnout'); duck(0.12,1300); vortexKick=1; bark(ev.player,'burnout',1); sharkySay('burnout',0.6);
-      { const pw=pawns[ev.player]; if(pw&&!pw.burn&&CAP.at==null&&boardVortex){ pw.burn={start:clock(),k:0,spin:0}; spawnJuiceFlow(14); } }   // suck the pawn into the hole, spit it back out slumped (only boards with a hole; skip in frozen-capture). Non-hole boards just slump the burned pawn in place.
+      { const pw=pawns[ev.player]; if(pw&&!pw.burn&&CAP.at==null&&(boardVortex||boardPlate)){ pw.burn={start:clock(),k:0,spin:0}; spawnJuiceFlow(14); } }   // suck the pawn into the hole, spit it back out slumped (only boards with a hole; skip in frozen-capture). Non-hole boards just slump the burned pawn in place.
       break;
     case 'trustCheck': { const ok=ev.pass; logLine(`&nbsp;&nbsp;↳ <span class="${ok?'good':'sec'}">WHY ASK? Trust Check — rolled ${ev.roll} · ${ok?'PASS ✓':'FAIL ✗ (+1 Risk)'}</span>`);
       sfx(ok?'golden1':'trustFail',ok?0.5:0.7); if(!ok)duck(0.14,900); showBanner(ok?'WHY ASK? — PASS ✓':'WHY ASK? — DENIED'); bark(ev.player,ok?'lounge':'burnout',0.5); break; }
@@ -2264,7 +2300,7 @@ function drawBoard(ts){
     ctx.fillText('x='+HOLE_NORM.x.toFixed(3)+'  y='+HOLE_NORM.y.toFixed(3)+'  r='+HOLE_NORM.r.toFixed(3),12,38); ctx.restore(); }
   if(imploding){
     // the destination hole — grows behind everything to swallow the board, then a white-out at the end
-    drawVortex(cxp, cyp, holeR + BW*(0.18+1.15*imE), now, true);
+    (boardPlate?drawPlateHole:drawVortex)(cxp, cyp, holeR + BW*(0.18+1.15*imE), now, true);
     vortexKick=Math.max(vortexKick,0.6);
     if(imE>0.86){ ctx.save(); ctx.globalCompositeOperation='lighter';
       ctx.fillStyle=`rgba(246,201,120,${(imE-0.86)/0.14*0.5})`; ctx.beginPath();
@@ -2303,9 +2339,10 @@ function drawBoard(ts){
   const holeHot=(boardHints&&boardHints.lounge)||vortexKick>0.05||collapsing;
   // non-hole boards (CORE tower / golden print) have no hole — never draw the vortex, even on collapse
   if(!imploding && boardVortex) drawVortex(cxp, cyp, holeR, now, holeHot);
+  if(!imploding && boardPlate) drawPlateHole(cxp, cyp, holeR, now, holeHot);   // THE PLATES: the engraved hole
   // ---- THE JUICE FLOWS — live motes spiral INTO the event horizon (the hole eats the juice) ----
   if(boardLive) drawJuiceFlow(cxp, cyp, holeR, now, holeHot);
-  if(boardLive && !imploding) drawJuiceText(cxp, cyp, holeR, now);
+  if(boardLive && !imploding && !boardPlate) drawJuiceText(cxp, cyp, holeR, now);
 
   // ---- $90M GOLDEN PRINT board: faithful "living gold" energy breath (no spinning vortex) ----
   drawGoldenBreath(now);
@@ -2316,11 +2353,12 @@ function drawBoard(ts){
   // ---- GOLDEN STAIRCASE / LOUNGE-ENTRANCE emblems + the SPIRAL LIFT teleport flourish ----
   drawStaircaseEmblems(now);
   drawLiftFX(now);
+  drawDoorFX(now);
 
   // ---- selection halos: reachable spaces glow on the painted tiles ----
   if(boardHints&&boardHints.spaces&&boardHints.spaces.size){
     let k=0; boardHints.spaces.forEach(i=>{ const n=nodeXY(i); const t=TILE_NORM[i]||TILE_NORM[0];
-      drawHalo(n.x,n.y,BW*0.066*perspAt(t.y),DECK_GLOW[DECK_BY_IDX(i)]||'#f0cf7a',now,i===boardHints.cursor?1:0.6,k++); });
+      if(!boardPlate) drawHalo(n.x,n.y,BW*0.066*perspAt(t.y),DECK_GLOW[DECK_BY_IDX(i)]||'#f0cf7a',now,i===boardHints.cursor?1:0.6,k++); });
   }
   // landing pulses (expanding rings where a pawn just touched down)
   for(const lp of landPulses){ const n=nodeXY(lp.i), pr=(1-lp.t)*BW*0.085;
@@ -2387,6 +2425,7 @@ function drawBoard(ts){
       const nx=pw.queue.shift(), xy=nodeXY(nx);
       pw.tx=xy.x; pw.ty=xy.y; pw.hop=1; pw.sqv-=0.34;   // take-off: a quick stretch up
       if(typeof nx==='number'){ landPulses.push({i:nx,t:1}); spawnSparks(xy.x,xy.y,pw.queue.length?8:16); }
+      if(DOORS.has(nx) && CAP.at==null){ doorFX={x:xy.x,y:xy.y,start:clock(),took:!!pw.doorTook}; pw.doorTook=false; }
       sfx('move',0.32);
     } else if(!pw.burn && dist<1.2 && (!pw.queue||!pw.queue.length)) pw.hop=0;
     // SQUASH & STRETCH spring (render-only bounce): touchdown squats the pawn, then it springs back with
@@ -2432,8 +2471,10 @@ function drawBoard(ts){
       ctx.beginPath(); ctx.arc(px,py,baseSc*(0.7+0.45*bk),0,7); ctx.fill(); ctx.restore();
     }
     if(!pw.burn && !pw.lift){
-      if(boardHints&&boardHints.pawns&&boardHints.pawns.has(p.name)) drawHalo(px,py+sc*0.6,sc*1.6,'#ff9a3a',now,1,0);
-      else if(game&&game.activePlayer===p) drawHalo(px,py+sc*0.6,sc*1.35,'#f0cf7a',now,0.7,0);
+      // SELECTED LOOK (Joe 2026-10-13: "halos still really fat"): a slim ring at the pawn's feet, not a
+      // glowing disc — orange = a pawn you can target, gold = whose turn it is.
+      if(boardHints&&boardHints.pawns&&boardHints.pawns.has(p.name)) drawFootRing(px,py+sc*0.95,sc,'#ff9a3a',now,1);
+      else if(game&&game.activePlayer===p) drawFootRing(px,py+sc*0.95,sc,'#f0cf7a',now,0.75);
     }
     // SPIRAL LIFT dissolve: as liftA drops the rider is swallowed by gold light (additive engulf glow
     // swells as the pawn fades), then the same in reverse as it rematerialises on the Lounge platform.
@@ -2565,15 +2606,25 @@ function drawDieFX(now, cxp, cyp, holeR, r, BW){
   ctx.restore();
 }
 // pulsing selection halo (ground-glow ellipse) — color + intensity tunable; phase staggers multi-halos
+// a thin ring on the floor around a pawn's base + one faint ripple easing outward (render-only)
+function drawFootRing(x,y,sc,color,now,k){
+  const p=0.5+0.5*Math.sin(now/420), rx=sc*0.92, ry=sc*0.30;
+  ctx.save(); ctx.globalCompositeOperation='lighter';
+  ctx.lineWidth=Math.max(1,sc*0.055); ctx.strokeStyle=hexA(color,(0.45+0.3*p)*k);
+  ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,7); ctx.stroke();
+  const f=(now/1700)%1; ctx.lineWidth=Math.max(0.8,sc*0.03); ctx.strokeStyle=hexA(color,0.28*(1-f)*k);
+  ctx.beginPath(); ctx.ellipse(x,y,rx*(1+0.45*f),ry*(1+0.45*f),0,0,7); ctx.stroke();
+  ctx.restore();
+}
 function drawHalo(x,y,r,color,now,intensity,phase){
   const p=0.5+0.5*Math.sin(now/300+(phase||0)*0.5);
   ctx.save();ctx.globalCompositeOperation='lighter';
   const g=ctx.createRadialGradient(x,y,r*0.2,x,y,r*(0.9+0.2*p));
-  g.addColorStop(0,hexA(color,(0.30+0.25*p)*intensity));
-  g.addColorStop(0.6,hexA(color,(0.14+0.12*p)*intensity));
+  g.addColorStop(0,hexA(color,(0.10+0.08*p)*intensity));
+  g.addColorStop(0.6,hexA(color,(0.05+0.04*p)*intensity));
   g.addColorStop(1,hexA(color,0));
   ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(x,y,r*(0.9+0.2*p),r*0.62*(0.9+0.2*p),0,0,7);ctx.fill();
-  ctx.lineWidth=Math.max(1.5,r*0.05);ctx.strokeStyle=hexA(color,(0.5+0.4*p)*intensity);
+  ctx.lineWidth=Math.max(1,r*0.025);ctx.strokeStyle=hexA(color,(0.45+0.35*p)*intensity);
   ctx.beginPath();ctx.ellipse(x,y,r*0.78,r*0.50,0,0,7);ctx.stroke();
   ctx.restore();
 }
@@ -2603,18 +2654,23 @@ function drawStaircaseEmblems(now){
     const p=nodeXY(idx), sc=BW*0.05*perspAt(t.y);
     // the SPIRAL LIFT pad (Joe's painted teleporter disc) sits ON the staircase tile, glowing — so the
     // Golden Staircase reads as the physical Lounge entrance. Additive blit = it lights up the board.
-    if(liftPad){ const pw0=BW*0.12*perspAt(t.y), ph0=pw0*liftPad.height/liftPad.width;
+    // THE PLATES: the pad sits small at the foot of the engraved space and stays QUIET (a faint ember)
+    // until the Lounge is actually in reach this move — then it wakes, full glow + the rising chevrons.
+    const ready=!boardPlate || !!(boardHints&&boardHints.lounge) || !!liftFX;
+    if(liftPad){ const pw0=BW*(boardPlate?0.085:0.12)*perspAt(t.y), ph0=pw0*liftPad.height/liftPad.width;
+      const py0=boardPlate? p.y+plateTileWH(BW).h*0.50-ph0*0.55 : p.y-ph0*0.62;
       ctx.save(); ctx.globalCompositeOperation='lighter';
-      ctx.globalAlpha=0.55+0.35*pulse;
-      ctx.drawImage(liftPad, p.x-pw0/2, p.y-ph0*0.62, pw0, ph0);
+      ctx.globalAlpha=ready?0.55+0.35*pulse:0.16+0.06*pulse;
+      ctx.drawImage(liftPad, p.x-pw0/2, py0, pw0, ph0);
       // idle "elevator waiting" cue: gold UP-chevrons drift off the pad and fade as they rise — the
       // lift is CALLED here, and up is where it goes. Skipped while the beam itself is running.
-      if(!liftFX){ const cw=BW*0.018*perspAt(t.y);
+      if(!liftFX && ready){ const cw=BW*0.018*perspAt(t.y);
         ctx.lineCap='round'; ctx.lineJoin='round'; ctx.lineWidth=Math.max(1.2,cw*0.28);
         for(let ci=0;ci<2;ci++){ const ph=((now/1500)+ci*0.5)%1, cy2=p.y-ph*BW*0.085-cw*0.6;
           ctx.strokeStyle=`rgba(255,222,140,${(1-ph)*(0.5+0.3*pulse)})`;
           ctx.beginPath(); ctx.moveTo(p.x-cw,cy2+cw*0.62); ctx.lineTo(p.x,cy2); ctx.lineTo(p.x+cw,cy2+cw*0.62); ctx.stroke(); } }
       ctx.restore(); }
+    if(boardPlate) continue;   // THE PLATES engrave "LOUNGE" + chevrons into the space itself
     // a GOLD PIN floats above the staircase tile with a pointer down to it: stair icon + "TO EXECUTIVE
     // LOUNGE". Clamped horizontally so it never spills off the board onto the SEC-meter HUD.
     const fs=Math.max(9,sc*0.42);
@@ -2653,11 +2709,126 @@ function drawStaircaseEmblems(now){
 // rail, the DOOR (space 4) as a bright keystone arch, and a quiet gold bead-trail linking the spaces so
 // the eye follows the serpentine climb START→0→…→11→0. Static furniture, render-only, under halos+pawns.
 const SPACE_MARK_KEY={MARKET:'Market',ASSET:'Asset',SEC:'SEC'};
+/* ===== THE PLATES — engraved board furniture (render-only) =====
+   Everything is cut in three passes so it reads as part of the plate, not stuck on top of it:
+   gem plates = a GOLD INLAY (dark shadow under, light ink); metal plates = a DEBOSS (dark ink with a
+   light catch along the lower edge). Minimal on purpose — the pawns are the stars. */
+function engrOff(){ return Math.max(1, boardRect().bw*0.0016); }
+function engrImg(img,x,y,w,h,a){ const e=PLATE_ENG; if(!img||!e) return; const d=engrOff();
+  const ink=silhouette(img,e.ink), lo=silhouette(img,e.deboss?e.hi:e.sh); if(!ink||!lo) return;
+  ctx.save(); ctx.globalAlpha=(a==null?1:a)*(e.deboss?0.55:0.75); ctx.drawImage(lo.cv,x+d,y+d,w,h);
+  ctx.globalAlpha=(a==null?1:a)*(e.deboss?0.85:0.95); ctx.drawImage(ink.cv,x,y,w,h); ctx.restore(); }
+function engrText(txt,x,y,fs,a,weight){ const e=PLATE_ENG; if(!e) return; const d=engrOff();
+  ctx.save(); ctx.font=`${weight||700} ${fs}px Cinzel, Georgia, serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.globalAlpha=(a==null?1:a)*(e.deboss?0.55:0.75); ctx.fillStyle=e.deboss?e.hi:e.sh; ctx.fillText(txt,x+d,y+d);
+  ctx.globalAlpha=(a==null?1:a)*(e.deboss?0.85:0.95); ctx.fillStyle=e.ink; ctx.fillText(txt,x,y); ctx.restore(); }
+function engrPath(path,lw,a){ const e=PLATE_ENG; if(!e) return; const d=engrOff();
+  ctx.save(); ctx.lineWidth=lw; ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.translate(d,d); path(); ctx.globalAlpha=(a==null?1:a)*(e.deboss?0.55:0.7); ctx.strokeStyle=e.deboss?e.hi:e.sh; ctx.stroke();
+  ctx.translate(-d,-d); path(); ctx.globalAlpha=(a==null?1:a)*(e.deboss?0.8:0.9); ctx.strokeStyle=e.ink; ctx.stroke(); ctx.restore(); }
+const PLATE_GLYPH={MARKET:'market',ASSET:'asset',SEC:'sec'};
+// the size of one engraved space plaque (pawns stand in the middle of it)
+function plateTileWH(BW){ return {w:BW*0.150, h:BW*0.128}; }
+function drawPlateSpaces(now, r, BW){
+  const e=PLATE_ENG; if(!e) return;
+  const N=TILE_NORM.length, {w,h}=plateTileWH(BW);
+  // ---- the track: a fine engraved dotted line space→space (+ START→0), chevron mid-link = direction ----
+  const link=(A,B,trimA,trimB)=>{ const dx=B.x-A.x, dy=B.y-A.y, d=Math.hypot(dx,dy); if(d<1) return;
+    const ux=dx/d, uy=dy/d, run=d-trimA-trimB; if(run<BW*0.01) return;
+    const n=Math.max(2,Math.round(run/(BW*0.018)));
+    for(let k=0;k<=n;k++){ const s=trimA+run*k/n, x=A.x+ux*s, y=A.y+uy*s, rr=BW*0.0042;
+      engrPath(()=>{ ctx.beginPath(); ctx.arc(x,y,rr,0,7); }, Math.max(1,BW*0.0018), 0.8); }
+    const mx=A.x+ux*(trimA+run/2), my=A.y+uy*(trimA+run/2), cs=BW*0.011;
+    engrPath(()=>{ ctx.beginPath(); const px=-uy, py=ux;
+      ctx.moveTo(mx-ux*cs+px*cs*0.8, my-uy*cs+py*cs*0.8); ctx.lineTo(mx+ux*cs*0.4, my+uy*cs*0.4);
+      ctx.lineTo(mx-ux*cs-px*cs*0.8, my-uy*cs-py*cs*0.8); }, Math.max(1.2,BW*0.0035), 0.95); };
+  const half=(A,B)=>{ const dx=Math.abs(B.x-A.x), dy=Math.abs(B.y-A.y); return dx>dy? w*0.56 : h*0.56; };
+  { const S0=nodeXY('START'), T0=nodeXY(0); link(S0,T0,BW*0.135,half(S0,T0)); }
+  for(let i=0;i<N;i++){ const A=nodeXY(i), B=nodeXY((i+1)%N); link(A,B,half(A,B),half(A,B)); }
+
+  // ---- the twelve spaces ----
+  for(let i=0;i<N;i++){
+    const p=nodeXY(i), deck=DECK_BY_IDX(i), door=deck==='DOOR';
+    const hot=boardHints&&boardHints.spaces&&boardHints.spaces.has(i);
+    const x0=p.x-w/2, y0=p.y-h/2, cr=h*0.16;
+    // a soft well so the pawn has somewhere to stand (deeper on the gems, a whisper on the metals)
+    ctx.save(); ctx.fillStyle=`rgba(0,0,0,${e.well})`; rr(x0,y0,w,h,cr); ctx.fill(); ctx.restore();
+    if(hot){ ctx.save(); ctx.globalCompositeOperation=e.deboss?'source-over':'lighter';
+      ctx.fillStyle=hexA(e.deboss?e.hi:e.ink, e.deboss?0.30:0.10+0.05*Math.sin(now/300)); rr(x0,y0,w,h,cr); ctx.fill(); ctx.restore(); }
+    // double engraved border
+    engrPath(()=>rr(x0,y0,w,h,cr), Math.max(1.2,BW*0.0032));
+    const ins=BW*0.0065; engrPath(()=>rr(x0+ins,y0+ins,w-2*ins,h-2*ins,cr*0.7), Math.max(1,BW*0.0014), 0.6);
+    if(door){
+      const s=h*0.62; engrImg(plateSpr.door, p.x-s/2, y0+h*0.07, s, s);
+      engrText('TO MARKET', p.x, y0+h-h*0.15, Math.max(7,BW*0.0175), 1, 800);
+    }else{
+      const s=h*0.50; engrImg(plateSpr[PLATE_GLYPH[deck]], p.x-s/2, y0+h*0.10, s, s);
+      engrText(deck, p.x, y0+h-h*0.15, Math.max(7,BW*0.0175), 1, 800);
+    }
+    // the space number, engraved small in the top-left corner
+    engrText(String(i), x0+w*0.11, y0+h*0.17, Math.max(7,BW*0.0165), 0.9, 800);
+    // the two Lounge entrances: a double chevron + LOUNGE engraved top-right (the lounge is up)
+    if(LOUNGE_EXIT_TILES.includes(i)){ const cs=h*0.24;
+      engrImg(plateSpr.up, x0+w-cs-w*0.05, y0+h*0.05, cs, cs, 0.95); }
+  }
+
+  // ---- THE EXECUTIVE LOUNGE (top-left corner) — the arched door the winners walk through ----
+  { const c=nodeXY('LOUNGE'), s=BW*0.155, hot=!!(boardHints&&boardHints.lounge);
+    if(hot){ const pz=0.5+0.5*Math.sin(now/260); ctx.save(); ctx.globalCompositeOperation=e.deboss?'source-over':'lighter';
+      const g=ctx.createRadialGradient(c.x,c.y-s*0.2,s*0.05,c.x,c.y-s*0.2,s*0.75);
+      g.addColorStop(0,hexA(e.deboss?e.hi:e.ink,0.20+0.12*pz)); g.addColorStop(1,hexA(e.deboss?e.hi:e.ink,0));
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(c.x,c.y-s*0.2,s*0.75,0,7); ctx.fill(); ctx.restore(); }
+    engrImg(plateSpr.lounge, c.x-s/2, c.y-s*0.80, s, s);
+    const lf=Math.max(7,BW*0.0150);
+    engrText('EXECUTIVE', c.x, c.y+s*0.30, lf, 1, 800); engrText('LOUNGE', c.x, c.y+s*0.30+lf*1.15, lf, 1, 800); }
+}
+// the engraved deck piles along the bottom — the pile a card is drawn from lifts + brightens
+function drawPlateDecks(now){
+  const e=PLATE_ENG; if(!e) return; const r=boardRect(), BW=r.bw;
+  const KEY={ASSET:'Asset',MARKET:'Market',SEC:'SEC'};
+  for(const k of ['ASSET','MARKET','SEC']){ const d=DECK_NORM[k]; if(!d) continue;
+    const drawing=drawAnim&&drawAnim.deck===KEY[k], t=drawing?Math.min(1,(now-drawAnim.start)/520):0;
+    const lift=drawing?-Math.sin(t*Math.PI)*BW*0.012:0;
+    const x=r.bx+r.bw*d.x, y=r.by+r.bh*d.y+lift, cw=BW*0.078, ch=BW*0.108, cr=cw*0.10;
+    ctx.save(); ctx.fillStyle=`rgba(0,0,0,${e.well*0.8})`; rr(x-cw/2,y-ch/2,cw,ch,cr); ctx.fill(); ctx.restore();
+    if(drawing){ ctx.save(); ctx.globalCompositeOperation=e.deboss?'source-over':'lighter';
+      ctx.fillStyle=hexA(e.deboss?e.hi:e.ink,0.25*(1-t)+0.08); rr(x-cw/2,y-ch/2,cw,ch,cr); ctx.fill(); ctx.restore(); }
+    // two offset outlines = a little stack of cards
+    engrPath(()=>rr(x-cw/2+BW*0.004,y-ch/2-BW*0.004,cw,ch,cr), Math.max(1,BW*0.0016), 0.55);
+    engrPath(()=>rr(x-cw/2,y-ch/2,cw,ch,cr), Math.max(1.2,BW*0.003));
+    const s=cw*0.62; engrImg(plateSpr[PLATE_GLYPH[k]], x-s/2, y-ch*0.30, s, s);
+    engrText(k, x, y+ch*0.32, Math.max(6,BW*0.0135), 1, 800); }
+}
+// the BLACK HOLE engraved into the plate: a soft black well, the engraved spiral turning slowly (faster
+// when the Lounge is in reach / on a kick), layers of black down to a pure-black core, a thin rim that
+// brightens when hot, and one ring breathing outward. Straight-down view — true circles, no iso squash.
+function drawPlateHole(cx,cy,R,now,hot){
+  const e=PLATE_ENG; if(!e) return;
+  ctx.save();
+  const well=ctx.createRadialGradient(cx,cy,R*0.3,cx,cy,R*1.12);
+  well.addColorStop(0,`rgba(0,0,0,${e.deboss?0.55:0.65})`); well.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=well; ctx.beginPath(); ctx.arc(cx,cy,R*1.12,0,7); ctx.fill();
+  if(plateSpr.hole){ const spin=-now*(hot?0.00042:0.00012)*(1+vortexKick*2);
+    const ink=silhouette(plateSpr.hole, e.deboss?e.hi:e.ink);
+    if(ink){ ctx.save(); ctx.translate(cx,cy); ctx.rotate(spin);
+      ctx.globalAlpha=(hot?0.95:0.75)+0.05*Math.sin(now/1300); ctx.drawImage(ink.cv,-R,-R,R*2,R*2); ctx.restore(); } }
+  for(let k=6;k>=1;k--){ ctx.beginPath(); ctx.arc(cx,cy,R*0.46*(k/6),0,7); ctx.fillStyle=`rgba(0,0,0,${0.22+0.13*(6-k)})`; ctx.fill(); }
+  ctx.beginPath(); ctx.arc(cx,cy,R*0.30,0,7); ctx.fillStyle='#000'; ctx.fill();
+  const rimA=hot?0.55+0.35*Math.sin(now/120):0.30;
+  ctx.globalCompositeOperation=e.deboss?'source-over':'lighter';
+  ctx.strokeStyle=hexA(e.deboss?e.hi:e.ink,rimA); ctx.lineWidth=Math.max(1,R*0.012);
+  ctx.beginPath(); ctx.arc(cx,cy,R*0.47,0,7); ctx.stroke();
+  const fl=(now/2600)%1; ctx.globalAlpha=(1-fl)*(hot?0.45:0.22);
+  ctx.beginPath(); ctx.arc(cx,cy,R*(0.48+fl*0.55),0,7); ctx.lineWidth=Math.max(1,R*0.008); ctx.stroke();
+  ctx.restore();
+}
 function drawSpaces(now){
   if(!game || imploding || collapseMorph>0.25) return;   // hide during the collapse finale
   if(!boardNeedsEmblems) return;                          // print boards already paint their spaces
   const r=boardRect(), BW=r.bw, N=TILE_NORM.length, mono=boardMono;
   const tone=hex=>mono?'#c9d2e0':hex;                     // BLUEPRINT board: silver instead of gold
+  if(boardPlate) drawPlateSpaces(now, r, BW);   // THE PLATES: engraved spaces (below), same ladder marker
+  else {
 
   // ---- serpentine guide path: a faint gold bead-trail between consecutive spaces (+ START→0) ----
   ctx.save(); ctx.globalCompositeOperation='lighter';
@@ -2854,13 +3025,14 @@ function drawSpaces(now){
     ctx.restore();
   }
 
+  }   // (end hole-board spaces)
   // ---- LIVE marker on the painted SEC GLOBAL RISK ladder (top-right of the art): the current
   // Global SEC value lights its painted cell 0-8 (thermometer wash up to it + pointer chevron);
   // runs ember-hot from 6 up — "COLLAPSE TRIGGERS AT 8". Shadow SEC (expansion) = violet tick.
   {
     // the color-family hole boards all paint the ladder in the same spot; the BLUEPRINT bw art
     // paints it slightly higher/tighter (and skips some cells — the wash fills those gaps in).
-    const LAD=mono?{cx:0.9705,y0:0.1306,step:0.0206,w:0.030}:{cx:0.9761,y0:0.1213,step:0.0235,w:0.031};
+    const LAD=boardLadder||(mono?{cx:0.9705,y0:0.1306,step:0.0206,w:0.030}:{cx:0.9761,y0:0.1213,step:0.0235,w:0.031});
     const val=Math.max(0,Math.min(8,game.global_sec|0));
     const hot=val>=6, pz=0.5+0.5*Math.sin(now/300);
     const cw=LAD.w*r.bw, chh=LAD.step*r.bh*0.92;
@@ -2886,6 +3058,29 @@ function drawSpaces(now){
 // beam materialises where it stood (lift1 bare pads -> lift5 full spiral) and rides up + fades as the
 // pawn tweens to the Lounge platform. Additive blit = pure gold light over the board. Render-only.
 let liftFX=null;   // {x,y,start} set in handleEvent('enter_lounge')
+// TO MARKET DOOR flare — set when a pawn's hop reaches the door space. The doorway breathes light
+// open as it passes through; TAKING it (1 Juice → +1 Final Favor) floats the trade off the door.
+let doorFX=null;
+function drawDoorFX(now){
+  if(!doorFX) return; const k=(now-doorFX.start)/1100; if(k>=1){ doorFX=null; return; }
+  const r=boardRect(), BW=r.bw, {x,y}=doorFX, e=boardPlate&&PLATE_ENG;
+  const col=e?(e.deboss?e.hi:e.ink):'#ffe2a0', open=Math.sin(Math.min(1,k*1.6)*Math.PI/2), fade=1-k;
+  ctx.save(); ctx.globalCompositeOperation='lighter';
+  const g=ctx.createRadialGradient(x,y-BW*0.02,BW*0.004,x,y-BW*0.02,BW*0.09*(0.6+0.6*open));
+  g.addColorStop(0,hexA(col,0.55*fade)); g.addColorStop(1,hexA(col,0));
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y-BW*0.02,BW*0.09*(0.6+0.6*open),0,7); ctx.fill();
+  // a thin arch outline swelling out of the doorway
+  const aw=BW*(0.05+0.05*k), ah=aw*1.25; ctx.strokeStyle=hexA(col,0.7*fade); ctx.lineWidth=Math.max(1,BW*0.0025);
+  ctx.beginPath(); ctx.moveTo(x-aw/2,y+ah*0.35); ctx.lineTo(x-aw/2,y-ah*0.15); ctx.arc(x,y-ah*0.15,aw/2,Math.PI,0); ctx.lineTo(x+aw/2,y+ah*0.35); ctx.stroke();
+  ctx.restore();
+  if(doorFX.took){ const rise=BW*0.06*Math.min(1,k*1.4), a=k<0.7?1:1-(k-0.7)/0.3, fs=Math.max(9,BW*0.022);
+    ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.globalAlpha=Math.max(0,a);
+    ctx.font=`800 ${fs}px Cinzel, Georgia, serif`; ctx.lineWidth=fs*0.18; ctx.strokeStyle='rgba(12,8,3,0.85)';
+    ctx.strokeText('+1 FINAL FAVOR',x,y-BW*0.07-rise); ctx.fillStyle='#ffe6a8'; ctx.fillText('+1 FINAL FAVOR',x,y-BW*0.07-rise);
+    ctx.font=`800 ${fs*0.8}px Cinzel, Georgia, serif`;
+    ctx.strokeText('−1 JUICE',x,y-BW*0.07-rise+fs*1.2); ctx.fillStyle='#f3a02e'; ctx.fillText('−1 JUICE',x,y-BW*0.07-rise+fs*1.2);
+    ctx.restore(); }
+}
 // the ride's shared clock — the beam (drawLiftFX) and the rider (pw.lift in the pawn update) keep
 // in step off these: CHARGE = beam materialises (pawn holds, trembling) · ASCEND = ride up, rider
 // dissolves into the light · SETTLE = spent beam discharges while the rider lands at the Lounge.
@@ -2917,6 +3112,7 @@ function drawCoinFX(now){
 const DECK_KEYMAP=[['Asset','ASSET'],['Market','MARKET'],['SEC','SEC']];
 function drawDeckMarkers(now){
   if(!game || imploding || collapseMorph>0.25 || !boardNeedsEmblems || !DECK_NORM) return;
+  if(boardPlate){ drawPlateDecks(now); return; }
   const r=boardRect(), BW=r.bw;
   for(const [k,uk] of DECK_KEYMAP){ const d=DECK_NORM[uk]||DECK_NORM[k], img=deckMarks[k]; if(!d||!img) continue;
     const x=r.bx+r.bw*d.x, y=r.by+r.bh*d.y;
@@ -3126,11 +3322,12 @@ function drawVortex(cx,cy,R,now,hint){
 // THE JUICE FLOWS — gold (or silver, on the BLUEPRINT) motes stream in from the rim and spiral down
 // into the event horizon, where the hole consumes them. Ambient on the live boards; surges on big hits.
 function drawJuiceFlow(cx,cy,R,now,hot){
-  const mono=boardMono, ry=R*0.60;
+  const mono=boardMono, ry=boardPlate?R:R*0.60;   // the plates are seen straight down — a true circle
   // ambient feed (more when the hole is hot), capped so it never floods the frame
   // ambient spawn is per-frame (variable frame count) — suppress in capture mode so shots are deterministic
   const want=hot?5:2; if(CAP.at==null && juiceMotes.length<170){ spawnJuiceFlow(Math.random()<(hot?1:0.7)?want:0); }
-  ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.lineCap='round';
+  const pe=boardPlate&&PLATE_ENG;
+  ctx.save(); ctx.globalCompositeOperation=(pe&&pe.deboss)?'source-over':'lighter'; ctx.lineCap='round';
   for(const m of juiceMotes){
     m.life+=1; m.ang+=m.spin*0.045*(1+(1-m.rad)*1.6);   // angular speed ramps as it nears the core
     m.rad-=m.vr*(1+vortexKick*1.2);                       // pulled inward (faster during a vortex kick)
@@ -3138,8 +3335,8 @@ function drawJuiceFlow(cx,cy,R,now,hot){
     const x=cx+Math.cos(m.ang)*R*m.rad, y=cy+Math.sin(m.ang)*ry*m.rad;
     const pr=m.rad+m.vr*m.len*6, pa=m.ang-m.spin*0.06;     // a lagged point → comet streak (the in-fall trail)
     const x2=cx+Math.cos(pa)*R*pr, y2=cy+Math.sin(pa)*ry*pr;
-    ctx.strokeStyle=mono?`rgba(228,234,248,${0.55*a})`:`rgba(${246},${190+30*a|0},${90+40*a|0},${0.6*a})`;
-    ctx.lineWidth=R*0.012*m.sz*a+0.4;
+    ctx.strokeStyle=pe?hexA(pe.mote,0.55*a):mono?`rgba(228,234,248,${0.55*a})`:`rgba(${246},${190+30*a|0},${90+40*a|0},${0.6*a})`;
+    ctx.lineWidth=R*(pe?0.008:0.012)*m.sz*a+0.4;
     ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x2,y2);ctx.stroke();
   }
   ctx.restore();
@@ -3172,17 +3369,16 @@ function drawPawn(ctx,x,y,sc,color,active,burned,anim){
     // ACTIVE-PLAYER HALO: a gold copy of the pawn's OWN silhouette, blurred + pulsing behind it (a real
     // shaped glow, not a generic disc). Additive so it lights up on the dark board.
     if(active){ const sg=silhouette(img,'#f0cf7a');
-      if(sg){ const pz=0.6+0.4*Math.sin(clock()/300), e=sc*0.14;
+      if(sg){ const pz=0.6+0.4*Math.sin(clock()/300), e=sc*0.05;
         ctx.save(); ctx.translate(x,baseY); if(anim.lean)ctx.rotate(anim.lean); ctx.scale(anim.sx||1,anim.sy||1);
-        ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=0.30*pz; ctx.filter='blur('+Math.max(1,sc*0.16)+'px)';
+        ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=0.22*pz; ctx.filter='blur('+Math.max(1,sc*0.07)+'px)';
         ctx.drawImage(sg.cv,-w/2-e,-h-e,w+2*e,h+2*e); ctx.restore(); } }
     ctx.save(); ctx.translate(x,baseY); if(anim.lean)ctx.rotate(anim.lean); ctx.scale(anim.sx||1,anim.sy||1);
-    if(active){ctx.shadowColor='rgba(240,207,122,.9)';ctx.shadowBlur=sc*0.6;} ctx.drawImage(img,-w/2,-h,w,h); ctx.restore(); };
+    if(active){ctx.shadowColor='rgba(240,207,122,.6)';ctx.shadowBlur=sc*0.22;} ctx.drawImage(img,-w/2,-h,w,h); ctx.restore(); };
   ctx.save();
   // shadow (squashes wider when the pawn squats; no lean so it stays grounded)
   ctx.beginPath();ctx.ellipse(x,baseY,sc*0.7*(anim.sx||1),sc*0.22,0,0,7);ctx.fillStyle='rgba(0,0,0,.4)';ctx.fill();
-  if(active){ctx.beginPath();ctx.arc(x,y,sc*1.5,0,7);ctx.fillStyle='rgba(240,207,122,.22)';ctx.fill();}
-  // Joe's PRE-COLOURED pawn sprites — ALL SIX characters are painted now; drawn as-is.
+    // Joe's PRE-COLOURED pawn sprites — ALL SIX characters are painted now; drawn as-is.
   // (tintPawn below is only still reached for BURNED pawns, which grey out BW PAWN.png.)
   const cp=(!burned)&&colorPawns[color];
   if(cp){
@@ -3350,6 +3546,7 @@ if(location.hash.indexOf('overtest')>=0){
 // the LOUNGE (the only spaces that legally stack) must fan without overlapping.
 if(location.hash.indexOf('pawntest')>=0){
   window.addEventListener('load',()=>setTimeout(async ()=>{
+    { const bm=location.hash.match(/board=([a-z0-9-]+)/i); if(bm) setBoard(bm[1]); }   // optional #pawntest&board=plate-gold
     S.count=6;S.expansion=true;buildSetup();dealChars(); S.seats=dealt.map(()=>false);
     startGame();
     const P=game.players;
