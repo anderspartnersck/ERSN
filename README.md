@@ -50,7 +50,7 @@ sprite doesn't error — it just silently fails to draw.
 
 ## Credits
 
-Created by **Joseph Coleman**, with Claude and ChatGPT.
+Created by **Joseph Coleman**, with Claude, ChatGPT, and Blender.
 Anders & Partners.
 
 <sub>Generated from the private Castle Killscreen tree. Edit there, not here.</sub>
