@@ -1869,7 +1869,7 @@ function handleEvent(ev){
     case 'turn_start': barkBudget=2; checkTails(ev.player); bark(ev.player,'turn',0.3); break;
     case 'roll': { rollDieAnim(ev.roll); dieFX={value:ev.roll,start:clock()}; logLine(`<span class="t">T${ev.turn}</span> ${ev.player} rolls a ${ev.roll}`); sfx('roll');
       if(ev.roll>=5) bark(ev.player,'highRoll',0.5); else if(ev.roll<=2) bark(ev.player,'lowRoll',0.5);
-      const rp=game.players.find(x=>x.name===ev.player); if(rp&&rp.isHuman) setTimeout(()=>maybeSharkyHelp(rp),650); break; }   // Sharky coaches the human on their turn
+      const rp=game.players.find(x=>x.name===ev.player); if(rp) movementTaxes.set(rp,!!rp._junk_tax_pending); if(rp&&rp.isHuman) setTimeout(()=>maybeSharkyHelp(rp),650); break; }   // Sharky coaches the human on their turn
     case 'move': { const pp=game.players.find(x=>x.name===ev.player); const pw=pp&&pawns[pp.name];
       if(pw){ // enqueue each ring space between the pawn's last spot and where it landed → step-by-step hop
         const to=pp.pos;
@@ -2083,19 +2083,53 @@ function openPrompt(title,sub,opts,resolve){
 }
 function closePrompt(){ const el=$('#prompt'); if(el){ el.classList.remove('on'); el.classList.remove('react'); } boardHints=null; promptResolve=null; promptKind=null; cv.style.cursor=''; }
 
-// translate a human decision into board halos: which spaces/pawns/lounge light up + where the cursor sits
+// Pure UI forecast of take_turn's movement, before drawing/landing effects.
+// A paid TO MARKET door can consume the Juice needed for a later step. Keep
+// both choices: a destination is clickable only if both choices land there.
+const movementTaxes=new WeakMap();
+function stepDestinations(p,want,players,taxed){
+  const N=LOOP_N_UI, wu=p.abilityName==='Wu Drainer';
+  if(wu&&want===0) want=1;
+  const dir=want<0?-1:1, count=Math.abs(want);
+  let states=[{pos:typeof p.pos==='number'?p.pos:0,juice:p.juice,steps:0,stopped:false}];
+  for(let k=0;k<count;k++){
+    const next=[];
+    for(const s of states){
+      const free=wu&&s.juice<1&&s.steps===0;
+      if(s.stopped||(s.juice<1&&!free)){ next.push({...s,stopped:true}); continue; }
+      const pos=((s.pos+dir)%N+N)%N;
+      if(!wu&&players.some(q=>q!==p&&q.alive&&typeof q.pos==='number'&&q.pos===pos)){
+        next.push({...s,stopped:true}); continue;
+      }
+      const juice=s.juice-(free?0:taxed?2:1), steps=s.steps+1;
+      if(DOORS.has(pos)){
+        const to=((pos+dir)%N+N)%N;
+        next.push({pos:to,juice,steps,stopped:false});
+        if(dir>0&&juice>=1) next.push({pos:to,juice:juice-1,steps,stopped:false});
+      } else next.push({pos,juice,steps,stopped:false});
+    }
+    states=next;
+  }
+  return new Set(states.map(s=>s.pos));
+}
+// Translate human decisions into halos; advertised destinations must match
+// the current engine for every optional door choice, including blocked paths.
 function computeHints(req,p){
   const h={spaces:new Set(), pawns:new Set(), lounge:false, cursor:null};
   if(!p) return h;
   switch(req.kind){
-    case 'steps':{ const N=LOOP_N_UI, max=Math.min(Math.max(0,p.juice),N-1);
-      const base=(typeof p.pos==='number')?p.pos:-1; h.stepMap={};
-      for(let n=1;n<=max;n++){ const s=((base+n)%N+N)%N; if(!DOORS.has(s)){ h.spaces.add(s); if(h.stepMap[s]===undefined)h.stepMap[s]=n; } }   // forward
-      for(let n=1;n<=max;n++){ const s=((base-n)%N+N)%N; if(!DOORS.has(s)){ h.spaces.add(s); if(h.stepMap[s]===undefined)h.stepMap[s]=-n; } }   // BACKWARD (negative)
-      if(typeof base==='number'&&base>=0) h.stepMap[base]=0;   // click your own space = stay put
-      if(max>0){ let c=((base+max)%N+N)%N; if(DOORS.has(c)) c=((c+1)%N); h.cursor=c; } break; }
-    case 'door':{ const N=LOOP_N_UI, cur=(typeof p.pos==='number')?p.pos:0;
-      h.spaces.add((cur+1)%N); h.cursor=(cur+1)%N; break; }
+    case 'steps':{
+      const max=Math.max(p.abilityName==='Wu Drainer'?1:0,Math.min(Math.max(0,Math.floor(p.juice)),LOOP_N_UI-1));
+      const players=game?game.players:[p], taxed=!!movementTaxes.get(p); h.stepMap={};
+      for(const want of [0,...Array.from({length:max},(_,i)=>i+1),...Array.from({length:max},(_,i)=>-i-1)]){
+        const ends=stepDestinations(p,want,players,taxed);
+        if(ends.size!==1) continue;   // use the step buttons when a door toll changes the landing
+        const pos=ends.values().next().value;
+        if(h.stepMap[pos]===undefined){ h.stepMap[pos]=want; if(want!==0||p.abilityName==='Wu Drainer'){ h.spaces.add(pos); h.cursor=pos; } }
+      }
+      break; }
+    case 'door':{ const cur=typeof req.at==='number'?req.at:(typeof p.pos==='number'?p.pos:0);
+      h.spaces.add((cur+1)%LOOP_N_UI); h.cursor=(cur+1)%LOOP_N_UI; break; }
     case 'enterLounge': case 'goldenWalk': case 'bribeEntry': h.lounge=true; break;
     case 'target': case 'asset': case 'giveHype':{
       const cands=req.candidates||(req.target?[req.target]:[]);
@@ -2112,10 +2146,10 @@ function presentPrompt(req,p,resolve){
     case 'bribe':
       title='Buy a Bribe coin?'; sub=`${who} · Juice ${p.juice}. A Bribe skips a Trust Check or forces Lounge entry — but SPENDING one adds +2 Risk and costs a Final-Favor point. (Buying is free; the Risk lands when you use it.)`;
       opts=[{label:'BUY · −3 Juice',value:true,cls:'go'},{label:'Skip',value:false,cls:'no'}]; break;
-    case 'steps':{ const max=Math.min(Math.max(0,p.juice),LOOP_N_UI-1);   // as far as Juice permits (1 Juice/space), up to ~a full loop
-      title='Move how far around the loop?'; sub=`${who} · Juice ${p.juice}. 1 Juice per space. CLICK a glowing space \u2014 forward OR back \u2014 to move there (1 Juice/space). You draw on the space you land on.`;
+    case 'steps':{ const max=Math.max(p.abilityName==='Wu Drainer'?1:0,Math.min(Math.max(0,Math.floor(p.juice)),LOOP_N_UI-1));   // as far as Juice permits (1 Juice/space), up to ~a full loop
+      title='Move how far around the loop?'; sub=`${who} · Juice ${p.juice}. ${movementTaxes.get(p)?'2 Juice per step (Junk Vehicle Trust).':'1 Juice per step.'} CLICK a glowing space \u2014 forward OR back \u2014 to move there. Door tolls can shorten a move; use the step buttons for those choices. You draw where you land.`;
       if(max<=0){ opts=[{label:'Can’t move (no Juice)',value:0}]; }
-      else { opts.push({label:'\u25c4 1 back',value:-1}); opts.push({label:'Stay',value:0}); for(let n=1;n<=max;n++) opts.push({label:`${n} \u25ba`,value:n,cls:'go'}); }
+      else { opts.push({label:'\u25c4 1 back',value:-1}); if(p.abilityName!=='Wu Drainer') opts.push({label:'Stay',value:0}); for(let n=1;n<=max;n++) opts.push({label:`${n} \u25ba`,value:n,cls:'go'}); }
       break; }
     case 'door':
       title='Take the TO MARKET door?'; sub=`${who} · −1 Juice to cut across — and +1 Final Favor for passing through Market.`;
