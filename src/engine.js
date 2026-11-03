@@ -53,6 +53,24 @@
     5: 'Market', 6: 'Market', 7: 'SEC', 8: 'Market',
     9: 'SEC', 10: 'Asset', 11: 'Market',
   };
+  // ---- THE PRINTED CORE TRACK (Joe 2026-11-02: "make the video game match the rules") -------------
+  // Read off the printed CORE board (PDF FOR PRINT CORE / assets/board/coreprint.png): 12 squares +
+  // the TO MARKET door crossing the top of the Tower. Path order from the START CIRCLE (bottom-left):
+  //   0-4   LEFT column bottom->top : $ · SEC · ASSET · $ · SEC
+  //   5     TO MARKET door over the Tower top (no deck, can't end on it — same door rule as above)
+  //   6-10  RIGHT column top->bottom: SEC · $ · ASSET · SEC · $
+  //   11-12 BOTTOM row right->left  : ASSET · SEC   (then back past START to 0)
+  // Distribution over the 12 printed squares: MARKET x4, SEC x5, ASSET x3.
+  // START is its own space (the printed circle), not square 0: from START a step forward lands on 0, a
+  // step back on 12. Golden Staircases per the rule sheet = the START CIRCLE + the MARKET VIP STAIRCASE
+  // (the right-column top square, 6, under the gold fan stair and its TO EXECUTIVE LOUNGE sign).
+  // A Benchmark knob (printedTrack); Classic keeps the GOLDEN track above byte-for-byte.
+  const TRACKS = {
+    golden:  { name: 'golden', n: LOOP_N, doors: DOOR_SPACES, exits: LOUNGE_EXITS, deck: DECK_BY_INDEX, startOwnSpace: false },
+    printed: { name: 'printed', n: 13, doors: new Set([5]), exits: new Set([6]), startOwnSpace: true,
+               deck: { 0: 'Market', 1: 'SEC', 2: 'Asset', 3: 'Market', 4: 'SEC', /* 5 = TO MARKET door */
+                       6: 'SEC', 7: 'Market', 8: 'Asset', 9: 'SEC', 10: 'Market', 11: 'Asset', 12: 'SEC' } },
+  };
 
   // ---- EDITIONS ----------------------------------------------------------------
   // 'classic'  = faithful to the printed product. FROZEN reference. Do not add rule changes here.
@@ -64,7 +82,7 @@
   const EDITIONS = {
     classic:   { shadowOnRisk: false, shadowRiskThreshold: 6, tallPoppy: false, tallPoppyAt: 8, floor: false, blackHoleFloor: false,
                  stampScoresFF: false, hypeExitFF: false, hypeExitAt: MAX_HYPE, hypeExitJuiceCap: null, cleanestSurvives: false,
-                 charAwareTrust: false, faithfulCards: false },
+                 charAwareTrust: false, faithfulCards: false, printedTrack: false },
     // PARITY KNOBS (benchmark only — the FF axis that historically locked out Mark/Vonda).
     // Final Favor decides ~99% of games but scores only doors/theft/survive-round/clean-count — never Hype,
     // and Vonda's Stamp is invisible to it. Re-baselined for the canonical 12-tile track (scripts/_parity_ab.js):
@@ -90,7 +108,7 @@
     //     verified batches; Classic keeps the frozen (imperfect) behavior.
     benchmark: { shadowOnRisk: true,  shadowRiskThreshold: 6, tallPoppy: true,  tallPoppyAt: 8, floor: true, blackHoleFloor: true,
                  stampScoresFF: false, hypeExitFF: true, hypeExitAt: 5, hypeExitJuiceCap: 25, cleanestSurvives: true,
-                 charAwareTrust: true, faithfulCards: true },
+                 charAwareTrust: true, faithfulCards: true, printedTrack: true },
   };
   // Benchmark CARD OVERRIDES — same card name, sharper job (effect + on-card text). Read only when
   // edition==='benchmark'; Classic never sees these. fx swaps route through resolve_card; text feeds the UI.
@@ -303,6 +321,7 @@
       this.edition = EDITIONS[opts.edition] ? opts.edition : 'classic';
       // edition knobs; classic = print-faithful. opts.ruleOverrides lets a balance harness A/B single knobs.
       this.rules = opts.ruleOverrides ? Object.assign({}, EDITIONS[this.edition], opts.ruleOverrides) : EDITIONS[this.edition];
+      this.track = this.rules.printedTrack ? TRACKS.printed : TRACKS.golden;   // the loop this game is played on
       this.loglines = [];
       this.events = [];          // structured events for the UI animator
       const chosenDefs = opts.characters
@@ -748,7 +767,7 @@
         case 'JUICE_TANKER': { const roll = R.randint(1, 6); p.juice += roll; if (roll <= 2) { for (const t of p.lineup) if (t.card === card) { t.up = true; t.dirty = true; } this.log(`    Juice Tanker broke (rolled ${roll}) -> dead Dirty Asset`); } break; }
         case 'JUNK_VEHICLE': if (others.length) { const tgt = await this.pick_target(p, others, undefined, card); if (tgt) { tgt._junk_tax_pending = true; this.log(`    Junk Vehicle Trust: ${tgt.name} pays 2 Juice/space on their next turn`); } } break;
         case 'STAKEHOLDER_SUMMIT': if (others.length) { const tgt = await this.pick_target(p, others, undefined, card); if (tgt) { if (tgt.hype > 0) { tgt.hype -= 1; p.hype += 1; } else this.add_risk(tgt, 1, 'Stakeholder Summit'); } } break;
-        case 'THE_SAFE': { const stair = others.filter(q => q.pos === 'START' || LOUNGE_EXITS.has(q.pos)); const pool = this.rules.faithfulCards ? stair : others; if (pool.length) { const tgt = await this.pick_target(p, pool, undefined, card); if (tgt) { tgt._safe_pending = 6; this.log(`    The Safe: ${tgt.name} must roll a 6 to pass any Trust Check next turn`); } } break; }   // faithful: only an opponent ON a Golden Staircase
+        case 'THE_SAFE': { const stair = others.filter(q => q.pos === 'START' || this.track.exits.has(q.pos)); const pool = this.rules.faithfulCards ? stair : others; if (pool.length) { const tgt = await this.pick_target(p, pool, undefined, card); if (tgt) { tgt._safe_pending = 6; this.log(`    The Safe: ${tgt.name} must roll a 6 to pass any Trust Check next turn`); } } break; }   // faithful: only an opponent ON a Golden Staircase
         case 'BEARS': { if (p.facedown_count() >= 2) p.juice += 3; const cl = p.hand.filter(c => c.ctype === 'Clean'); if (cl.length) { this.add_risk(p, 2, 'Bears'); p.hand.splice(p.hand.indexOf(cl[0]), 1); } break; }
         case 'BULLS': if (p.asset_count() >= 2) { p.juice += 3; if (p.juice >= 8) { const c = this.draw('SEC'); if (c) { await this.resolve_card(c, p, others); this.after_sec_draw(c); } } } break;
         case 'EXEC_BACKPAT': if (others.length) { const tgt = await this.pick_target(p, others, undefined, card); if (tgt) { if (tgt.trust > 0) { await lt(tgt, 1, 'Exec Back-Pat', p); this.gainTrust(p, 1); } if (tgt.hype > 0) { tgt.hype -= 1; p.hype += 1; } } } break;
@@ -1095,7 +1114,7 @@
       // (The bug: forced + position-independent => a human Benny could NEVER move.)
       if (p.abilityName === 'Benny Boye') {
         if (!p.isHuman) { p.in_lounge = true; p.pos = 'LOUNGE'; this.log('    Benny: Golden Walk -> Executive Lounge (free)'); }
-        else if (!p.in_lounge && (p.pos === 'START' || LOUNGE_EXITS.has(p.pos)) && await this.decide(p, { kind: 'goldenWalk' })) {
+        else if (!p.in_lounge && (p.pos === 'START' || this.track.exits.has(p.pos)) && await this.decide(p, { kind: 'goldenWalk' })) {
           p.in_lounge = true; p.pos = 'LOUNGE'; this.log('    Benny: Golden Walk -> Executive Lounge (free)'); this.emit('enter_lounge', { player: p.name });
         }
       }
@@ -1111,15 +1130,17 @@
         if (await this.decide(p, { kind: 'bribe' })) { p.juice -= 3; p.bribes += 1; this.log(`    ${p.name} buys a Bribe (-3 Juice)`); this.emit('bribe', { player: p.name }); }
       }
 
-      // Canonical 12-space track (LOOP_N / DOOR_SPACES / DECK_BY_INDEX defined up top).
+      // The edition's track (this.track: Classic = the golden 12, Benchmark = the printed 13 — TRACKS up top).
       let moved = false;
       if (!p.in_lounge) {
-        let cur = (typeof p.pos === 'number') ? p.pos : 0;
+        const T = this.track, LOOP_N = T.n, DOOR_SPACES = T.doors, DECK_BY_INDEX = T.deck;
         let want = await this.decide(p, { kind: 'steps' });
         const wu_free = (p.abilityName === 'Wu Drainer');
         if (wu_free && want === 0) want = 1;
         let steps = 0;
         const dir = want < 0 ? -1 : 1, count = Math.abs(want);   // HUMAN may move BACKWARD (negative want); bots only ever pass >=0, so parity is untouched
+        // the golden track counts START as space 0; the printed START CIRCLE sits between 12 and 0
+        let cur = (typeof p.pos === 'number') ? p.pos : (T.startOwnSpace ? (dir > 0 ? -1 : LOOP_N) : 0);
         for (let k = 0; k < count; k++) {
           const free_step = (wu_free && p.juice < 1 && steps === 0);
           if (p.juice < 1 && !free_step) break;
@@ -1136,7 +1157,8 @@
             else { cur = ((cur + dir) % LOOP_N + LOOP_N) % LOOP_N; this.log(`    ${p.name} crosses the TO MARKET door (no rest) -> ${cur}`); this.emit('door', { player: p.name, to: cur, took: false }); }
           }
         }
-        p.pos = cur; moved = steps > 0;
+        if (steps > 0 || !T.startOwnSpace) p.pos = cur;   // printed: 0 steps leaves you ON the START circle (golden keeps its frozen START->0)
+        moved = steps > 0;
         if (moved) {
           this.emit('move', { player: p.name, to: cur });
           const key = DECK_BY_INDEX[cur];
@@ -1162,7 +1184,7 @@
         // threshold -> the WHY ASK? Trust Check gamble (spend a Bribe, or roll 5+; a failed roll = +1 Risk).
         const qualifies = (p.trust >= 4 || p.hype >= 8);
         if (p.isHuman) {
-          if (p.juice >= 1 && LOUNGE_EXITS.has(p.pos) &&
+          if (p.juice >= 1 && (this.track.exits.has(p.pos) || (this.track.startOwnSpace && p.pos === 'START')) &&
               await this.decide(p, { kind: 'enterLounge', qualifies, gamble: !qualifies, bribes: p.bribes })) {
             await this.enter_tower(p);
           }
@@ -1368,7 +1390,8 @@
   global.ERSNCharacterAgent = CharacterAgent;
   global.ERSN_VERSION = VERSION;
   global.ERSN_EDITIONS = EDITIONS;
+  global.ERSN_TRACKS = TRACKS;                   // UI reads the loop (length / door / exits / deck per space) from here
   global.ERSN_REACTS = REACTS;                   // UI reads this for the passive "⚡ can react" cue
   global.ERSN_BENCHMARK_TEXT = BENCHMARK_TEXT;   // UI shows these on-card in Benchmark edition
-  if (typeof module !== 'undefined' && module.exports) module.exports = { makeRng, Game, Player, BotAgent, CharacterAgent, VERSION, EDITIONS, BENCHMARK_FX, BENCHMARK_TEXT };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { makeRng, Game, Player, BotAgent, CharacterAgent, VERSION, EDITIONS, TRACKS, BENCHMARK_FX, BENCHMARK_TEXT };
 })(typeof window !== 'undefined' ? window : globalThis);

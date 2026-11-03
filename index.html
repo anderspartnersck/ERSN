@@ -1170,7 +1170,7 @@ const BOARDS=[
   // RETIRED + DELETED 2026-10-13 (Joe: "obsolete"): the printed-GOLDEN family (GOLDEN PRINT, GOLD LEAF,
   // I ♥ GOLD, SLATE, BLUEPRINT, NOIR, the living-gold breath layers, board-final) — the PLATES replace it.
   // LAYOUTS.golden stays as the fallback placement for an unknown board key.
-  {f:'coreboard',   label:'CORE',          layout:'golden'},
+  {f:'coreboard',   label:'CORE',          layout:'coreart'},
 ];
 const BOARD_DEF=f=>BOARDS.find(b=>b.f===f)||{layout:'golden'};
 const BOARD_LAYOUT=f=>BOARD_DEF(f).layout;
@@ -1189,7 +1189,7 @@ const BOARD_HOLE={
   'distortion3':{x:0.490,y:0.332,r:0.120},
 };
 // swap the live board surface to the chosen variant (loads + caches, applies its layout + palette, repaints)
-function setBoard(f){ S.board=f; const def=BOARD_DEF(f); A.board=boardSrc(f);
+function setBoard(f){ S.board=f; const def=BOARD_DEF(f); A.board=boardSrc(f); setTrack(S.edition);
   applyLayout(def.layout); if(def.start) START_NORM=def.start; boardLadder=def.ladder||null; PLATE_ENG=def.eng||null; boardMono=!!def.mono; boardLive=!!def.live; boardBend=def.bend||0;
   if(BOARD_HOLE[f]) HOLE_NORM={...BOARD_HOLE[f]};   // lock the FX onto THIS board's painted hole
   try{const o=JSON.parse(localStorage.getItem('ersnHole.'+f)); if(o&&typeof o.x==='number') HOLE_NORM={x:o.x,y:o.y,r:o.r};}catch(e){}   // saved CAL override
@@ -1276,7 +1276,7 @@ function buildSetup(){
   const eseg=$('#editionSeg');eseg.innerHTML='';
   [['classic','CLASSIC'],['benchmark','BENCHMARK']].forEach(([k,lbl])=>{
     const c=document.createElement('div');c.className='chip'+(k===S.edition?' on':'');c.textContent=lbl;
-    c.onclick=()=>{S.edition=k;buildSetup();};eseg.appendChild(c);
+    c.onclick=()=>{S.edition=k;setBoard(S.board);buildSetup();};eseg.appendChild(c);
   });
   $('#editionNote').textContent=EDITION_NOTE[S.edition]||'';
   buildBoardSelect();
@@ -1383,6 +1383,7 @@ const LAYOUTS={
       {x:0.915,y:0.212},{x:0.915,y:0.282},{x:0.915,y:0.353},{x:0.915,y:0.423}, // 5-8 right col top->bottom
       {x:0.665,y:0.476},{x:0.495,y:0.476},{x:0.305,y:0.476},                    // 9-11 bottom inner turn R->L
     ],
+    tilesP:[{x:0.065,y:0.423},{x:0.065,y:0.370},{x:0.065,y:0.318},{x:0.065,y:0.265},{x:0.065,y:0.212},{x:0.915,y:0.158},{x:0.915,y:0.212},{x:0.915,y:0.265},{x:0.915,y:0.318},{x:0.915,y:0.370},{x:0.915,y:0.423},{x:0.665,y:0.476},{x:0.495,y:0.476}],   // printed track (fallback only)
     hole:{x:0.50,y:0.305,r:0.115}, start:{x:0.135,y:0.595}, lounge:{x:0.135,y:0.045},
     // deck piles painted along the board border (draw animations lift FROM here)
     decks:{ASSET:{x:0.18,y:0.945}, MARKET:{x:0.38,y:0.945}, SEC:{x:0.58,y:0.945}},
@@ -1398,6 +1399,10 @@ const LAYOUTS={
       {x:0.798,y:0.270},{x:0.808,y:0.364},{x:0.822,y:0.552},{x:0.833,y:0.646}, // 5-8 right col top->bottom
       {x:0.708,y:0.767},{x:0.552,y:0.767},{x:0.393,y:0.767},                    // 9-11 bottom inner turn R->L
     ],
+    // PRINTED track (Benchmark): the art paints 5 tiles up the left, 6 down the right, 3 along the bottom.
+    // 0-4 = the 5 left tiles, 5 = the top-right TO MARKET door, 6-10 = the top 5 right tiles, 11-12 = the
+    // right + middle bottom panels (the right-corner tile and the panel beside START stay unused).
+    tilesP:[{x:0.126,y:0.659},{x:0.139,y:0.569},{x:0.150,y:0.486},{x:0.165,y:0.405},{x:0.175,y:0.310},{x:0.734,y:0.221},{x:0.797,y:0.273},{x:0.805,y:0.359},{x:0.814,y:0.445},{x:0.822,y:0.530},{x:0.831,y:0.614},{x:0.706,y:0.767},{x:0.552,y:0.767}],
     hole:{x:0.50,y:0.355,r:0.135}, start:{x:0.143,y:0.735}, lounge:{x:0.135,y:0.075},
     // bottom deck row "ASSET DECK · MARKET DECK · SEC DECK · DISCARD"
     decks:{ASSET:{x:0.44,y:0.955}, MARKET:{x:0.58,y:0.955}, SEC:{x:0.71,y:0.955}},
@@ -1414,6 +1419,7 @@ const LAYOUTS={
       {x:0.760,y:0.280},{x:0.760,y:0.400},{x:0.760,y:0.520},{x:0.760,y:0.640}, // 5-8 right col top->bottom
       {x:0.735,y:0.800},{x:0.570,y:0.800},{x:0.405,y:0.800},                    // 9-11 bottom row R->L
     ],
+    tilesP:[{x:0.170,y:0.660},{x:0.170,y:0.565},{x:0.170,y:0.470},{x:0.170,y:0.375},{x:0.170,y:0.280},{x:0.465,y:0.228},{x:0.760,y:0.280},{x:0.760,y:0.375},{x:0.760,y:0.470},{x:0.760,y:0.565},{x:0.760,y:0.660},{x:0.735,y:0.800},{x:0.570,y:0.800}],   // printed track: 5 + door + 5 + 2, engraved in code
     // the engraved black hole fills the open centre; the EXECUTIVE LOUNGE is the top-left corner (as on
     // the printed board), straight up from its entrance at space 3; the deck piles sit along the bottom.
     hole:{x:0.465,y:0.515,r:0.17}, start:{x:0.177,y:0.830}, lounge:{x:0.150,y:0.095},
@@ -1430,8 +1436,27 @@ const LAYOUTS={
       {x:0.840,y:0.310},{x:0.855,y:0.450},{x:0.855,y:0.600},{x:0.840,y:0.760},  // 5-8 down the right column
       {x:0.680,y:0.835},{x:0.520,y:0.845},{x:0.340,y:0.850},                    // 9-11 bottom row R->L
     ],
-    hole:{x:0.450,y:0.480,r:0.105}, start:{x:0.135,y:0.860}, lounge:{x:0.450,y:0.400},
-    decks:{ASSET:{x:0.44,y:0.935}, MARKET:{x:0.57,y:0.935}, SEC:{x:0.69,y:0.935}}, vortex:false,
+    // PRINTED track (Benchmark) — ON the 12 printed squares (measured off coreprint.png, 2026-11-02):
+    // 0-4 up the left ($ SEC ASSET $ SEC), 5 = the right TO MARKET door, 6-10 down the right
+    // (SEC $ ASSET SEC $), 11-12 the bottom pair (ASSET, SEC). START / LOUNGE / decks = the printed circle,
+    // the EXECUTIVE LOUNGE box and the three deck boxes.
+    tilesP:[{x:0.146,y:0.717},{x:0.144,y:0.639},{x:0.144,y:0.566},{x:0.144,y:0.483},{x:0.144,y:0.408},{x:0.652,y:0.349},{x:0.737,y:0.394},{x:0.800,y:0.552},{x:0.800,y:0.628},{x:0.800,y:0.698},{x:0.780,y:0.772},{x:0.676,y:0.839},{x:0.566,y:0.842}],
+    hole:{x:0.450,y:0.480,r:0.105}, start:{x:0.227,y:0.833}, lounge:{x:0.251,y:0.270},
+    decks:{ASSET:{x:0.533,y:0.925}, MARKET:{x:0.669,y:0.925}, SEC:{x:0.800,y:0.925}}, vortex:false,
+  },
+  // assets/board/coreboard.png — the same printed core art at its own crop (1013×1500). Was placed with
+  // the retired GOLDEN ring (tiles off the art); now measured off this image.
+  coreart:{
+    aspect:0.675,
+    tiles:[
+      {x:0.140,y:0.723},{x:0.140,y:0.568},{x:0.140,y:0.486},{x:0.140,y:0.399},  // 0-3 up the left column
+      {x:0.644,y:0.349},                                                        // 4 TO MARKET door
+      {x:0.740,y:0.392},{x:0.804,y:0.547},{x:0.804,y:0.703},{x:0.770,y:0.781},  // 5-8 down the right column
+      {x:0.674,y:0.835},{x:0.566,y:0.838},{x:0.350,y:0.850},                    // 9-11 bottom row R->L
+    ],
+    tilesP:[{x:0.140,y:0.723},{x:0.140,y:0.646},{x:0.140,y:0.568},{x:0.140,y:0.486},{x:0.140,y:0.399},{x:0.644,y:0.349},{x:0.740,y:0.392},{x:0.804,y:0.547},{x:0.804,y:0.626},{x:0.804,y:0.703},{x:0.770,y:0.781},{x:0.674,y:0.835},{x:0.566,y:0.838}],
+    hole:{x:0.450,y:0.480,r:0.105}, start:{x:0.224,y:0.838}, lounge:{x:0.250,y:0.270},
+    decks:{ASSET:{x:0.532,y:0.932}, MARKET:{x:0.668,y:0.932}, SEC:{x:0.800,y:0.932}}, vortex:false,
   },
 };
 // Active placement (reassigned by applyLayout when the board changes). Default = black-hole hero.
@@ -1440,21 +1465,26 @@ let TILE_NORM=LAYOUTS.hole.tiles, HOLE_NORM=BOARD_HOLE[S.board]||LAYOUTS.hole.ho
 let LOOP_N_UI=TILE_NORM.length;
 let boardVortex=true;   // draw the live accretion vortex? (false on the CORE print board — it has a TOWER, not a hole)
 function applyLayout(key){ const L=LAYOUTS[key]||LAYOUTS.golden;
-  TILE_NORM=L.tiles; HOLE_NORM=L.hole; START_NORM=L.start; LOUNGE_NORM=L.lounge; DECK_NORM=L.decks;
+  // the printed track (Benchmark) has its own 13 spots per board (tilesP); the golden 12 use tiles
+  TILE_NORM=(TRACK&&TRACK.startOwnSpace&&L.tilesP)||L.tiles; HOLE_NORM=L.hole; START_NORM=L.start; LOUNGE_NORM=L.lounge; DECK_NORM=L.decks;
   // the live animated black hole runs ONLY on the dedicated black-hole boards (the 'hole' layout);
   // the print boards (GOLDEN family, CORE tower) stay static/faithful — no spinning vortex over their art.
   BOARD_ASPECT=L.aspect||0.6657; boardVortex=(key==='hole'); LOOP_N_UI=TILE_NORM.length;
   // the GOLDEN print + CORE boards already PAINT their space emblems (deck names, TO MARKET, TO EXEC
   // LOUNGE, discard, legend); only the black-hole boards have blank tiles → draw the emblems in code there.
   boardNeedsEmblems=(key==='hole'||key==='plate'); boardGolden=(key==='golden'); boardPlate=(key==='plate'); }
+// THE LOOP (engine ERSN_TRACKS): the edition picks it — Classic = the golden 12, Benchmark = the printed 13.
+let TRACK=null, DOORS=new Set([4]), LOUNGE_EXIT_TILES=[3,5];
+let DECK_INDEX_MAP={0:'MARKET',1:'ASSET',2:'SEC',3:'MARKET',4:'DOOR',5:'MARKET',6:'MARKET',7:'SEC',8:'MARKET',9:'SEC',10:'ASSET',11:'MARKET'};
+function setTrack(ed){ const E=window.ERSN_EDITIONS&&ERSN_EDITIONS[ed], TT=window.ERSN_TRACKS; if(!TT) return;
+  const T=(E&&E.printedTrack)?TT.printed:TT.golden; TRACK=T; DOORS=new Set(T.doors); LOUNGE_EXIT_TILES=[...T.exits];
+  DECK_INDEX_MAP={}; for(let i=0;i<T.n;i++) DECK_INDEX_MAP[i]=T.doors.has(i)?'DOOR':String(T.deck[i]||'Market').toUpperCase(); }
 let boardNeedsEmblems=true, boardGolden=false, boardPlate=false;
 let PLATE_ENG=null;     // the active plate's engraving palette (BOARDS[].eng)
 let boardLadder=null;   // per-board painted SEC ladder {cx,y0,step,w} (the plates); null = the hole-board default
 let collapseMorph=0;   // 0 normal .. 1 fully collapsed into the hole
 let imploding=false, imStart=0;   // game-end finale: the whole board spirals into the $90M hole
-const DOORS=new Set([4]);
-// explicit per-index deck (matches src/engine.js DECK_BY_INDEX); index 4 = door -> 'DOOR' (no deck draw)
-const DECK_INDEX_MAP={0:'MARKET',1:'ASSET',2:'SEC',3:'MARKET',4:'DOOR',5:'MARKET',6:'MARKET',7:'SEC',8:'MARKET',9:'SEC',10:'ASSET',11:'MARKET'};
+// DOORS / DECK_INDEX_MAP / LOUNGE_EXIT_TILES come from the edition's track (setTrack, above)
 const DECK_BY_IDX=i=>DECK_INDEX_MAP[i]||'MARKET';
 // halo accent per deck (board art carries the tile faces; we only tint the reachable-space glow)
 const DECK_GLOW={ASSET:'#d8b258',MARKET:'#f0cf7a',SEC:'#cf8a3a',DOOR:'#ffe6a8'};
@@ -1498,6 +1528,7 @@ function startGame(){
   game=new window.ERSNGame({n_players:S.count, expansion:S.expansion,
     characters:dealt, humanSeats:S.seats, edition:S.edition, seed:(CAP.seed!=null?CAP.seed:(Math.random()*1e9)|0)});
   game.maxTurns=160;
+  setBoard(S.board);   // the edition's track (golden 12 / printed 13) + this board's spots for it
   // human seats drive their own decisions; bots keep the engine's default agent
   game.players.forEach((p,i)=>{ if(S.seats[i]) p.agent=new HumanAgent(); });
   // patch emit so the board/HUD/log/pawns update LIVE as the (now-pausable) turn unfolds
@@ -1874,6 +1905,7 @@ function handleEvent(ev){
       if(pw){ // enqueue each ring space between the pawn's last spot and where it landed → step-by-step hop
         const to=pp.pos;
         if(typeof to!=='number'){ pw.queue.push(to); }
+        else if(typeof pw.lpos!=='number' && TRACK&&TRACK.startOwnSpace && to===LOOP_N_UI-1){ pw.queue.push(to); }   // one step BACK off the printed START circle
         else { const N=LOOP_N_UI; const from=(typeof pw.lpos==='number')?pw.lpos:-1; let steps=((to-from)%N+N)%N; if(steps===0)steps=1;
           for(let k=1;k<=steps;k++) pw.queue.push(((from+k)%N+N)%N); }
         pw.lpos=to;
@@ -2091,7 +2123,8 @@ function stepDestinations(p,want,players,taxed){
   const N=LOOP_N_UI, wu=p.abilityName==='Wu Drainer';
   if(wu&&want===0) want=1;
   const dir=want<0?-1:1, count=Math.abs(want);
-  let states=[{pos:typeof p.pos==='number'?p.pos:0,juice:p.juice,steps:0,stopped:false}];
+  const start=(TRACK&&TRACK.startOwnSpace)?(dir>0?-1:N):0;   // printed START CIRCLE sits between the last square and 0
+  let states=[{pos:typeof p.pos==='number'?p.pos:start,juice:p.juice,steps:0,stopped:false}];
   for(let k=0;k<count;k++){
     const next=[];
     for(const s of states){
@@ -2110,7 +2143,8 @@ function stepDestinations(p,want,players,taxed){
     }
     states=next;
   }
-  return new Set(states.map(s=>s.pos));
+  const stay=TRACK&&TRACK.startOwnSpace&&typeof p.pos!=='number';   // printed: no step taken = still ON the START circle
+  return new Set(states.map(s=>(stay&&s.steps===0)?p.pos:s.pos));
 }
 // Translate human decisions into halos; advertised destinations must match
 // the current engine for every optional door choice, including blocked paths.
@@ -2660,7 +2694,7 @@ function drawHalo(x,y,r,color,now,intensity,phase){
 // entrances always read. Marked tiles = the LOUNGE EXITS (index 3 left, 5 right; engine LOUNGE_EXITS).
 // A floating golden-stair badge + chevrons aimed at the Lounge + label make "this space → the Lounge"
 // obvious (esp. the right side, which Joe flagged as unclear).
-const LOUNGE_EXIT_TILES=[3,5];
+// (LOUNGE_EXIT_TILES = the track's exits: golden 3 + 5, printed 6 = the MARKET VIP STAIRCASE)
 function drawStairGlyph(x,y,s,glow){
   ctx.save(); ctx.translate(x,y);
   ctx.shadowColor=`rgba(255,200,90,${0.6*glow})`; ctx.shadowBlur=s*0.6;
