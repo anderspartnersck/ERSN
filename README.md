@@ -10,7 +10,7 @@ A Castle Killscreen game by **Anders & Partners**.
 >
 > The most complete of the board-game builds — the rules engine is balance-tested and the card set audits clean. The presentation around it is still rough, and it's a hot-seat build: no online play.
 >
-> The finished Castle Killscreen titles are **[SUCK UP](https://anderspartnersck.github.io/suck-up/)**
+> The finished Castle Killscreen titles are **[SUCK UP](https://anderspartnersck.github.io/suck-up/3d.html?arcade)**
 > and **[ONE-TIMER: THE HIGH TABLE](https://anderspartnersck.github.io/high-table/)**. This repo
 > exists so the work can happen in the open, not because the work is done.
 
