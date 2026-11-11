@@ -1441,6 +1441,7 @@ const LAYOUTS={
     // (SEC $ ASSET SEC $), 11-12 the bottom pair (ASSET, SEC). START / LOUNGE / decks = the printed circle,
     // the EXECUTIVE LOUNGE box and the three deck boxes.
     tilesP:[{x:0.146,y:0.717},{x:0.144,y:0.639},{x:0.144,y:0.566},{x:0.144,y:0.483},{x:0.144,y:0.408},{x:0.652,y:0.349},{x:0.737,y:0.394},{x:0.800,y:0.552},{x:0.800,y:0.628},{x:0.800,y:0.698},{x:0.780,y:0.772},{x:0.676,y:0.839},{x:0.566,y:0.842}],
+    floors:[{x:0.385,y:0.660},{x:0.430,y:0.585}],   // LEVELS tiers, on the painted bands: REGULATION, CORRUPTION (sharers fan out)
     hole:{x:0.450,y:0.480,r:0.105}, start:{x:0.227,y:0.833}, lounge:{x:0.251,y:0.270},
     decks:{ASSET:{x:0.533,y:0.925}, MARKET:{x:0.669,y:0.925}, SEC:{x:0.800,y:0.925}}, vortex:false,
   },
@@ -1455,6 +1456,7 @@ const LAYOUTS={
       {x:0.674,y:0.835},{x:0.566,y:0.838},{x:0.350,y:0.850},                    // 9-11 bottom row R->L
     ],
     tilesP:[{x:0.140,y:0.723},{x:0.140,y:0.646},{x:0.140,y:0.568},{x:0.140,y:0.486},{x:0.140,y:0.399},{x:0.644,y:0.349},{x:0.740,y:0.392},{x:0.804,y:0.547},{x:0.804,y:0.626},{x:0.804,y:0.703},{x:0.770,y:0.781},{x:0.674,y:0.835},{x:0.566,y:0.838}],
+    floors:[{x:0.382,y:0.661},{x:0.427,y:0.585}],   // = core's tiers through the crop fit
     hole:{x:0.450,y:0.480,r:0.105}, start:{x:0.224,y:0.838}, lounge:{x:0.250,y:0.270},
     decks:{ASSET:{x:0.532,y:0.932}, MARKET:{x:0.668,y:0.932}, SEC:{x:0.800,y:0.932}}, vortex:false,
   },
@@ -1466,7 +1468,7 @@ let LOOP_N_UI=TILE_NORM.length;
 let boardVortex=true;   // draw the live accretion vortex? (false on the CORE print board — it has a TOWER, not a hole)
 function applyLayout(key){ const L=LAYOUTS[key]||LAYOUTS.golden;
   // the printed track (Benchmark) has its own 13 spots per board (tilesP); the golden 12 use tiles
-  TILE_NORM=(TRACK&&TRACK.startOwnSpace&&L.tilesP)||L.tiles; HOLE_NORM=L.hole; START_NORM=L.start; LOUNGE_NORM=L.lounge; DECK_NORM=L.decks;
+  TILE_NORM=(TRACK&&TRACK.startOwnSpace&&L.tilesP)||L.tiles; FLOOR_NORM=L.floors||null; HOLE_NORM=L.hole; START_NORM=L.start; LOUNGE_NORM=L.lounge; DECK_NORM=L.decks;
   // the live animated black hole runs ONLY on the dedicated black-hole boards (the 'hole' layout);
   // the print boards (GOLDEN family, CORE tower) stay static/faithful — no spinning vortex over their art.
   BOARD_ASPECT=L.aspect||0.6657; boardVortex=(key==='hole'); LOOP_N_UI=TILE_NORM.length;
@@ -1485,7 +1487,7 @@ let boardLadder=null;   // per-board painted SEC ladder {cx,y0,step,w} (the plat
 let collapseMorph=0;   // 0 normal .. 1 fully collapsed into the hole
 let imploding=false, imStart=0;   // game-end finale: the whole board spirals into the $90M hole
 // DOORS / DECK_INDEX_MAP / LOUNGE_EXIT_TILES come from the edition's track (setTrack, above)
-const DECK_BY_IDX=i=>DECK_INDEX_MAP[i]||'MARKET';
+const DECK_BY_IDX=i=>(typeof i==='string'&&i[0]==='F')?'SEC':(DECK_INDEX_MAP[i]||'MARKET');   // LEVELS: a tower tier glows SEC (the Shadow SEC lives up there)
 // halo accent per deck (board art carries the tile faces; we only tint the reachable-space glow)
 const DECK_GLOW={ASSET:'#d8b258',MARKET:'#f0cf7a',SEC:'#cf8a3a',DOOR:'#ffe6a8'};
 // printed card BACKS per deck (rasterized from 0 FINAL/.../0 CARD BACK - core - *.pdf) — for the draw flip
@@ -1516,9 +1518,30 @@ function boardRect(){
 }
 // map a normalized board point -> canvas pixels (within the letterboxed board rect)
 function bxy(nx,ny){ const r=boardRect(); return {x:r.bx+nx*r.bw, y:r.by+ny*r.bh}; }
+// LEVELS (?levels, Benchmark only — docs/BENCHMARK-LEVELS.md): the tower's tiers (F0 REGULATION, F1 CORRUPTION) between the loop and the Lounge
+const LEVELS_ON=/[?&#]levels\b/i.test(location.search+location.hash);
+// ASSET FLOW (?assetflow or ?assetflow=2, Benchmark only — open call E2): the Benchmark Core "NO DEAL? draw an Asset" card rewrite.
+const ASSETFLOW_LV=(()=>{ const m=(location.search+location.hash).match(/[?&#]assetflow(?:=(\d))?\b/i); return m?(+m[1]||1):0; })();
+// Playtest knobs for Joe's open calls (Benchmark only): ?ro={"levelsLastElevator":true,...} (URL-encoded JSON ruleOverrides)
+const RO_URL=(()=>{ const m=(location.search+location.hash).match(/[?&#]ro=([^&#]+)/); if(!m) return null; try{ return JSON.parse(decodeURIComponent(m[1])); }catch(e){ console.warn('bad ?ro= JSON'); return null; } })();
+function benchOverrides(){
+  if(S.edition!=='benchmark') return undefined;
+  // ?v4: the whole recommended Benchmark v4 package (docs/BENCHMARK-CARD-REVIEW.md) — LEVELS + Package B scaled + the v4 deck + v4 characters
+  const V4_ON=/[?&#]v4\b/i.test(location.search+location.hash), np=S.count;
+  const v4=V4_ON?{levels:true, levelsTrustEase:2, levelsClimbRisk:np>4, levelsLastElevator:np<=4, benchmarkDeck:'v4', benchmarkChars:'v4', ffCleanDirty:1}:{};
+  const o=Object.assign({}, v4, LEVELS_ON?{levels:true}:{}, ASSETFLOW_LV?{assetFlow:ASSETFLOW_LV}:{}, RO_URL||{});
+  return Object.keys(o).length?o:undefined;
+}
+let FLOOR_NORM=null;
+function floorNorm(k){   // boards without painted bands: a straight climb from the hole up to the Lounge
+  if(FLOOR_NORM&&FLOOR_NORM[k]) return FLOOR_NORM[k];
+  const n=(window.ERSN_FLOORS?ERSN_FLOORS.n:4), t=(k+1)/(n+1), a=HOLE_NORM||START_NORM, b=LOUNGE_NORM;
+  return {x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t};
+}
 function nodeXY(pos){
   if(pos==='START') return bxy(START_NORM.x,START_NORM.y);
   if(pos==='LOUNGE')return bxy(LOUNGE_NORM.x,LOUNGE_NORM.y);
+  if(typeof pos==='string'&&/^F\d+$/.test(pos)){ const n=floorNorm(+pos.slice(1)); return bxy(n.x,n.y); }
   const n=TILE_NORM[pos]||TILE_NORM[0]; return bxy(n.x,n.y);
 }
 
@@ -1526,7 +1549,8 @@ function startGame(){
   stopAuto();
   nextEnv();   // alternate the HYSCORE GATEWAY hall backdrop each new game
   game=new window.ERSNGame({n_players:S.count, expansion:S.expansion,
-    characters:dealt, humanSeats:S.seats, edition:S.edition, seed:(CAP.seed!=null?CAP.seed:(Math.random()*1e9)|0)});
+    characters:dealt, humanSeats:S.seats, edition:S.edition,
+    ruleOverrides:benchOverrides(), seed:(CAP.seed!=null?CAP.seed:(Math.random()*1e9)|0)});
   game.maxTurns=160;
   setBoard(S.board);   // the edition's track (golden 12 / printed 13) + this board's spots for it
   // human seats drive their own decisions; bots keep the engine's default agent
@@ -1549,7 +1573,7 @@ function startGame(){
   show('game');
   if(!raf) loop();
   const humans=S.seats.filter(Boolean).length;
-  logLine(`<span class="t">TABLE SET</span> · ${S.count} players (${humans} human) · ${S.expansion?'Core + Expansion':'Core only'} · ${S.edition==='benchmark'?'BENCHMARK':'Classic'} edition`);
+  logLine(`<span class="t">TABLE SET</span> · ${S.count} players (${humans} human) · ${S.expansion?'Core + Expansion':'Core only'} · ${S.edition==='benchmark'?'BENCHMARK':'Classic'} edition${game.rules.levels?' · LEVELS (the tower: REGULATION · CORRUPTION)':''}`);
   if(humans) logLine(`<span class="good">Press NEXT TURN to begin. On your turn the game will ask for your moves.</span>`);
 }
 
@@ -1596,7 +1620,7 @@ function updateHUD(){
     d.classList.toggle('active',game.activePlayer===p);
     d.classList.toggle('burned',p.burned);
     const loc=d.querySelector('.loc');
-    loc.textContent=p.in_lounge?'LOUNGE':(p.pos==='START'?'START':'SPACE '+p.pos);
+    loc.textContent=p.in_lounge?'LOUNGE':(p.pos==='START'?'START':(typeof p.pos==='string'&&p.pos[0]==='F')?(ERSN_FLOORS.bands[+p.pos.slice(1)]||'TOWER'):'SPACE '+p.pos);
     loc.classList.toggle('lounge',p.in_lounge);
     const sv=d.querySelectorAll('.sv');
     sv[0].textContent=p.juice; sv[1].textContent=p.hype; sv[2].textContent=p.trust; sv[3].textContent=p.risk;
@@ -1882,6 +1906,7 @@ function idleFire(){
   idleArmed=false; idleNags++; idleSince=performance.now();   // one nag per idle stretch; re-arms on fresh interaction
 }
 window.__idleFire=idleFire;   // debug hook — force one nag (capture harness)
+window.__game=()=>game; window.__cardText=c=>cardText(c);   // debug hooks — the live engine (headless probes: PROBE='__game().loglines…')
 window.__sharkyDebug=()=>{    // debug hook — audit every tip gate against the live game (harness/console)
   const p=(game&&game.players.find(q=>q.isHuman))||(game&&game.players[0]);
   return { waiting:idleWaiting(), nagMs:IDLE_NAG_MS,
@@ -1910,9 +1935,10 @@ function handleEvent(ev){
           for(let k=1;k<=steps;k++) pw.queue.push(((from+k)%N+N)%N); }
         pw.lpos=to;
       } break; }
-    case 'draw': logLine(`&nbsp;&nbsp;↳ draws <b>${ev.deck}</b>: ${ev.card}`); startDrawAnim(ev.deck, ev.card, `${ev.player} drew`);
-      if(ev.deck==='SEC'){ sfx('drawSEC'); bark(ev.player,'sec',0.45); }
-      else sfx(ev.deck==='AdvMarket'?'drawAdvMarket':'drawMarket',0.5); break;
+    case 'draw': { const dk=/^F(SEC|Asset|Market)$/.test(ev.deck)?ev.deck.slice(1):ev.deck;   // LEVELS: the Floors' expansion piles animate off the core deck boxes
+      logLine(`&nbsp;&nbsp;↳ draws <b>${ev.deck}</b>: ${ev.card}`); startDrawAnim(dk, ev.card, `${ev.player} drew`);
+      if(dk==='SEC'){ sfx('drawSEC'); bark(ev.player,'sec',0.45); }
+      else sfx(ev.deck==='AdvMarket'||ev.deck==='FMarket'?'drawAdvMarket':'drawMarket',0.5); break; }
     case 'play': { logLine(`&nbsp;&nbsp;↳ plays <i>${ev.card}</i>`); spotlight(ev.card, `${ev.player} plays`); bark(ev.player,'play',0.5);
       const c=CARD_BY_NAME[ev.card];
       if(c && c.art && CAP.at==null){ load(c.art).then(im=>{ if(im) cardFX={art:im,start:clock()}; }); }   // the $90M hole swallows the spent card
@@ -1951,6 +1977,14 @@ function handleEvent(ev){
       if(pw&&boardNeedsEmblems&&liftImgs.length&&CAP.at==null){ liftFX={x:pw.x,y:pw.y,start:clock()};
         pw.lift={start:liftFX.start,px:pw.x,py:pw.y}; }
       if(pw){const xy=nodeXY('LOUNGE');pw.queue=[];pw.tx=xy.x;pw.ty=xy.y;pw.lpos='LOUNGE';pw.hop=pw.lift?0:1;} break; }
+    // LEVELS: a Golden Staircase lifts the pawn onto the Floors; burnout / the collapse drops it back to START
+    case 'enter_floors': { logLine(`&nbsp;&nbsp;↳ <span class="good">${ev.player} climbs into the tower — REGULATION</span>`); sfx('lounge',0.5);
+      const pw=pawns[ev.player]; if(pw){const xy=nodeXY('F0');pw.queue=[];pw.tx=xy.x;pw.ty=xy.y;pw.lpos='F0';pw.hop=1;} break; }
+    case 'fall': { const to=ev.to||'START'; logLine(`&nbsp;&nbsp;↳ <span class="sec">${ev.player} ${to==='START'?'falls out of the tower':'is knocked down to REGULATION'} — ${ev.why}</span>`); sfx('trustFail',0.6);
+      const pw=pawns[ev.player]; if(pw){const xy=nodeXY(to);pw.queue=[];pw.tx=xy.x;pw.ty=xy.y;pw.lpos=to;pw.hop=1;} break; }
+    case 'climb': logLine(`&nbsp;&nbsp;↳ <span class="good">${ev.player} climbs to ${ev.band}</span>`); sfx('lounge',0.4); break;
+    case 'secRoll': logLine(`&nbsp;&nbsp;↳ <span class="${ev.hit?'sec':''}">SEC ROLL on ${ev.band}: ${ev.player} rolls ${ev.roll}${ev.hit?' — the SEC opens a file':' — clear'} (1–${ev.hitOn} hits)</span>`); if(typeof rollDieAnim==='function') rollDieAnim(ev.roll); sfx(ev.hit?'trustFail':'roll',0.45); break;
+    case 'tipoff': logLine(`&nbsp;&nbsp;↳ <span class="sec">🗣 ${ev.player} tips off the SEC about ${ev.target} (${ev.card})</span>`); break;
     case 'evict': { logLine(`&nbsp;&nbsp;↳ <span class="sec">${ev.player} booted from the Lounge</span>`); sfx('trustFail');
       const pp=game.players.find(x=>x.name===ev.player), pw=pp&&pawns[pp.name]; if(pw){const xy=nodeXY('START');pw.queue=[];pw.tx=xy.x;pw.ty=xy.y;pw.lpos='START';pw.hop=1;} break; }
     case 'collapse': flashCollapse(); showBanner('▼ THE TOWER IS COLLAPSING ▼'); sfx('killscreen',0.9); duck(0.06,2600); vortexKick=1; barkBudget=2; if(game.activePlayer)bark(game.activePlayer.name,'collapse',0.8); sharkySay('collapse',0.7); break;
@@ -2013,7 +2047,11 @@ HumanAgent.prototype.decide=function(req,g,p){ return new Promise(res=>presentPr
 const cls4=t=>({Clean:'clean',Dirty:'dirty',Conditional:'cond'}[t]||'neutral');
 const typeColor=t=>({Clean:'#9fd06a',Dirty:'#e0a06a',Conditional:'#c79be8'}[t]||'#9aa3b4');
 const playShort=p=>({Immediate:'PLAY',KeepInHand:'HOLD',FaceUp:'FACE-UP',FaceDown:'FACE-DOWN'}[p]||p);
-function cardText(c){ const ov=(game&&game.edition==='benchmark'&&window.ERSN_BENCHMARK_TEXT&&ERSN_BENCHMARK_TEXT[c&&c.name]); return ov||(c&&c.text)||''; }
+function cardText(c){ const lv=(game&&game.rules&&game.rules.levels&&window.ERSN_LEVELS_TEXT&&ERSN_LEVELS_TEXT[c&&c.name])
+    ||(game&&game.edition==='benchmark'&&game.rules&&game.rules.assetFlow&&window.ERSN_ASSET_FLOW_TEXT&&ERSN_ASSET_FLOW_TEXT[c&&c.name])
+    ||(game&&game.edition==='benchmark'&&game.rules&&game.rules.benchmarkDeck==='v4'&&window.ERSN_V4_TEXT&&ERSN_V4_TEXT[c&&c.name])
+    ||(game&&game.edition==='benchmark'&&game.rules&&game.rules.camperCards&&window.ERSN_CAMPER&&ERSN_CAMPER[c&&c.name]&&(game.rules.camperCards&ERSN_CAMPER[c.name].bit)&&ERSN_CAMPER[c.name].text);   // LEVELS tower riders, then the ASSET FLOW rewrite
+  const ov=(game&&game.edition==='benchmark'&&window.ERSN_BENCHMARK_TEXT&&ERSN_BENCHMARK_TEXT[c&&c.name]); return lv||ov||(c&&c.text)||''; }
 function shortText(c){const t=cardText(c);return t.length>78?t.slice(0,76)+'…':t;}
 function findOwner(t){ if(!game)return null; return game.players.find(q=>q.lineup.includes(t))||null; }
 /* ---------- HIDDEN INFO (the viewer's side) ----------
@@ -2164,6 +2202,8 @@ function computeHints(req,p){
       break; }
     case 'door':{ const cur=typeof req.at==='number'?req.at:(typeof p.pos==='number'?p.pos:0);
       h.spaces.add((cur+1)%LOOP_N_UI); h.cursor=(cur+1)%LOOP_N_UI; break; }
+    case 'climbTier': if(req.toLounge) h.lounge=true; else { h.spaces.add('F'+(req.at+1)); h.cursor='F'+(req.at+1); } break;   // LEVELS: the tier above you glows
+    case 'tipOff': (req.candidates||[]).forEach(q=>h.pawns.add(q.name)); break;
     case 'enterLounge': case 'goldenWalk': case 'bribeEntry': h.lounge=true; break;
     case 'target': case 'asset': case 'giveHype':{
       const cands=req.candidates||(req.target?[req.target]:[]);
@@ -2188,8 +2228,18 @@ function presentPrompt(req,p,resolve){
     case 'door':
       title='Take the TO MARKET door?'; sub=`${who} · −1 Juice to cut across — and +1 Final Favor for passing through Market.`;
       opts=[{label:'Take door · −1 Juice',value:true,cls:'go'},{label:'Stay on loop',value:false,cls:'no'}]; break;
+    case 'climbTier':{ const band=ERSN_FLOORS.bands, passOn=game._towerPassOn(p), failTxt=game.rules.levelsClimbRisk===false?'a fail just leaves you here':'a fail costs +1 Risk', secOn=game.rules.levelsSecOn||ERSN_FLOORS.secOn;
+      title=(req.again?'You passed — keep climbing? ':'')+(req.toLounge?'Face the ANDERS APPROVED TRUST CHECK?':`Climb to ${band[req.at+1]}?`);
+      sub=`${who}${req.again?' · momentum: you may try the next check this same turn':''} · −${req.cost} Juice, then a Trust Check (Trust ${p.trust}: pass on ${passOn}+; ${failTxt}). ${req.toLounge?'Pass and you’re in the Executive Lounge.':'Higher is richer — and the SEC ROLL hits 1–'+secOn[req.at+1]+' up there.'} Either way, ending your turn in the tower means rolling the SEC ROLL (you’re on ${band[req.at]}: 1–${secOn[req.at]} draws a Shadow SEC card).`;
+      opts=[{label:req.toLounge?'Face the plaque':'Climb',value:true,cls:'go'},{label:'Hold this tier',value:false,cls:'no'}]; break; }
+    case 'tipOff':
+      title='Tip off the SEC?'; sub=`${who} · instead of taking ${req.card?req.card.name:'this SEC card'} yourself, point the SEC at someone in the tower. You take +1 Risk; they pass a Trust Check or fall a tier.`;
+      opts=req.candidates.map(q=>({label:q.name,sub:ERSN_FLOORS.bands[+String(q.pos).slice(1)]||'',value:q,cls:'go'})); opts.push({label:'Take it myself',value:null,cls:'no'}); break;
     case 'enterLounge':
-      if(req.qualifies){
+      if(game&&game.rules.levels&&!game.collapsed){
+        title='Climb into the tower?'; sub=`${who} · −1 Juice. A Golden Staircase lifts you onto the REGULATION tier — the tower is where the Shadow SEC lives: every turn you end up here, you roll the SEC ROLL. ${req.qualifies?'You QUALIFY (Trust ≥4 or Hype 8) — walk straight up.':'You’re UNDER threshold — roll WHY ASK? (5+); a fail costs +1 Risk.'} The Lounge is at the top, past the TRUST CHECK.`;
+        opts=[{label:'Climb · −1 Juice',value:true,cls:'go'},{label:'Stay on the loop',value:false,cls:'no'}];
+      } else if(req.qualifies){
         title='Ride the Spiral Lift into the Lounge?'; sub=`${who} · −1 Juice. You QUALIFY (Trust ≥4 or Hype 8) — walk straight in. Win by ending a turn here holding exactly 2 Clean Assets.`;
         opts=[{label:'Enter · −1 Juice',value:true,cls:'go'},{label:'Stay out',value:false,cls:'no'}];
       } else {
@@ -2198,20 +2248,28 @@ function presentPrompt(req,p,resolve){
       }
       break;
     case 'bribeEntry':
-      title='Spend a Bribe to walk straight in?'; sub=`${who} · skip the WHY ASK? roll — a Bribe 🪙 forces Lounge entry, but it adds +2 Risk and costs 1 Final-Favor point.`;
+      title='Spend a Bribe to walk straight in?'; sub=`${who} · skip the WHY ASK? roll — a Bribe 🪙 forces ${(game.rules.levels&&!game.collapsed)?'your way onto the REGULATION tier':'Lounge entry'}, but it adds +2 Risk and costs 1 Final-Favor point.`;
       opts=[{label:'Spend Bribe <span class="coinIco"></span> · auto-enter',value:true,cls:'go'},{label:'Risk the WHY ASK? roll',value:false,cls:'no'}]; break;
     case 'space':{   // 90M Black Hole: choose a SPACE to swallow everyone on it (Lounge / Start huddle = the kill)
       title='Drop the $90M Black Hole on which space?'; sub=`${who} · every opponent on the chosen space discards an in-play Asset (or drops to ZERO Juice). The Lounge & Start Circle can hold a crowd.`;
-      const spLabel=k=>k==='LOUNGE'?'EXECUTIVE LOUNGE':k==='START'?'START CIRCLE':'SPACE '+k;
+      const spLabel=k=>k==='LOUNGE'?'EXECUTIVE LOUNGE':k==='START'?'START CIRCLE':/^F\d/.test(k)?(ERSN_FLOORS.bands[+k.slice(1)]||k):'SPACE '+k;
       opts=req.candidates.map(c=>({label:`${spLabel(c.space)} (${c.players.length})`,sub:c.players.map(q=>q.name.split(' ')[0]).join(', '),value:c.space,cls:c.players.length>1?'go':''}));
       if(!opts.length) opts=[{label:'(no targets)',value:null,cls:'no'}]; break; }
     case 'goldenWalk':
+      if(game&&game.rules.levels&&!game.collapsed){ title='Take the Golden Walk?'; sub=`${who} · you’re on a Golden Staircase. Walk straight into the tower (REGULATION) — FREE: no Juice, no roll. The Lounge is still two Trust Checks away, and the SEC ROLL starts now.`;
+        opts=[{label:'Golden Walk · FREE',value:true,cls:'go'},{label:'Stay & play the board',value:false,cls:'no'}]; break; }
       title='Take the Golden Walk?'; sub=`${who} · you’re on a Golden Staircase. Walk straight into the Executive Lounge — FREE: no Juice, no Trust Check, no roll. (End 3 turns here and you trigger the collapse.)`;
       opts=[{label:'Golden Walk · FREE',value:true,cls:'go'},{label:'Stay & play the board',value:false,cls:'no'}]; break;
     case 'play':
       title='Play a card from your hand?'; sub=`${who} · pick one to play this turn, or pass.`;
       opts=req.candidates.map(c=>({card:c,value:c}));
       opts.push({label:'PASS — play nothing',value:null,cls:'no'}); break;
+    case 'bribeClimb':
+      title=req.toLounge?'Bribe your way past the plaque?':'Bribe your way up a tier?'; sub=`${who} · skip this Trust Check: a Bribe 🪙 carries you up, but it adds +2 Risk and costs 1 Final-Favor point.`;
+      opts=[{label:'Spend Bribe <span class="coinIco"></span>',value:true,cls:'go'},{label:'Roll the Trust Check',value:false,cls:'no'}]; break;
+    case 'keepAsset':
+      title='Keep which Asset?'; sub=`${who} · the ASSET square drew two. Keep one; the other is discarded.`;
+      opts=req.candidates.map(c=>({card:c,value:c,cls:'go'})); break;
     case 'react':
       title='React now?'; sub=`${who} · you may trigger ${req.card.name} in response.`;
       opts=[{card:req.card,value:req.card,cls:'go'},{label:'Pass',value:null,cls:'no'}]; break;
@@ -2256,7 +2314,7 @@ cv.addEventListener('click',e=>{ if(CAL||!dieArmed()||!holeScreen)return;
 // CLICK a glowing space to MOVE there; HOVER previews the landing space
 function nearestStep(e){ if(promptKind!=='steps'||!boardHints||!boardHints.stepMap) return null;
   const rect=cv.getBoundingClientRect(), mx=(e.clientX-rect.left)*(cv.width/rect.width), my=(e.clientY-rect.top)*(cv.height/rect.height);
-  let bestD=1e9,bestS=null; for(const k in boardHints.stepMap){ const xy=nodeXY(+k), d=Math.hypot(xy.x-mx,xy.y-my); if(d<bestD){bestD=d;bestS=+k;} }
+  let bestD=1e9,bestS=null; for(const k in boardHints.stepMap){ const key=/^F/.test(k)?k:+k, xy=nodeXY(key), d=Math.hypot(xy.x-mx,xy.y-my); if(d<bestD){bestD=d;bestS=key;} }
   return {s:bestS,d:bestD,rad:boardRect().bw*0.085}; }
 cv.addEventListener('click',e=>{ const h=nearestStep(e); if(h&&h.s!==null&&h.d<h.rad&&promptResolve){ if(window.SFX)SFX.play('select',0.55); settlePrompt(boardHints.stepMap[h.s]); } });
 cv.addEventListener('mousemove',e=>{ const h=nearestStep(e); if(!h){return;} if(h.s!==null&&h.d<h.rad){ boardHints.cursor=h.s; cv.style.cursor='pointer'; } else cv.style.cursor=''; });
@@ -2409,6 +2467,7 @@ function drawBoard(ts){
 
   // ---- the 12 SPACE PLAQUES + serpentine bead-trail (black-hole boards; under halos + pawns) ----
   drawSpaces(now);
+  drawFloors3D();   // ?levels&art=3d: Blender tier pieces on the tower spots (render-only)
   // ---- ASSET / MARKET / SEC deck-pile marker chips (black-hole boards) ----
   drawDeckMarkers(now);
   // ---- GOLDEN STAIRCASE / LOUNGE-ENTRANCE emblems + the SPIRAL LIFT teleport flourish ----
@@ -2882,6 +2941,23 @@ function drawPlateHole(cx,cy,R,now,hot){
   const fl=(now/2600)%1; ctx.globalAlpha=(1-fl)*(hot?0.45:0.22);
   ctx.beginPath(); ctx.arc(cx,cy,R*(0.48+fl*0.55),0,7); ctx.lineWidth=Math.max(1,R*0.008); ctx.stroke();
   ctx.restore();
+}
+// ---- ?levels&art=3d — the LEVELS tower's tiers as Blender-built 3D pieces (3D PIPELINE games/ersn
+//      blender/floors.py → assets/floors3d/). RENDER-ONLY: reads ERSN_FLOORS + nodeXY, never the sim.
+//      Only on boards WITHOUT painted tower bands (&floors3d=all forces every board). Each F<k> spot gets its band's piece; the TRUST CHECK plaque sits between the top tier and the
+//      Lounge. Default (no flag) draws nothing. ----
+const ART3D_FLOORS=LEVELS_ON && /[?&#]art=3d\b/i.test(location.search+location.hash);
+const FLOORS3D_ALL=/[?&#]floors3d=all\b/i.test(location.search+location.hash);   // override: draw on every board
+const FLOOR3D={}; if(ART3D_FLOORS) ['regulation','corruption','trustcheck'].forEach(k=>{ const i=new Image(); i.src='assets/floors3d/'+k+'.png'; FLOOR3D[k]=i; });
+function drawFloors3D(){
+  if(!ART3D_FLOORS || !game || imploding || collapseMorph>0.25 || !window.ERSN_FLOORS) return;
+  if(FLOOR_NORM && !FLOORS3D_ALL) return;   // Q300: boards that paint their own tower bands (layout floors) keep the painted art — no doubled TRUST CHECK
+  const r=boardRect(), BW=r.bw, F=ERSN_FLOORS, put=(img,x,y,sc)=>{ if(!img||!img.complete||!img.naturalWidth) return;
+    const w=BW*sc*perspAt((y-r.by)/r.bh); ctx.drawImage(img,x-w/2,y-w/2,w,w); };
+  for(let k=0;k<F.n;k++){ const band=String(F.bands[k]||'').toLowerCase(), n=nodeXY('F'+k);
+    put(FLOOR3D[band==='corruption'?'corruption':'regulation'], n.x, n.y, 0.15); }
+  const top=nodeXY('F'+(F.n-1)), L=nodeXY('LOUNGE');
+  put(FLOOR3D.trustcheck, top.x+(L.x-top.x)*0.5, top.y+(L.y-top.y)*0.5, 0.11);
 }
 function drawSpaces(now){
   if(!game || imploding || collapseMorph>0.25) return;   // hide during the collapse finale
@@ -3474,7 +3550,7 @@ window.addEventListener('keydown',e=>{
 // Boot sequence: tower LOADING screen (preloads art) → CASTLE KILLSCREEN cold-open → boot.
 // Debug hashes skip straight to their screen; '#introtest' forces the ident, '#loadertest' holds the loader.
 (function(){ const h=location.hash;
-  const dbg=/setup|demo|human|fxtest|boxback|boxshow|hinttest|barkshot|handshot|wipetest|implodetest|drawtest|sheettest|overtest|reacttest|revealtest|hiddentest|pawntest|burntest|idletest/.test(h);
+  const dbg=/setup|demo|human|fxtest|boxback|boxshow|hinttest|barkshot|handshot|wipetest|implodetest|drawtest|sheettest|overtest|reacttest|revealtest|hiddentest|pawntest|burntest|idletest|floorprompt/.test(h);
   const off=()=>{const l=document.getElementById('loader');if(l)l.classList.add('off');};
   window.addEventListener('load',()=>{
     if(h.indexOf('loadertest')>=0) return;                 // hold the loader on screen for capture
@@ -3600,6 +3676,7 @@ if(location.hash.indexOf('pawntest')>=0){
     // which is exactly what the seat-order fan gets wrong)
     [0,2,4].forEach(i=>{ P[i].in_lounge=true; P[i].pos='LOUNGE'; });
     P[1].pos=0; P[3].pos=3; P[5].pos=6;
+    if(game.rules.levels){ P[0].in_lounge=false; P[0].pos='F0'; P[2].in_lounge=false; P[2].pos='F0'; P[1].pos='F1'; }   // #pawntest&levels: two sharing REGULATION, one on CORRUPTION
     P.forEach(q=>{ const xy=nodeXY(q.pos); const pw=pawns[q.name];
       if(pw){ pw.x=pw.tx=xy.x; pw.y=pw.ty=xy.y; pw.hop=0; pw.queue=[]; pw.lpos=q.pos; } });
     updateHUD();
@@ -3654,6 +3731,18 @@ if(location.hash.indexOf('reacttest')>=0){
     if(location.hash.indexOf('prompt')>=0){ presentPrompt({kind:'react',card:byName('On a Technicality')}, me, ()=>{}); }
   },700));
 }
+// debug: LEVELS — a human on REGULATION gets the climb prompt (#floorprompt&levels&board=coreprint)
+if(location.hash.indexOf('floorprompt')>=0){
+  window.addEventListener('load',()=>setTimeout(async ()=>{
+    { const bm=location.hash.match(/board=([a-z0-9-]+)/i); if(bm) setBoard(bm[1]); }
+    S.count=4;S.expansion=true;buildSetup();dealChars(); S.seats=dealt.map(()=>false);
+    startGame(); const me=game.players[0]; me.isHuman=true; me.pos='F0'; me.juice=5;
+    const pw=pawns[me.name], xy=nodeXY('F0'); if(pw){ pw.x=pw.tx=xy.x; pw.y=pw.ty=xy.y; pw.hop=0; pw.queue=[]; pw.lpos='F0'; }
+    updateHUD(); renderHand(me);
+    presentPrompt({kind:'climbTier',at:0,top:ERSN_FLOORS.n-1,toLounge:false,cost:ERSN_FLOORS.cost,again:/again/.test(location.hash)}, me, v=>{ window.__floorPick=v; });
+    window.__shotReady=true;
+  },700));
+}
 // debug: freeze the DRAW flip at a given progress for capture — #drawtestNN (t=NN/100), optional board=, deck=
 if(location.hash.indexOf('drawtest')>=0){
   window.addEventListener('load',()=>setTimeout(async ()=>{
@@ -3674,7 +3763,9 @@ if(location.hash.indexOf('humandemo')>=0){
     const m=location.hash.match(/humandemo(\d+)/); const n=m?+m[1]:18;
     S.count=4;S.expansion=true;buildSetup();dealChars(); S.seats=dealt.map((_,i)=>i===0);
     startGame();
-    const iv=setInterval(()=>{ const pr=$('#prompt'); if(pr.classList.contains('on')){ (pr.querySelector('.opt.go')||pr.querySelector('.opt'))?.click(); } },50);
+    // &climb: the human camps the START CIRCLE (answers 'Stay') so the Golden Staircase offers the tower every turn — drives the LEVELS prompts end to end
+    const camp=/climb/.test(location.hash);
+    const iv=setInterval(()=>{ const pr=$('#prompt'); if(pr.classList.contains('on')){ const stay=camp&&[...pr.querySelectorAll('.opt')].find(b=>b.textContent.trim()==='Stay'); (stay||pr.querySelector('.opt.go')||pr.querySelector('.opt'))?.click(); } },50);
     for(let k=0;k<n && !game.done;k++){ await playTurn(); await new Promise(r=>setTimeout(r,30)); }
     clearInterval(iv);
   },700));
@@ -3813,7 +3904,20 @@ if(location.hash.indexOf('handshot')>=0){
   }
   requestAnimationFrame(poll);
 })();
+// UI-AUDIT 1110: the ATTRACT hooks for src/menu.js — a bots-only demo game behind the title. Never a real game:
+// every seat is a bot, the sound is off while it runs, and the setup is put back exactly as it was on stop().
+window.ERSN_ATTRACT=(function(){ let saved=null, wasMuted=false;
+  return {
+    start(){ if(saved) return; saved={count:S.count, expansion:S.expansion, seats:S.seats.slice(), dealt:dealt.slice()};
+      wasMuted=!!(window.SFX&&SFX.muted); if(window.SFX) SFX.muted=true;
+      S.count=4; S.expansion=true; buildSetup(); dealChars(); S.seats=dealt.map(()=>false);
+      startGame(); show('game'); startAuto(); },
+    stop(){ if(!saved) return; stopAuto(); S.count=saved.count; S.expansion=saved.expansion; S.seats=saved.seats; dealt=saved.dealt; saved=null;
+      if(window.SFX) SFX.muted=wasMuted; show('boot'); },
+    get on(){ return !!saved; }
+  }; })();
 })();
 </script>
+<script src="src/menu.js"></script>
 </body>
 </html>

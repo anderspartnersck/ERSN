@@ -71,6 +71,17 @@
                deck: { 0: 'Market', 1: 'SEC', 2: 'Asset', 3: 'Market', 4: 'SEC', /* 5 = TO MARKET door */
                        6: 'SEC', 7: 'Market', 8: 'Asset', 9: 'SEC', 10: 'Market', 11: 'Asset', 12: 'SEC' } },
   };
+  // LEVELS (Benchmark knob, default OFF — docs/BENCHMARK-LEVELS.md): THE TOWER'S TIERS between the Market
+  // Loop and the Executive Lounge — the painted REGULATION band ('F0') and the CORRUPTION band ('F1') above it.
+  // Joe 2026-11-02: "you climb those into the tower and then you start drawing SEC cards … on the corruption
+  // and regulation tiers you should have to trust check AND roll SEC rolls."
+  //   • a Golden Staircase puts you on REGULATION; a Trust Check (1 Juice) climbs a tier; at CORRUPTION the
+  //     same check is the ANDERS APPROVED TRUST CHECK plaque into the Lounge;
+  //   • every turn you end in the tower you roll the SEC ROLL: 1-2 on REGULATION, 1-3 on CORRUPTION draws a
+  //     Shadow SEC card on you (the Shadow SEC deck lives in the tower; Adv Asset / Adv Market stay on the loop);
+  //   • from the loop, an SEC draw can be turned on a tier resident instead (TIP OFF THE SEC: +1 Risk to you,
+  //     they pass a Trust Check or fall a tier).
+  const FLOORS = { n: 2, cost: 1, bands: ['REGULATION', 'CORRUPTION'], secOn: [2, 3] };
 
   // ---- EDITIONS ----------------------------------------------------------------
   // 'classic'  = faithful to the printed product. FROZEN reference. Do not add rule changes here.
@@ -82,7 +93,7 @@
   const EDITIONS = {
     classic:   { shadowOnRisk: false, shadowRiskThreshold: 6, tallPoppy: false, tallPoppyAt: 8, floor: false, blackHoleFloor: false,
                  stampScoresFF: false, hypeExitFF: false, hypeExitAt: MAX_HYPE, hypeExitJuiceCap: null, cleanestSurvives: false,
-                 charAwareTrust: false, faithfulCards: false, printedTrack: false },
+                 charAwareTrust: false, faithfulCards: false, printedTrack: false, levels: false },
     // PARITY KNOBS (benchmark only — the FF axis that historically locked out Mark/Vonda).
     // Final Favor decides ~99% of games but scores only doors/theft/survive-round/clean-count — never Hype,
     // and Vonda's Stamp is invisible to it. Re-baselined for the canonical 12-tile track (scripts/_parity_ab.js):
@@ -108,13 +119,119 @@
     //     verified batches; Classic keeps the frozen (imperfect) behavior.
     benchmark: { shadowOnRisk: true,  shadowRiskThreshold: 6, tallPoppy: true,  tallPoppyAt: 8, floor: true, blackHoleFloor: true,
                  stampScoresFF: false, hypeExitFF: true, hypeExitAt: 5, hypeExitJuiceCap: 25, cleanestSurvives: true,
-                 charAwareTrust: true, faithfulCards: true, printedTrack: true },
+                 charAwareTrust: true, faithfulCards: true, printedTrack: true, levels: false, levelsPlaqueClean: false, levelsTrustEase: true, levelsTipOff: false, levelsTipRisk: 1, levelsTipTop: false, levelsChain: true, levelsLastElevator: false, levelsClimbRisk: true, levelsFF: 0, levelsTieTier: 0,
+                 assetFlow: 0, camperCards: 0, doughExposure: 0, assetSquareKeep: false, benchmarkDeck: null, benchmarkChars: null,
+                 ffSecWilling: 0, ffBurn8: 0, ffCleanDirty: 0 },
   };
   // Benchmark CARD OVERRIDES — same card name, sharper job (effect + on-card text). Read only when
   // edition==='benchmark'; Classic never sees these. fx swaps route through resolve_card; text feeds the UI.
   const BENCHMARK_FX = {
     'The Benchmark': 'MANUAL_BENCHMARK_RB',   // becomes a pure leader-cutdown (rubber band), not a single-target poke
   };
+  // LEVELS card text (shown only when the levels knob is on): the desperation knock-out lives on CARDS, not a rule
+  // (Joe 2026-11-02: Benchmark = the same board + "tweak cards for Benchmark Core and Benchmark Anders Expansion").
+  const LEVELS_TEXT = {
+    'Token Diversion': 'Shift 1 Risk from yourself to another player. If that player is IN THE TOWER, they must pass a Trust Check or fall one tier. If you have 0 Bribes, lose -1 Trust.',
+    'Anonymous Board Letter': 'All players lose -1 Juice AND must roll a Trust Check. Players who fail ALSO lose -2 Hype plus normal failure penalties. Anyone IN THE TOWER who fails falls one tier.',
+  };
+  // ASSET FLOW (open call E2) — a Benchmark Core CARD rewrite behind the `assetFlow` knob (default 0 = off).
+  // The table starves: ~1.7 Asset draws a 4p game, 76% of seats end with an empty Lineup, and a dozen Market cards
+  // that act on Assets resolve to nothing. The rewrite is card text only (no new rule, no new board element):
+  //   tier 1 "NO DEAL?" — a card with no Asset to act on draws you 1 Asset card instead of fizzling;
+  //   tier 2 adds two DEALS that move Assets every time (Juice Split Agreement: you and your partner each draw one;
+  //          Offshore Entity: the shell spins up another shell).
+  // dead(g, p, others) is read BEFORE the card resolves; the draw lands in hand after it resolves.
+  const NO_DEAL = ' NO DEAL? If this card has nothing to act on, draw 1 Asset card instead.';
+  const ASSET_FLOW = {
+    'Bulls Get Rich':                 { tier: 1, dead: (g, p) => p.asset_count() < 2 },
+    'Bears Get Rich':                 { tier: 1, dead: (g, p) => p.facedown_count() < 2 },
+    "We're Gonna Get the Stock Back!": { tier: 1, dead: g => !g.discards.Asset.some(c => c.ctype === 'Clean') },
+    'Walking the Walk':               { tier: 1, dead: (g, p, o) => !o.some(q => q.facedown_count() > 0) },
+    'Compliance Dividend':            { tier: 1, dead: (g, p, o) => !o.some(q => q.lineup.some(t => t.up)) },
+    'Executive Retreat':              { tier: 1, dead: (g, p, o) => !o.some(q => q.faceup_dirty().length) },
+    'Pump & Ditch':                   { tier: 1, dead: (g, p) => !p.lineup.length },
+    'Hype Loop':                      { tier: 1, dead: (g, p) => !p.asset_count() },
+    'Temporary Optics':               { tier: 1, dead: (g, p) => !p.faceup_dirty().length },
+    'Mark to Mission Statement':      { tier: 1, dead: (g, p) => !p.faceup_dirty().length },
+    'Strategic Undervaluation':       { tier: 1, dead: g => !g.alive_players().some(q => q.lineup.length) },
+    'Juice Split Agreement':          { tier: 2, fx: 'JUICE_SPLIT_DEAL', text: 'Choose 1 opponent. You each gain +1 Juice AND each draw 1 Asset card.' },
+    'Offshore Entity':                { tier: 2, always: true, text: 'Gain +1 Juice. Draw 1 Asset card (shells spin up shells).' },
+  };
+  // CAMPER CARDS (decision 5c) — Benchmark Core rewrites aimed at the low-Risk player who never leaves the loop
+  // (the 4p never-doubling Danny wins 48% under LEVELS by camping: doors + believer's exit + the low-Risk tiebreak).
+  // Knob camperCards is a bitmask: 1 = Senate Hearing, 2 = Mark to Misfit, 4 = Off-Record Testimony. Default 0.
+  // "On the loop" = not in the tower and not in the Lounge.
+  const CAMPER = {
+    'Senate Hearing':               { bit: 1, fx: 'SENATE_CAMPER', text: 'Any player who has 3 or more in-play Assets gains +3 Risk. If no one does, the Senate calls its cleanest witness: the player(s) ON THE LOOP with the LOWEST Risk gain +2 Risk.' },
+    'Mark to Misfit':               { bit: 2, fx: 'MISFIT_CAMPER', text: 'Any player with 2+ in-play Assets loses -2 Hype. If this loss brings any player to 0 Hype, they must discard an in-play Asset. If no one has 2+ Assets, every player ON THE LOOP with 5+ Hype loses -2 Hype instead.' },
+    'Off-Record Testimony Emerges': { bit: 4, fx: 'OFFRECORD_CAMPER', text: 'The highest Trust player ON THE LOOP must skip their next turn. (Executives in the tower or the Lounge are on the record.)' },
+  };
+  // ===================================================================
+  //  BENCHMARK DECK v4 (docs/BENCHMARK-CARD-REVIEW.md) — knob benchmarkDeck: 'v4' (default off).
+  //  Same 117 cards, same decks, same counts: text rewritten 1:1 for the tier structure
+  //  (staircase -> REGULATION -> CORRUPTION -> the TRUST CHECK plaque -> the Lounge).
+  //  Each entry: kind 'mech' (changes play) or 'text' (wording only) · e2 (could carry to the 2nd print) ·
+  //  text (the new card text) and ONE of: fx (a new resolution), dead+fb (a fallback when the card has
+  //  nothing to act on: 'asset' draw 1 Asset · 'assetRisk' draw 1 Asset +1 Risk · 'towerAll' everyone IN
+  //  THE TOWER passes a Trust Check or falls a tier · 'towerOne' one opponent in the tower does), after (a rider).
+  // ===================================================================
+  const ND = ' NO DEAL? If this card has nothing to act on, draw 1 Asset card instead.';
+  const loopOnly = (g, q) => !q.in_lounge && g.floorOf(q) === null;
+  const BENCH_V4 = {
+    // ---- core SEC ----
+    'Fake Receipts':        { kind: 'mech', e2: true, after: 'towerLowTrust', text: 'Any player with 0 or less Trust gains +3 Risk. Anyone IN THE TOWER with 1 or less Trust falls one tier.' },
+    'Mark to Misfit':       { kind: 'mech', e2: true, fx: 'MISFIT_CAMPER', text: CAMPER['Mark to Misfit'].text },
+    'Off-Record Testimony Emerges': { kind: 'mech', e2: true, fx: 'OFFRECORD_CAMPER', text: CAMPER['Off-Record Testimony Emerges'].text },
+    'Senate Hearing':       { kind: 'mech', e2: true, fx: 'SENATE_CAMPER', text: CAMPER['Senate Hearing'].text },
+    'What the Hell Is He Building in There?': { kind: 'mech', e2: true, dead: (g, p) => !p.faceup_dirty().length, fb: 'towerAll',
+      text: 'You gain +1 Risk for every face-up Dirty Asset in your Lineup (+2 per Asset if you have used a Bribe). If you have none, the SEC looks UP: everyone IN THE TOWER must pass a Trust Check or fall one tier.' },
+    // ---- core Asset ----
+    'Offshore Entity':      { kind: 'mech', e2: true, always: 'asset', text: 'Gain +1 Juice. Draw 1 Asset card (shells spin up shells).' },
+    'The Safe':             { kind: 'mech', e2: true, fx: 'THE_SAFE_V4', text: 'Target an opponent on a Golden Staircase OR IN THE TOWER. They must roll a 6 to pass any Trust Check until their next turn ends.' },
+    'Strategic Partnership MOU': { kind: 'mech', e2: true, dead: (g, p, o) => !o.some(q => q.faceup_clean().length), fb: 'asset', text: null },
+    'Employee Recognition Suite': { kind: 'mech', e2: true, text: 'EFFECT If you hold 2 or more Assets, gain +1 Hype at end of your turn.' },
+    // ---- core Market ----
+    'Bulls Get Rich':       { kind: 'mech', e2: true, dead: (g, p) => p.asset_count() < 2, fb: 'asset' },
+    'Bears Get Rich':       { kind: 'mech', e2: true, dead: (g, p) => p.facedown_count() < 2, fb: 'asset' },
+    "We're Gonna Get the Stock Back!": { kind: 'mech', e2: true, dead: g => !g.discards.Asset.some(c => c.ctype === 'Clean'), fb: 'asset' },
+    'Walking the Walk':     { kind: 'mech', e2: true, dead: (g, p, o) => !o.some(q => q.facedown_count() > 0), fb: 'asset' },
+    'Compliance Dividend':  { kind: 'mech', e2: true, dead: (g, p, o) => !o.some(q => q.lineup.some(t => t.up)), fb: 'asset' },
+    'Pump & Ditch':         { kind: 'mech', e2: true, dead: (g, p) => !p.lineup.length, fb: 'asset' },
+    'Mark to Mission Statement': { kind: 'mech', e2: true, dead: (g, p) => !p.faceup_dirty().length, fb: 'asset' },
+    'Mark to Magic':        { kind: 'mech', e2: true, dead: (g, p) => p.lineup.length < 3, fb: 'asset' },
+    'Juice Split Agreement': { kind: 'mech', e2: true, fx: 'JUICE_SPLIT_DEAL', text: 'Choose 1 opponent. You each gain +1 Juice AND each draw 1 Asset card.' },
+    'Pigs Get Slaughtered': { kind: 'mech', e2: true, fx: 'PIGS_V4', text: 'The player(s) holding the MOST in-play Assets (2 or more) discard 1 (a face-up CLEAN Asset first) and lose -1 Trust. If no one holds 2, the pig is you: lose -1 Trust.' },
+    'Tower Tour (by Invitation Only)': { kind: 'mech', e2: true, fx: 'TOWER_TOUR_V4', text: 'On the loop: step straight onto the REGULATION tier (no Juice, no check). Already IN THE TOWER: gain +1 Trust (the tour guide vouches for you).' },
+    // ---- Shadow SEC (the tower deck) ----
+    'Offshore Shell Game':  { kind: 'mech', e2: true, dead: (g, p) => !p.lineup.some(x => x.up && g.effDirtyOrCond(p, x)), fb: 'assetRisk', text: null, nd: ' NOTHING TO HIDE? Draw 1 Asset card and gain +1 Risk (a fresh shell).' },
+    'Plausible Deniability': { kind: 'mech', e2: true, dead: (g, p, o) => !o.some(q => q.faceup_clean().length), fb: 'towerOne', text: null, nd: ' NO CLEAN ASSET TO SMEAR? Smear a person: 1 opponent IN THE TOWER must pass a Trust Check or fall one tier.' },
+    'Pull the Tape':        { kind: 'mech', e2: true, dead: (g, p, o) => !o.some(q => q.facedown_count() > 0), fb: 'towerOne', text: null, nd: ' NOTHING ON TAPE? Roll it anyway: 1 opponent IN THE TOWER must pass a Trust Check or fall one tier.' },
+    'On a Technicality':    { kind: 'mech', e2: false, keepInHand: true, text: null, nd: ' (Drawn by an SEC roll or an SEC square, it goes to your hand: it waits for its trigger.)' },
+    // ---- Advanced Asset ----
+    'Shadow Merger':        { kind: 'mech', e2: true, dead: (g, p) => p.faceup_dirty().length < 2, fb: 'asset' },
+    'Raptor Implosion':     { kind: 'mech', e2: true, fx: 'RAPTOR_IMPLODE_V4', text: 'When first played to your Lineup, pick 1 opponent. You gain +1 Juice per in-play Asset they hold (minimum +2). YOU gain +1 Risk each time it is used again.' },
+    'Palace in the Sky':    { kind: 'text', e2: true, text: 'Move to the VIP Golden Staircase. You may pay 0 Juice to climb NOW: onto REGULATION from the loop, or straight to the Executive Lounge if you are already IN THE TOWER. Under threshold, the Trust Check passes on 4+.' },
+    // ---- Advanced Market ----
+    'Executive Retreat':    { kind: 'mech', e2: true, dead: (g, p, o) => !o.some(q => q.faceup_dirty().length), fb: 'asset' },
+    'Temporary Optics':     { kind: 'mech', e2: true, dead: (g, p) => !p.faceup_dirty().length, fb: 'asset' },
+    'Strategic Undervaluation': { kind: 'mech', e2: true, dead: g => !g.alive_players().some(q => q.lineup.length), fb: 'asset' },
+    'Hype Loop':            { kind: 'mech', e2: true, dead: (g, p) => !p.asset_count(), fb: 'asset' },
+    "It Wasn't Signed":     { kind: 'mech', e2: true, dead: (g, p, o) => !p.lineup.length || !o.some(q => q.lineup.length), fb: 'asset' },
+    // ---- Round 6: the last 8 dead cards (reveals, rare constants, a scoring-time card, a start-of-turn MAY) ----
+    'Cloak of Moral Rectitude': { kind: 'mech', e2: true, fx: 'CLOAK_V4', text: 'EFFECT Target 1 opponent. They must show you their face-down Assets and hand. They gain +1 Risk for each Dirty Asset you see (max +2). If you see none, YOU gain +1 Trust (next to them, you look spotless).' },
+    'Controlled Burn':      { kind: 'mech', e2: true, then: 'burnPlay', text: 'EFFECT When played, gain +1 Hype and shift 1 Risk to an opponent. Turn face-up the moment you would lose a Dirty Asset from in-play OR fall a tier. INSTEAD gain +1 Hype AND give the Dirty Asset (on a fall: this Asset) to an opponent in their Lineup; you hold your tier. 1 use effects may not be used again.' },
+    'Hostile Takeover':     { kind: 'mech', e2: true, then: 'hostileBid', text: 'EFFECT When played, take 2 Juice from the opponent with the most Juice (a hostile bid). If another player discards a Clean Asset OR falls a tier for any reason, you gain +1 Juice.' },
+    'Iron-Clad Purchase Agreement': { kind: 'mech', e2: true, then: 'ironClad', text: 'EFFECT When played, gain +1 Trust (the paperwork is airtight). If you are targeted by an opponent card effect, you gain +1 Juice. If you fall a tier, you gain +2 Juice (the contract pays out).' },
+    'Accounting Whisper':   { kind: 'mech', e2: true, then: 'whisper', text: 'When played, lose -1 Risk (a word in the right ear); at 0 Risk, gain +1 Trust instead. If this Asset is in your Lineup at Final Favor AND Shadow SEC Meter is UNDER 6, your Risk may count as 0 when determining a winner.' },
+    'Feeding the Raptors':  { kind: 'mech', e2: true, text: '1 use only. If this card is in your Lineup at the start of your turn, you may transfer 2 Juice, up to 3 Risk, and this Asset in-play to any opponent. This Asset cannot be discarded, even by BURNOUT.' },
+    'Rank and Yank':        { kind: 'mech', e2: true, fx: 'RANK_YANK_V4', text: 'Choose 1 opponent. They must reveal ALL face-down Assets in their Lineup; each Dirty one stays face-up (yanked). If they have nothing to reveal, they lose -2 Hype (ranked last). If this effect is used again, you must give chosen opponent 2 Hype.' },
+    'Raptor Leasing Group': { kind: 'mech', e2: true, then: 'raptorLease', text: 'When played, gain +2 Juice (the lease pays up front). If you fail any Trust Check roll, gain +2 Risk instead of normal penalty.' },
+    'Mandatory Clause':     { kind: 'mech', e2: true, dead: (g, p, o) => !o.some(q => q.lineup.length || q.hand.some(c => c.deck === 'Market' || c.deck === 'AdvMarket')), fb: 'towerOne', text: null, nd: ' NO CLAUSE TO ENFORCE? 1 opponent IN THE TOWER must pass a Trust Check or fall one tier.' },
+  };
+  const BENCH_V4_TEXT = {};
+  for (const c of (global.CARDS || [])) { const a = BENCH_V4[c.name]; if (a) BENCH_V4_TEXT[c.name] = a.text || (c.text + (a.nd || ND)); }
+  const ASSET_FLOW_TEXT = {};
+  for (const c of (global.CARDS || [])) { const a = ASSET_FLOW[c.name]; if (a) ASSET_FLOW_TEXT[c.name] = a.text || (c.text + NO_DEAL); }
   const BENCHMARK_TEXT = {
     'The Benchmark': 'THE BENCHMARK — the table is measured against its loudest. The player with the most Hype is cut down to size: −3 Hype (you, if you set the bar). No bailouts.',
     '90 Million Dollar Black Hole': 'Choose the EXEC. LOUNGE, START CIRCLE, or ANY space. Any players on that space must discard an in-play Asset of their choice. If a player has 0 Assets in-play, that account goes straight to ZERO Juice. (No doubling-the-deficit spiral.)',
@@ -133,6 +250,11 @@
         case 'steps':       return p.juice > 0 ? Math.min(p.juice, R.randint(0, 2)) : 0;
         case 'door':        return R.random() < 0.4;
         case 'enterLounge': return R.random() < 0.5;
+        case 'climbTier':   return R.random() < 0.6;
+        case 'tipOff':      return (req.candidates.length && R.random() < 0.5) ? R.choice(req.candidates) : null;
+        case 'climbLounge': return true;
+        case 'keepAsset':   return req.candidates[0];   // random bots keep the first (no RNG)
+        case 'bribeClimb':  return false;
         case 'play':        { const c = req.candidates || p.hand; return (c.length && R.random() < 0.8) ? R.choice(c) : null; }
         case 'target':      return req.candidates.length ? R.choice(req.candidates) : null;
         case 'asset':       return req.candidates.length ? R.choice(req.candidates) : null;
@@ -194,7 +316,7 @@
   };
 
   // threat score for "target the leader" — closeness to a clean Lounge win dominates
-  function threat(g, q) { return (q.in_lounge ? 6 : 0) + q.clean_count() * 2 + q.trust * 0.3 + q.hype * 0.12 + q.juice * 0.1 - q.risk * 0.2; }
+  function threat(g, q) { return (q.in_lounge ? 6 : 0) + (g.floorOf(q) !== null ? 3 : 0) + q.clean_count() * 2 + q.trust * 0.3 + q.hype * 0.12 + q.juice * 0.1 - q.risk * 0.2; }
 
   class CharacterAgent {
     constructor() { this.bot = new BotAgent(); }
@@ -206,6 +328,15 @@
         case 'steps':       return persona.steps(p, game);
         case 'door':        return persona.door(p, game);
         case 'enterLounge': return persona.enterLounge(p, game);
+        case 'climbTier':   return true;                                              // up is the only way to the Lounge
+        case 'tipOff': {    // desperation: snitch on a tower resident only when they're beating you and you can carry the Risk
+          const cs = req.candidates; if (!cs || !cs.length || p.risk > 5) return null;
+          const t = cs.reduce((m, x) => threat(game, x) > threat(game, m) ? x : m);
+          return threat(game, t) > threat(game, p) ? t : null;
+        }
+        case 'climbLounge': return true;                                              // only offered when eligible
+        case 'bribeClimb':  return !!req.toLounge && p.trust < 4;                     // v4: buy past the plaque only when your name won't carry you
+        case 'keepAsset':   return req.candidates.reduce((m, x) => persona.playScore(x) > persona.playScore(m) ? x : m);   // keep the one your kit wants
         case 'react':       return (R.random() < persona.reactRate) ? req.card : null;
         case 'play': {
           const cs = req.candidates || p.hand;
@@ -220,10 +351,12 @@
           return cs.reduce((m, x) => threat(game, x) > threat(game, m) ? x : m);
         }
         case 'ability':     // in-character use of the printed secondary abilities
-          if (req.ability === 'Unimpeachable') return p.trust < 4 && p.juice >= 7;  // only buy Trust to clear the Lounge bar, and only with spare Juice
+          if (req.ability === 'Unimpeachable') return p.trust < 4 && p.juice >= (req.juiceCost || 5) + 2;  // only buy Trust to clear the Lounge bar, and only with spare Juice
           if (req.ability === 'Doughmination') return p.juice >= 10 && p.hype >= 2; // Danny converts a Juice surplus to a Hype spike
           if (req.ability === 'Notary') return false;                       // Vonda keeps her Assets (the Stamp wants them)
+          if (req.ability === 'NotaryAlibi') return game._cv('charVonda', 3) >= 2 ? (p.risk >= 2 && p.trust >= 3) : (p.risk >= 3 && p.trust >= 4);   // v4: buy down Risk only with Trust to spare (v2 kit: a looser notary)
           if (req.ability === 'LeakyBucket') return true;                   // Vonda always clings to the Lounge
+          if (req.ability === 'FeedRaptors') return game._v4Deck() && p.risk >= 2;   // v4 Round 6: feed the raptors to dump Risk (pre-v4 bots never fed: the card was dead)
           return false;
         default:            return this.bot.decide(req, game, p);   // asset/hand/choice/giveHype
       }
@@ -258,6 +391,7 @@
       this.ff_bribe_used = 0; this.ff_clean_turned_dirty = 0; this.ff_burnout = 0;
       this.ff_entered_sec_willingly = 0; this.ff_survived_collapse_round = 0;
       this.ff_burned_8plus_juice = 0; this.ff_passed_to_market = 0; this.ff_stole_asset = 0;
+      this.peak_level = 0;           // LEVELS: highest level reached (1 = the Floors, 2 = the Lounge) — feeds levelsFF
       this.ff_hype_exit = 0;         // BENCHMARK: banked at collapse if riding MAX Hype (the believer's exit)
       this.acct_whisper = false;     // MANUAL_ACCT_WHISPER (Risk counts 0 if Shadow<6 at scoring)
     }
@@ -321,6 +455,10 @@
       this.edition = EDITIONS[opts.edition] ? opts.edition : 'classic';
       // edition knobs; classic = print-faithful. opts.ruleOverrides lets a balance harness A/B single knobs.
       this.rules = opts.ruleOverrides ? Object.assign({}, EDITIONS[this.edition], opts.ruleOverrides) : EDITIONS[this.edition];
+      // player-count-scaled knobs: an override may be { byPlayers: { 3: v, 4: v, default: v } } (e.g. Package B at 3–4p only)
+      if (opts.ruleOverrides) { const np = (opts.characters && opts.characters.length) || opts.n_players || 4;
+        for (const k of Object.keys(this.rules)) { const v = this.rules[k];
+          if (v && typeof v === 'object' && v.byPlayers) this.rules[k] = (np in v.byPlayers) ? v.byPlayers[np] : v.byPlayers.default; } }
       this.track = this.rules.printedTrack ? TRACKS.printed : TRACKS.golden;   // the loop this game is played on
       this.loglines = [];
       this.events = [];          // structured events for the UI animator
@@ -328,6 +466,11 @@
         ? opts.characters
         : this.rng.sample(global.CHARACTERS, opts.n_players || 4);
       this.players = chosenDefs.map(c => new Player(c));
+      // v4 Round 4 A/B knobs: a starting-Trust bump for one seat (charWuTrust / charClaudiaTrust; byPlayers-scalable). Benchmark only, no RNG.
+      // v4 default: Claudia starts with +1 Trust in a 5+ player game (the big table's tower is crowded).
+      if (this.edition === 'benchmark') for (const p of this.players) { const k = p.name === 'Wu Drainer' ? 'charWuTrust' : p.name === 'Claudia Numbers' ? 'charClaudiaTrust' : p.name === 'Vonda Vouch' ? 'charVondaTrust' : null;   // charVondaTrust: Round 8 Package S A/B only
+        const bump = k && this._cv(k, k === 'charClaudiaTrust' && this.players.length >= 5 ? 1 : 0); if (bump) p.trust += bump;
+        if (p.name === 'Wu Drainer' && this.rules.charWuJuice) p.juice += this.rules.charWuJuice; }
       if (opts.humanSeats) this.players.forEach((p, i) => { p.isHuman = !!opts.humanSeats[i]; });
       // bots play their character by default ("Sharky's Cubicle" policies); 'random' keeps the old pure-RNG bot
       this.botStyle = opts.botStyle || 'character';
@@ -345,23 +488,38 @@
         this.order = rolls.map(x => x.i);
         this.log(`    Roll-off for turn order: ${this.order.map(i => this.players[i].name.split(' ')[0]).join(' -> ')}`);
       }
+      // Round 7 A/B knobs (default OFF, not in v4; no RNG): seat-order catch-up. seatJuice: the k-th seat in turn order starts with
+      // +k*seatJuice Juice (seat 1 +0). seatJuiceWho: limit it to one character's seat (e.g. 'Danny Dough'), whose Final Favor lane is time-sensitive.
+      if (this.edition === 'benchmark' && this.rules.seatJuice) this.order.forEach((pi, k) => { const q = this.players[pi];
+        if (!this.rules.seatJuiceWho || q.name === this.rules.seatJuiceWho) q.juice += k * this.rules.seatJuice; });
       this.idx = 0; this.done = false;
       this.maxTurns = opts.maxTurns || 120;
       // decks
       this.seen = new Map();   // hidden-info knowledge: playerName -> Map<card, holder>  (see knows/learn)
       this.decks = {}; this.discards = {};
       const map = { SEC: 'ShadowSEC', Asset: 'AdvAsset', Market: 'AdvMarket' };
+      this.floorDecks = !!(this.rules.levels && this.expansion && !this.rules.levelsShadowLoop);   // A/B: levelsShadowLoop keeps Shadow SEC on the loop (tower draws core SEC)   // LEVELS: the Shadow SEC deck lives in the tower (FSEC)
       for (const key of ['SEC', 'Asset', 'Market']) {
         let base = (global.DECK_OF[key] || []).slice();
-        if (this.expansion) base = base.concat((global.DECK_OF[map[key]] || []).slice());
+        if (this.expansion && !(this.floorDecks && key === 'SEC')) base = base.concat((global.DECK_OF[map[key]] || []).slice());
         this.rng.shuffle(base);
         this.decks[key] = base; this.discards[key] = [];
+      }
+      if (this.floorDecks) {
+        const base = (global.DECK_OF.ShadowSEC || []).slice();
+        this.rng.shuffle(base);
+        this.decks.FSEC = base; this.discards.FSEC = [];
       }
       for (const p of this.players) p.sec_immunity = this.expansion ? 1 : 0;
     }
 
     log(s) { this.loglines.push(s); }
-    emit(type, data) { this.events.push(Object.assign({ type, turn: this.turn }, data || {})); }
+    emit(type, data) {
+      // LEVELS: the old "walk into the Lounge" sites still announce enter_lounge after _ascend; when the gate
+      // only lifted the player onto the Floors (enter_floors already went out), that announcement is false.
+      if (type === 'enter_lounge' && this.rules.levels) { const q = this.players.find(x => x.name === data.player); if (q && !q.in_lounge) return; }
+      this.events.push(Object.assign({ type, turn: this.turn }, data || {}));
+    }
 
     // route a decision to the acting player's agent (sync bot or async human)
     decide(p, req) { return Promise.resolve(p.agent.decide(req, this, p)); }
@@ -426,6 +584,160 @@
       return drawn;
     }
 
+    // ASSET FLOW: a card hands q one Asset card (to hand, like an ASSET square). Not a loop draw, so it doesn't feed
+    // the "3 Assets drawn consecutively" Global SEC rule.
+    _assetFlowDraw(q, why) {
+      const c = this.draw('Asset'); if (!c) return;
+      q.hand.push(c); this.log(`    ${why}: ${q.name} draws Asset: ${c.name}`);
+      this.emit('draw', { player: q.name, deck: 'Asset', card: c.name, via: why });
+    }
+
+    // ── LEVELS (knob) ─────────────────────────────────────────────────────────────────────
+    floorOf(p) { return (typeof p.pos === 'string' && p.pos[0] === 'F') ? +p.pos.slice(1) : null; }
+    // Every "walk into the Lounge" site routes here. Knob OFF: exactly the old two assignments.
+    // Knob ON: a gate lifts you ONE level — Loop -> the Floors (bottom space), Floors -> the Lounge.
+    // After the collapse the Floors are rubble, so a staircase goes straight to the Lounge again.
+    _ascend(p) {
+      if (this.rules.levels && !this.collapsed && this.floorOf(p) === null && !p.in_lounge) {
+        p.pos = 'F0'; p.peak_level = Math.max(p.peak_level, 1); this.log(`    ${p.name} climbs into the tower (${FLOORS.bands[0]})`); this.emit('enter_floors', { player: p.name });
+        return 'floors';
+      }
+      p.in_lounge = true; p.pos = 'LOUNGE'; if (this.rules.levels) p.peak_level = 2;
+      return 'lounge';
+    }
+    // log label for where a gate just put you (LEVELS: the tower's bottom tier, not the Lounge). Knob off: always the Lounge.
+    _where(p) { return p.in_lounge ? 'Executive Lounge' : `the tower (${FLOORS.bands[0]})`; }
+    // BENCHMARK v4 fallbacks (see BENCH_V4): what a rewritten card does when it has nothing to act on
+    async _v4Fallback(fb, p, others, card) {
+      if (fb === 'asset') return this._assetFlowDraw(p, `${card.name} — NO DEAL`);
+      if (fb === 'assetRisk') { this._assetFlowDraw(p, `${card.name} — a fresh shell`); return this.add_risk(p, 1, card.name); }
+      const tower = this.alive_players().filter(q => this.floorOf(q) !== null && (fb === 'towerAll' || q !== p));
+      if (!tower.length) return;
+      const hit = fb === 'towerAll' ? tower : [await this.pick_target(p, tower, undefined, card)].filter(Boolean);
+      for (const q of hit) await this._towerAudit(q, card.name, p);
+    }
+    // a card-driven knock-out: a tower resident passes a Trust Check (no fail Risk) or falls one tier
+    async _towerAudit(q, why, by) {
+      if (this.floorOf(q) === null) return;
+      const held = this.rules.charAwareTrust ? await this.charTrustResolve(q, 5, null, false) : (this.rng.randint(1, 6) >= 5);
+      this.emit('tipoff', { player: by ? by.name : q.name, target: q.name, card: why });
+      if (held) this.log(`    ${q.name} holds their tier (${why})`); else this._knockDown(q, why);
+    }
+    _v4Deck() { return this.edition === 'benchmark' && this.rules.benchmarkDeck === 'v4'; }
+    // v4 Round 6 on-play riders (BENCH_V4 .then): the dead constants / scoring cards get a bite the moment they land
+    async _v4Then(k, p, others, card) {
+      const live = others.filter(q => q.alive);
+      if (k === 'burnPlay') { p.hype += 1; if (p.risk > 0 && live.length) { const t = await this.pick_target(p, live, undefined, card); if (t) { this.add_risk(p, -1); this.add_risk(t, 1, card.name); this.log(`    Controlled Burn: the smoke drifts to ${t.name}`); } } }
+      else if (k === 'hostileBid') { const rich = live.filter(q => q.juice > 0).sort((a, b) => b.juice - a.juice)[0]; if (rich) { const j = Math.min(2, rich.juice); rich.juice -= j; p.juice += j; this.log(`    Hostile Takeover: ${p.name} bids ${j} Juice out of ${rich.name}`); } }
+      else if (k === 'ironClad') this.gainTrust(p, 1);
+      else if (k === 'whisper') { if (p.risk > 0) this.add_risk(p, -1); else this.gainTrust(p, 1); }
+      else if (k === 'raptorLease') p.juice += 2;
+    }
+    // v4 Round 6: Controlled Burn also answers a FALL (sync, automatic: "the moment you would"). True = the fall is cancelled.
+    _v4BurnFall(q, why) {
+      if (!this._v4Deck() || why === 'burnout' || this.collapsed) return false;   // the collapse is not a fall you can burn your way out of (the tower is rubble)
+      const t = q.lineup.find(x => x.card.fx === 'MANUAL_CONTROLLED_BURN'); if (!t) return false;
+      const opps = this.others_of(q); if (!opps.length) return false;
+      const tgt = opps.reduce((m, x) => threat(this, x) > threat(this, m) ? x : m);
+      q.lineup.splice(q.lineup.indexOf(t), 1); q.hype += 1; tgt.lineup.push(this.mkEntry(t.card, true, false));
+      this.log(`    ${q.name} reacts with Controlled Burn: holds the tier, +1 Hype, the Asset lands on ${tgt.name} (${why})`);
+      this.emit('react', { player: q.name, card: t.card.name, trigger: 'fall' }); return true;
+    }
+    // v4 Round 6: falls pay the predators (Hostile Takeover) and the insured (Iron-Clad Purchase Agreement)
+    _v4AfterFall(q) {
+      if (!this._v4Deck()) return;
+      for (const r of this.alive_players()) if (r !== q && r.hasConstant('CONSTANT_OPP_DISCARD_CLEAN_JUICE1')) { r.juice += 1; this.emit('cardFire', { player: r.name, card: 'Hostile Takeover' }); }
+      if (q.hasConstant('CONSTANT_TARGETED_JUICE1')) { q.juice += 2; this.emit('cardFire', { player: q.name, card: 'Iron-Clad Purchase Agreement' }); }
+    }
+    _v4Keep(c) { return this.edition === 'benchmark' && this.rules.benchmarkDeck === 'v4' && BENCH_V4[c.name] && BENCH_V4[c.name].keepInHand; }
+    // BENCHMARK chars v4 sub-knobs: an explicit rule wins, else benchmarkChars:'v4' supplies the v4 value, else off.
+    _cv(key, v4val) { if (this.edition !== 'benchmark') return 0; const r = this.rules[key]; return r !== undefined ? r : (this.rules.benchmarkChars === 'v4' ? v4val : 0); }
+    _onLoop(q) { return !q.in_lounge && this.floorOf(q) === null; }   // CAMPER cards: not in the tower, not in the Lounge
+    // Vonda v2 — Leaky Bucket: leaving the tower or the Lounge? discard an Asset OR pay 2 Juice to stay put (bots: always, if able)
+    _leakyBucket(q, what) {
+      if (q.abilityName !== 'Vonda Vouch' || this._cv('charVonda', 3) < 2) return false;
+      if (q.juice >= 2) { q.juice -= 2; this.log(`    Vonda Leaky Bucket: pays 2 Juice and holds (${what})`); }
+      else if (q.lineup.length) { this._discard_asset(q, q.lineup[0]); this.log(`    Vonda Leaky Bucket: discards an Asset and holds (${what})`); }
+      else return false;
+      this.emit('leakyBucket', { player: q.name, what }); return true;
+    }
+    _dropToLoop(p, why) { if (this._v4BurnFall(p, why)) return; if (why !== 'burnout' && this._leakyBucket(p, why)) return; p.pos = 'START'; this.log(`    ${p.name} falls out of the tower -> START (${why})`); this.emit('fall', { player: p.name, why, to: 'START' }); this._v4AfterFall(p); }
+    // The tower Trust Check's pass-on: 5+, or 4+ at Trust 4+ (levelsTrustEase). levelsTrustEase: 2 grades it one more
+    // step — Trust 6+ passes on 3+ ("a spotless name is the elevator pass"): an A/B lever for the high-Trust climbers.
+    _towerPassOn(p) {
+      const e = this.rules.levelsTrustEase;
+      if (e >= 2 && p.trust >= 6) return 3;
+      return (e && p.trust >= 4) ? 4 : 5;
+    }
+    // knocked DOWN one tier: CORRUPTION -> REGULATION, REGULATION -> out to the START circle
+    _knockDown(q, why) {
+      const f = this.floorOf(q); if (f === null) return;
+      if (f === 0) return this._dropToLoop(q, why);
+      if (this._v4BurnFall(q, why)) return;
+      if (this._leakyBucket(q, why)) return;
+      q.pos = 'F' + (f - 1); this.log(`    ${q.name} knocked down to ${FLOORS.bands[f - 1]} (${why})`); this.emit('fall', { player: q.name, why, to: q.pos }); this._v4AfterFall(q);
+    }
+    // One turn in the tower: (1) MAY climb — 1 Juice + a Trust Check (Trust 4+ passes on 4, else 5); on
+    // CORRUPTION that check is the ANDERS APPROVED TRUST CHECK plaque into the Lounge. (2) Still in the tower?
+    // Roll the SEC ROLL. Returns true if the player climbed.
+    async floors_turn(p) {
+      const top = (this.rules.levelsTiers || FLOORS.n) - 1;
+      let climbed = false;
+      // levelsChain (momentum): pass a check and you MAY try the next one this same turn (each check costs its Juice)
+      for (let tries = 0; tries <= top; tries++) {
+        const at = this.floorOf(p); if (at === null || p.in_lounge) break;
+        const toLounge = (at === top), band = FLOORS.bands[at];
+        const eligible = !toLounge || !this.rules.levelsPlaqueClean || this.victoryCleanCount(p) === 2 || (p.abilityName === 'Mark Markit' && p.hype >= 8);
+        if (!(p.juice >= FLOORS.cost && eligible && await this.decide(p, { kind: 'climbTier', at, top, toLounge, cost: FLOORS.cost, again: tries > 0 }))) break;
+        p.juice -= FLOORS.cost; p._spent = (p._spent || 0) + FLOORS.cost;
+        const base = this._towerPassOn(p);
+        const what = toLounge ? 'the TRUST CHECK plaque' : `the ${FLOORS.bands[at + 1]} Trust Check`;
+        // levelsClimbRisk false: a missed climb just leaves you where you are (no +1 Risk) — A/B lever for Claudia's lane
+        const failRisk = this.rules.levelsClimbRisk !== false;
+        // v4 rule (levelsBribe): a Bribe buys you past a TOWER check too, exactly as at the staircase (+2 Risk, -1 FF)
+        const bribed = this._cv('levelsBribe', 1) && p.bribes > 0 && await this.decide(p, { kind: 'bribeClimb', toLounge, at });
+        if (bribed) { this.spendBribe(p); this.emit('spendBribe', { player: p.name }); this.log(`    ${p.name} spends a Bribe past ${what}`); }
+        const ok = bribed || (this.rules.charAwareTrust ? await this.charTrustResolve(p, base, `failed ${what}`, failRisk) : (failRisk ? await this.trust_check(p, base) : this.rng.randint(1, 6) >= this.effPassOn(p, base)));
+        if (!ok) { this.log(`    ${p.name} fails ${what} (stays on ${band})`); break; }
+        if (this.floorOf(p) !== at) break;   // a reaction moved them
+        if (toLounge) { this._ascend(p); this.log(`    ${p.name} passes the ANDERS APPROVED TRUST CHECK -> Executive Lounge`); this.emit('enter_lounge', { player: p.name }); return true; }
+        p.pos = 'F' + (at + 1); climbed = true;
+        this.log(`    ${p.name} passes ${what} -> climbs to ${FLOORS.bands[at + 1]}`); this.emit('move', { player: p.name, to: p.pos }); this.emit('climb', { player: p.name, band: FLOORS.bands[at + 1] });
+        if (!this.rules.levelsChain) break;
+      }
+      if (this.floorOf(p) !== null && !p.in_lounge) await this.sec_roll(p);
+      return climbed;
+    }
+    // THE SEC ROLL: the higher you are, the likelier the SEC opens a file on you (a Shadow SEC card, resolved on you).
+    async sec_roll(p) {
+      const t = this.floorOf(p), hitOn = (this.rules.levelsSecOn || FLOORS.secOn)[t],   // levelsSecOn: A/B override of the hit bands
+            roll = this.rng.randint(1, 6), hit = roll <= hitOn;
+      this.log(`    SEC ROLL on ${FLOORS.bands[t]}: ${p.name} rolls ${roll} (${hit ? 'the SEC opens a file' : 'clear'}, 1-${hitOn} hits)`);
+      this.emit('secRoll', { player: p.name, band: FLOORS.bands[t], roll, hitOn, hit });
+      if (!hit) return;
+      if (this.edition === 'benchmark' && this.rules.ffSecWilling === 'tower' && !p.ff_entered_sec_willingly) p.ff_entered_sec_willingly = 1;   // FF reading: the SEC opened a file on you because you chose to stay in the tower (once)
+      const key = this.floorDecks ? 'FSEC' : 'SEC', c = this.draw(key);
+      if (!c) return;
+      this.log(`    draws ${key}: ${c.name}`);
+      this.emit('draw', { player: p.name, deck: key, card: c.name });
+      const pile = this.discards[this._discard_key(c)];
+      if (this._v4Keep(c)) { p.hand.push(c); this.log(`    ${p.name} keeps ${c.name} in hand (it waits for its trigger)`); }
+      else if (p.sec_immunity > 0) { p.sec_immunity -= 1; this.log(`    ${p.name} uses SEC Immunity (ignores ${c.name})`); this.emit('secImmunity', { player: p.name, card: c.name, left: p.sec_immunity }); pile.push(c); }
+      else if (p.grace_immunity) { this.log(`    ${p.name} immune (Grace Period) — ignores ${c.name}`); pile.push(c); }
+      else { await this.resolve_card(c, p, this.others_of(p)); this.after_sec_draw(c); }
+    }
+    // TIP OFF THE SEC (from the loop): the SEC card you just drew goes after a tier resident instead of you.
+    // You take +1 Risk (now the SEC knows your name too); they pass a Trust Check or get knocked down a tier.
+    async tip_off(p, q, c) {
+      this.discards[this._discard_key(c)].push(c);
+      this.log(`    ${p.name} TIPS OFF THE SEC about ${q.name} (${c.name})`);
+      this.emit('tipoff', { player: p.name, target: q.name, card: c.name });
+      this.add_risk(p, this.rules.levelsTipRisk, 'tipped off the SEC');
+      const ok = this.rules.charAwareTrust ? await this.charTrustResolve(q, 5, null, false) : (this.rng.randint(1, 6) >= 5);
+      if (ok) this.log(`    ${q.name} holds their floor`);
+      else this._knockDown(q, `${p.name} tipped off the SEC`);
+    }
+
     raise_global_sec(amt, why) {
       amt = amt || 1;
       if (this.global_sec >= 8) return;
@@ -448,6 +760,17 @@
     begin_collapse(reason) {
       if (this.collapsed) return;
       this.collapsed = true;
+      // the tiers go first. levelsLastElevator: everyone still in the tower gets ONE last Trust Check (a plain roll —
+      // no reactions mid-collapse): pass = they make the Lounge before the floors give way; fail = out to START.
+      if (this.rules.levels) for (const q of this.alive_players()) if (this.floorOf(q) !== null) {
+        if (this.rules.levelsLastElevator) {
+          const need = this._towerPassOn(q), roll = this.rng.randint(1, 6);
+          this.emit('trustCheck', { player: q.name, roll, pass: roll >= need, need });
+          if (roll >= need) { this._ascend(q); this.log(`    THE LAST ELEVATOR: ${q.name} rolls ${roll} — makes the Lounge as the tower comes down`); this.emit('enter_lounge', { player: q.name }); continue; }
+        }
+        if (q.abilityName === 'Vonda Vouch' && this._cv('charVonda', 3) >= 2 && this._leakyBucket(q, 'the tower comes down')) { this._ascend(q); this.log(`    ${q.name} rides the bucket up into the Lounge`); continue; }
+        this._dropToLoop(q, 'the tower comes down — the tiers go first');
+      }
       // BENCHMARK "believer's exit" (L3 parity): a true believer riding the bubble when it pops got out
       // before the music stopped — bank +1 Final Favor. This is the FF line Hype never had; it gives Mark
       // (the bagholder believer) his OWN competent Final Favor lane without handing everyone Wu's doors.
@@ -500,7 +823,8 @@
     victoryCleanCount(p) {
       let base = p.clean_count();
       // Vonda Vouch — The Stamp: 2 face-up Dirty count as 1 Clean, IF no face-down Assets in the lineup.
-      if (p.abilityName === 'Vonda Vouch' && p.facedown_count() === 0) base += Math.floor(p.faceup_dirty().length / 2);
+      if (p.abilityName === 'Vonda Vouch' && this._cv('charVonda', 3) >= 2) base += Math.floor(p.lineup.filter(t => p.effDirty(t)).length / 2);   // Vonda v2: ANY 2 Dirty (face-down too) count as 1 Clean
+      else if (p.abilityName === 'Vonda Vouch' && p.facedown_count() === 0) base += Math.floor(p.faceup_dirty().length / 2);
       // Endgame Stock Buy: at scoring, a lone Clean counts as 2 if you hold the card and have <3 Risk.
       if (base === 1 && p.risk < 3 && p.hand.some(c => c.fx === 'ENDGAME_STOCK_BUY')) return 2;
       return base;
@@ -565,6 +889,7 @@
       p.burned = true; p.ff_burnout += 1;
       p.lineup = p.lineup.filter(t => t.card.undiscardable);
       p.trust = 0; p.bribes = 0; p.risk = 5; p.juice = 1;
+      if (this.rules.levels && this.floorOf(p) !== null) this._dropToLoop(p, 'burnout');
       this.log(`    !! BURNOUT ${p.name} -> risk 5, juice 1, assets/trust/bribes wiped (undiscardables kept)`);
       this.emit('burnout', { player: p.name });
     }
@@ -619,7 +944,7 @@
       }
       return false;
     }
-    _discard_key(c) { return ({ AdvMarket: 'Market', AdvAsset: 'Asset', ShadowSEC: 'SEC' })[c.deck] || c.deck; }
+    _discard_key(c) { return ({ AdvMarket: 'Market', AdvAsset: 'Asset', ShadowSEC: this.floorDecks ? 'FSEC' : 'SEC' })[c.deck] || c.deck; }
     after_sec_draw(card) {
       if (this.expansion && card.deck === 'ShadowSEC') this.raise_shadow_sec(1, `Shadow SEC card drawn (${card.name})`);
     }
@@ -731,15 +1056,50 @@
 
     // ============== CARD RESOLUTION ==============
     async resolve_card(card, p, others) {
+      // FF reading 'Clean turned Dirty' (knob ffCleanDirty): a card leaves one of YOUR Clean Lineup Assets Dirty → −1 Final Favor
+      if (!(this.edition === 'benchmark' && this.rules.ffCleanDirty)) return this._resolveDeck(card, p, others);
+      const snap = new Map(this.players.map(q => [q, q.lineup.filter(t => !q.effDirty(t))]));
+      const r = await this._resolveDeck(card, p, others);
+      for (const [q, clean] of snap) { const n = clean.filter(t => q.lineup.includes(t) && q.effDirty(t)).length; if (n) { q.ff_clean_turned_dirty += n; this.log(`    ${q.name}: a Clean Asset turned Dirty (−${n} Final Favor)`); } }
+      return r;
+    }
+    async _resolveDeck(card, p, others) {
+      // BENCHMARK DECK v4 (knob benchmarkDeck:'v4'): the rewritten deck — supersedes assetFlow / camperCards
+      const v4 = this.edition === 'benchmark' && this.rules.benchmarkDeck === 'v4' ? BENCH_V4[card.name] : null;
+      if (v4 && !v4.fx) {
+        const fire = v4.dead && v4.dead(this, p, others || []);
+        const r = await this._resolveCore(card, p, others);
+        if (v4.always === 'asset') this._assetFlowDraw(p, card.name);
+        if (fire) await this._v4Fallback(v4.fb, p, others || [], card);
+        if (v4.after === 'towerLowTrust') for (const q of this.alive_players()) if (this.floorOf(q) !== null && q.trust <= 1) this._knockDown(q, card.name);
+        if (v4.then) await this._v4Then(v4.then, p, others || [], card);
+        return r;
+      }
+      if (this.edition === 'benchmark' && this.rules.benchmarkDeck === 'v4') return this._resolveCore(card, p, others);
+      // ASSET FLOW (Benchmark Core rewrite, knob assetFlow): NO DEAL? draws an Asset when the card had nothing to act on
+      const af = (this.edition === 'benchmark' && this.rules.assetFlow && ASSET_FLOW[card.name]) || null;
+      if (af && af.tier <= this.rules.assetFlow) {
+        const fire = af.always || (af.dead && af.dead(this, p, others || []));
+        const r = await this._resolveCore(card, p, others);
+        if (fire) this._assetFlowDraw(p, af.always ? card.name : `${card.name} — NO DEAL`);
+        return r;
+      }
+      return this._resolveCore(card, p, others);
+    }
+    async _resolveCore(card, p, others) {
       // Benchmark edition may give a card a sharper job (Classic always uses the printed fx)
-      const fx = (this.edition === 'benchmark' && BENCHMARK_FX[card.name]) || card.fx;
+      const v4fx = this.edition === 'benchmark' && this.rules.benchmarkDeck === 'v4' && BENCH_V4[card.name] && BENCH_V4[card.name].fx;
+      const cc = !v4fx && this.edition === 'benchmark' && this.rules.camperCards && CAMPER[card.name];
+      const fx = v4fx || (cc && (this.rules.camperCards & cc.bit) && cc.fx) ||
+                 (this.edition === 'benchmark' && this.rules.assetFlow >= 2 && ASSET_FLOW[card.name] && ASSET_FLOW[card.name].fx) ||
+                 (this.edition === 'benchmark' && BENCHMARK_FX[card.name]) || card.fx;
       const R = this.rng;
       const alive = () => this.alive_players();
       const D = (q, t) => this._discard_asset(q, t);
       const lt = (q, amt, why, by) => this.lose_trust(q, amt, why, by);
       if (fx.startsWith('MANUAL')) return await this._resolveManual(card, p, others);
       switch (fx) {
-        case 'ALL_JUICE-1_TRUSTCHECK_FAILHYPE': for (const q of alive()) { q.juice -= 1; if (!(await this.trust_check(q))) q.hype -= 2; } break;
+        case 'ALL_JUICE-1_TRUSTCHECK_FAILHYPE': for (const q of alive()) { q.juice -= 1; if (!(await this.trust_check(q))) { q.hype -= 2; if (this.rules.levels && this.floorOf(q) !== null) this._knockDown(q, 'Anonymous Board Letter'); } } break;   // LEVELS card: a fail in the tower also falls a tier
         case 'ALL_DISCARD_ELSE_RISK1': for (const q of alive()) { if (q.hand.length) q.hand.splice(R.randrange(q.hand.length), 1); else this.add_risk(q, 1, 'Audit Panic'); } break;
         case 'ROLL_SELF_OR_ALL_TRUST2': if (R.randint(1, 6) <= 3) await lt(p, 2, 'CEO Forfeits'); else for (const q of alive()) await lt(q, 2, 'CEO Forfeits'); break;
         case 'ALL_HYPE-2_DIRTY_DISCARD': for (const q of alive()) { q.hype -= 2; if (q.faceup_dirty().length) { if (this.rules.faithfulCards && q.isHuman) { const a = await this.pick_asset(q, q.lineup.slice(), 'compliance-sweep'); if (a) this._discard_asset(q, a); else await this.loseDirtyAsset(q, q.faceup_dirty()[0]); } else await this.loseDirtyAsset(q, q.faceup_dirty()[0]); } } break;   // faithful: discard an Asset of THEIR choice
@@ -753,6 +1113,21 @@
         case 'HYPE4_TRUST-2_ELSE_DISCARD_OR_RISK2': for (const q of alive()) { if (q.hype >= 4) await lt(q, 2, 'Mark to Mayhem'); else if (this.rules.faithfulCards && q.isHuman && q.lineup.length) { const pick = await this.decide(q, { kind: 'chooseOr', title: 'Mark to Mayhem', a: 'Discard an in-play Asset', b: 'Take +2 Risk', bCls: 'no' }); if (pick === 'b') this.add_risk(q, 2, 'Mark to Mayhem'); else { const a = await this.pick_asset(q, q.lineup.slice(), 'mayhem'); if (a) D(q, a); else this.add_risk(q, 2, 'Mark to Mayhem'); } } else { if (q.lineup.length) D(q, q.lineup[0]); else this.add_risk(q, 2, 'Mark to Mayhem'); } } break;
         case 'ASSET2_HYPE-2_THEN_0DISCARD': for (const q of alive()) if (q.asset_count() >= 2) { const h0 = q.hype; q.hype -= 2; const brought = this.rules.faithfulCards ? (h0 > 0 && q.hype <= 0) : (q.hype <= 0); if (brought && q.lineup.length) D(q, q.lineup[0]); } break;   // faithful: "if this loss BRINGS any player to 0 Hype" — it must CROSS, not already be there
         case 'CLEAN_DISCARD_ELSE_0ASSET_HYPE2': for (const q of alive()) { if (q.faceup_clean().length) { if (this.rules.faithfulCards && q.isHuman && q.hand.length) { const pick = await this.decide(q, { kind: 'chooseOr', title: 'Marked Livestock', a: 'Discard a card from hand', b: 'Discard an in-play Clean Asset' }); if (pick === 'b') D(q, q.faceup_clean()[0]); else { const c = q.hand.splice(0, 1)[0]; this.discards[this._discard_key(c)].push(c); } } else if (q.hand.length) q.hand.splice(R.randrange(q.hand.length), 1); else D(q, q.faceup_clean()[0]); } else if (q.asset_count() === 0) q.hype += 2; } break;
+        case 'THE_SAFE_V4': { const pool = others.filter(q => q.pos === 'START' || this.track.exits.has(q.pos) || this.floorOf(q) !== null); if (pool.length) { const tgt = await this.pick_target(p, pool, undefined, card); if (tgt) { tgt._safe_pending = 6; this.log(`    The Safe: ${tgt.name} must roll a 6 to pass any Trust Check next turn`); } } break; }
+        case 'PIGS_V4': { const field = alive(), mx = Math.max(...field.map(q => q.asset_count()));
+          if (mx >= 2) { for (const q of field.filter(q => q.asset_count() === mx)) { const tgt = q.faceup_clean().length ? q.faceup_clean()[0] : q.lineup[0]; D(q, tgt); await lt(q, 1, 'Pigs Get Slaughtered'); } }
+          else await lt(p, 1, 'Pigs Get Slaughtered (the pig is you)'); break; }
+        case 'TOWER_TOUR_V4': { if (this.rules.levels && !this.collapsed && !p.in_lounge && this.floorOf(p) === null) { this._ascend(p); this.log(`    Tower Tour: ${p.name} steps onto ${FLOORS.bands[0]}`); }
+          else if (this.floorOf(p) !== null || p.in_lounge) this.gainTrust(p, 1);
+          else { p.pos = 'START'; p.in_lounge = false; } break; }
+        case 'RAPTOR_IMPLODE_V4': { const tgt = others.length ? await this.pick_target(p, others, undefined, card) : null; if (tgt) p.juice += Math.max(2, tgt.lineup.length); break; }
+        case 'SENATE_CAMPER': { const big = alive().filter(q => q.asset_count() >= 3); if (big.length) { for (const q of big) this.add_risk(q, 3, 'Senate Hearing'); break; }
+          const loop = alive().filter(q => this._onLoop(q)); if (!loop.length) break; const lo = Math.min(...loop.map(q => q.risk));
+          for (const q of loop) if (q.risk === lo) { this.log(`    Senate Hearing: ${q.name} is called as the cleanest witness`); this.add_risk(q, 2, 'Senate Hearing (cleanest witness)'); } break; }
+        case 'MISFIT_CAMPER': { const two = alive().filter(q => q.asset_count() >= 2);
+          if (two.length) { for (const q of two) { const h0 = q.hype; q.hype -= 2; if (h0 > 0 && q.hype <= 0 && q.lineup.length) D(q, q.lineup[0]); } }
+          else for (const q of alive()) if (this._onLoop(q) && q.hype >= 5) { q.hype -= 2; this.log(`    Mark to Misfit: ${q.name} (on the loop, riding Hype) -2 Hype`); } break; }
+        case 'OFFRECORD_CAMPER': { const loop = alive().filter(q => this._onLoop(q)); if (loop.length) { const t = loop.reduce((m, x) => x.trust > m.trust ? x : m); t.skip_next = true; this.log(`    Off-Record Testimony: ${t.name} skips their next turn`); } break; }
         case 'HIGHEST_TRUST_SKIP': { const t = this.highest_trust(); if (t) t.skip_next = true; break; }
         case 'ALL_RISK1_UNLESS_MARKET_DISCARD': for (const q of alive()) { const md = q.hand.filter(c => c.deck === 'Market' || c.deck === 'AdvMarket'); if (md.length) q.hand.splice(q.hand.indexOf(md[0]), 1); else this.add_risk(q, 1, 'Regulatory Blitz'); if (q.hype >= 4) this.add_risk(q, 1, 'Blitz hype'); } break;
         case 'SELF_0FACEDOWN_RISK-1': if (p.facedown_count() === 0) this.add_risk(p, -1); break;
@@ -760,7 +1135,10 @@
         case 'HIGHEST_TRUST_DISCARD_CLEAN_ELSE_SKIP_OTHERS_RISK-1': { const t = this.highest_trust(); if (t) { if (t.faceup_clean().length) D(t, t.faceup_clean()[0]); else t.skip_next = true; for (const q of alive()) if (q !== t) this.add_risk(q, -1); } break; }
         case 'ASSET3_RISK+3': for (const q of alive()) if (q.asset_count() >= 3) this.add_risk(q, 3, 'Senate Hearing'); break;
         case 'ALL_ROLL_DISCARD_HAND_OR_ASSET': for (const q of alive()) if (q.hand.length) { if (R.randint(1, 6) <= 4) q.hand.splice(R.randrange(q.hand.length), 1); else if (q.lineup.length) D(q, q.lineup[0]); else if (q.asset_count() === 0) this.add_risk(q, 2, 'Spreadsheet'); } break;
-        case 'SHIFT_RISK_ELSE_TRUST-1': if (others.length) { const tgt = await this.pick_target(p, others, undefined, card); if (tgt) { if (this.rules.faithfulCards) { const shift = Math.min(1, Math.max(0, p.risk)); this.add_risk(p, -shift); this.add_risk(tgt, shift, 'Token Diversion'); } else { this.add_risk(p, -1); this.add_risk(tgt, 1, 'Token Diversion'); } } } if (p.bribes === 0) await lt(p, 1, 'Token Diversion'); break;   // faithful: SHIFT risk (don't create it) + wardable
+        case 'SHIFT_RISK_ELSE_TRUST-1': if (others.length) { const tgt = await this.pick_target(p, others, undefined, card); if (tgt) { if (this.rules.faithfulCards) { const shift = Math.min(1, Math.max(0, p.risk)); this.add_risk(p, -shift); this.add_risk(tgt, shift, 'Token Diversion'); } else { this.add_risk(p, -1); this.add_risk(tgt, 1, 'Token Diversion'); }
+            // LEVELS card (Benchmark Core): diverting it onto someone IN THE TOWER is a tip-off — they pass a Trust Check or fall a tier
+            if (this.rules.levels && this.floorOf(tgt) !== null) { const held = this.rules.charAwareTrust ? await this.charTrustResolve(tgt, 5, null, false) : (R.randint(1, 6) >= 5);
+              this.emit('tipoff', { player: p.name, target: tgt.name, card: card.name }); if (held) this.log(`    ${tgt.name} holds their floor`); else this._knockDown(tgt, `${p.name}'s Token Diversion`); } } } if (p.bribes === 0) await lt(p, 1, 'Token Diversion'); break;   // faithful: SHIFT risk (don't create it) + wardable
         case 'SELF_RISK_PER_DIRTY': { const per = (this.rules.faithfulCards && p.ff_bribe_used > 0) ? 2 : 1; this.add_risk(p, p.faceup_dirty().length * per, 'What the Hell'); break; }   // faithful: +2/Asset if you have used a Bribe
         case 'SELF_JUICE1': p.juice += 1; break;
         case 'GOLDEN_PARACHUTE': if (others.length) { const tgt = await this.pick_target(p, others, undefined, card); if (tgt) { if (this.rules.faithfulCards) p.juice -= 3; tgt.juice += 3; const gone = await this.pickOrDefault(tgt, tgt.lineup.slice(), 'golden-parachute'); if (gone) D(tgt, gone); } } break;   // printed: "discard an Asset of THEIR choice"   // faithful: YOU give them the 3 Juice
@@ -771,6 +1149,7 @@
         case 'BEARS': { if (p.facedown_count() >= 2) p.juice += 3; const cl = p.hand.filter(c => c.ctype === 'Clean'); if (cl.length) { this.add_risk(p, 2, 'Bears'); p.hand.splice(p.hand.indexOf(cl[0]), 1); } break; }
         case 'BULLS': if (p.asset_count() >= 2) { p.juice += 3; if (p.juice >= 8) { const c = this.draw('SEC'); if (c) { await this.resolve_card(c, p, others); this.after_sec_draw(c); } } } break;
         case 'EXEC_BACKPAT': if (others.length) { const tgt = await this.pick_target(p, others, undefined, card); if (tgt) { if (tgt.trust > 0) { await lt(tgt, 1, 'Exec Back-Pat', p); this.gainTrust(p, 1); } if (tgt.hype > 0) { tgt.hype -= 1; p.hype += 1; } } } break;
+        case 'JUICE_SPLIT_DEAL': { const tgt = others.length ? await this.pick_target(p, others) : null; p.juice += 1; this._assetFlowDraw(p, 'Juice Split Agreement'); if (tgt) { tgt.juice += 1; this._assetFlowDraw(tgt, 'Juice Split Agreement'); } break; }   // ASSET FLOW tier 2: the deal moves Assets to both sides
         case 'JUICE_SPLIT': if (others.length) (await this.pick_target(p, others)).juice += 1; p.juice += 1; break;
         case 'LATE_DISCLOSURE': this.learnAll(p.hand, p, 'Late Disclosure'); if (p.hand.length === 0) for (const q of others) this.add_risk(q, 1, 'Late Disclosure'); break;   // you show your whole hand — that IS the card
         case 'PIGS': if (p.asset_count() >= 3) { const tgt = p.faceup_clean().length ? p.faceup_clean()[0] : p.lineup[0]; D(p, tgt); await lt(p, 1, 'Pigs Get Slaughtered'); } break;
@@ -843,6 +1222,17 @@
           this.learn(p, tgt.hand.concat(fdown.map(t => t.card)), tgt, card.name);   // PERSISTENT — you remember what you were shown
           // and show a HUMAN viewer the actual cards
           if (p.isHuman) this.emit('reveal', { by: p.name, target: tgt.name, card: card.name, hand: tgt.hand.map(c => c.name), facedown: fdown.map(t => t.card.name) }); } break;
+        case 'CLOAK_V4': if (others.length) { const tgt = await this.pick_target(p, others); if (tgt) { this.log(`    ${card.name}: ${tgt.name} reveals to ${p.name}`);
+          const fdown = tgt.lineup.filter(t => !t.up); this.learn(p, tgt.hand.concat(fdown.map(t => t.card)), tgt, card.name);
+          if (p.isHuman) this.emit('reveal', { by: p.name, target: tgt.name, card: card.name, hand: tgt.hand.map(c => c.name), facedown: fdown.map(t => t.card.name) });
+          const dirty = Math.min(2, fdown.filter(t => tgt.effDirty(t)).length);
+          if (dirty) this.add_risk(tgt, dirty, card.name); else { this.gainTrust(p, 1); this.log(`    ${card.name}: nothing dirty to see — ${p.name} +1 Trust`); } } } break;
+        case 'RANK_YANK_V4': if (others.length) { const tgt = await this.pick_target(p, others); if (tgt) {
+          const fdy = tgt.lineup.filter(t => !t.up); this.learn(p, fdy.map(t => t.card), tgt, 'Rank and Yank');
+          if (p.isHuman) this.emit('reveal', { by: p.name, target: tgt.name, card: 'Rank and Yank', hand: [], facedown: fdy.map(t => t.card.name) });
+          if (fdy.length) { for (const t of fdy) if (tgt.effDirty(t)) t.up = true; this.log(`    Rank and Yank: ${tgt.name} reveals ${fdy.length} face-down Asset(s)`); }
+          else { tgt.hype -= 2; this.log(`    Rank and Yank: ${tgt.name} has nothing to show — ranked last, -2 Hype`); }
+          this._rankYankCount = (this._rankYankCount || 0) + 1; if (this._rankYankCount > 1) { tgt.hype += 2; this.log(`    Rank and Yank used again: ${tgt.name} +2 Hype`); } } } break;
         case 'RANK_YANK': if (others.length) { const tgt = await this.pick_target(p, others);
           if (this.rules.faithfulCards) { this.log(`    Rank and Yank: ${tgt.name} reveals ALL face-down Assets to ${p.name}`);
             const fdy = tgt.lineup.filter(t => !t.up);
@@ -863,12 +1253,12 @@
           return;
         }
         case 'PALACE_SKY': {   // VIP staircase: enter for 0 Juice; if under threshold the Trust Check passes on 4+ (fail = +1 Risk)
-          if (p.trust >= 4 || p.hype >= 8) { p.in_lounge = true; p.pos = 'LOUNGE'; this.log(`    Palace in the Sky: ${p.name} strides into the Executive Lounge`); this.emit('enter_lounge', { player: p.name }); }
+          if (p.trust >= 4 || p.hype >= 8) { this._ascend(p); this.log(`    Palace in the Sky: ${p.name} strides into ${this._where(p)}`); this.emit('enter_lounge', { player: p.name }); }
           else if (this.rules.charAwareTrust) {   // Benchmark: the printed "passes on 4+, fail penalties still apply" as a real Trust Check
-            if (await this.charTrustResolve(p, 4, 'Palace in the Sky failed check')) { p.in_lounge = true; p.pos = 'LOUNGE'; this.log(`    Palace in the Sky: ${p.name} passes the check -> Lounge`); this.emit('enter_lounge', { player: p.name }); }
+            if (await this.charTrustResolve(p, 4, 'Palace in the Sky failed check')) { this._ascend(p); this.log(`    Palace in the Sky: ${p.name} passes the check -> Lounge`); this.emit('enter_lounge', { player: p.name }); }
             else this.log(`    Palace in the Sky: ${p.name} fails the check -> +1 Risk`); }
           else { const roll = R.randint(1, 6), pass = roll >= 4; this.emit('trustCheck', { player: p.name, roll, pass, need: 4 });
-            if (pass) { p.in_lounge = true; p.pos = 'LOUNGE'; this.log(`    Palace in the Sky: ${p.name} passes the 4+ check (${roll}) -> Lounge`); this.emit('enter_lounge', { player: p.name }); }
+            if (pass) { this._ascend(p); this.log(`    Palace in the Sky: ${p.name} passes the 4+ check (${roll}) -> Lounge`); this.emit('enter_lounge', { player: p.name }); }
             else { this.add_risk(p, 1, 'Palace in the Sky failed check'); this.log(`    Palace in the Sky: ${p.name} fails the 4+ check (${roll}) -> +1 Risk`); } }
           break;
         }
@@ -1005,37 +1395,37 @@
 
     async enter_tower(p) {
       if (p.juice < 1) return false;
-      p.juice -= 1;   // parking fee, paid whether or not the check passes
+      p.juice -= 1; p._spent = (p._spent || 0) + 1;   // parking fee, paid whether or not the check passes
       // QUALIFIED — Trust >=4 or Hype >=8: walk straight in (no roll). Byte-identical to the locked build.
-      if (p.trust >= 4 || p.hype >= 8) { p.in_lounge = true; p.pos = 'LOUNGE'; this.log(`    ${p.name} enters Executive Lounge`); this.emit('enter_lounge', { player: p.name }); return true; }
+      if (p.trust >= 4 || p.hype >= 8) { this._ascend(p); this.log(`    ${p.name} enters ${this._where(p)}`); this.emit('enter_lounge', { player: p.name }); return true; }
       // UNDER THRESHOLD — the WHY ASK? Trust Check. HUMANS choose Bribe vs roll and SEE the result;
       // bots fall through to the parity-locked auto path below (unchanged).
       if (p.isHuman) {
         if (p.bribes > 0 && await this.decide(p, { kind: 'bribeEntry' })) {
-          this.spendBribe(p); p.in_lounge = true; p.pos = 'LOUNGE';
+          this.spendBribe(p); this._ascend(p);
           this.emit('spendBribe', { player: p.name });
-          this.log(`    ${p.name} spends a Bribe to enter the Executive Lounge`); this.emit('enter_lounge', { player: p.name }); return true;
+          this.log(`    ${p.name} spends a Bribe to enter ${this._where(p)}`); this.emit('enter_lounge', { player: p.name }); return true;
         }
         // Benchmark: the WHY ASK? gamble is a real Trust Check — threshold + reactions + fail penalty all
         // honor the player's cards/abilities (Class Ring, The Safe, reroll/Phantom, Raptor, the floor).
         if (this.rules.charAwareTrust) {
           if (await this.charTrustResolve(p, 5, 'failed Why Ask? roll')) {
-            p.in_lounge = true; p.pos = 'LOUNGE'; this.log(`    ${p.name} passes the Why Ask? check -> Executive Lounge`); this.emit('enter_lounge', { player: p.name }); return true; }
+            this._ascend(p); this.log(`    ${p.name} passes the Why Ask? check -> ${this._where(p)}`); this.emit('enter_lounge', { player: p.name }); return true; }
           this.log(`    ${p.name} fails the Why Ask? check -> +1 Risk`); return false;
         }
         const roll = this.rng.randint(1, 6), pass = roll >= 5;
         this.emit('trustCheck', { player: p.name, roll, pass, need: 5 });
-        if (pass) { p.in_lounge = true; p.pos = 'LOUNGE'; this.log(`    ${p.name} passes the Why Ask? check (rolled ${roll}) -> Executive Lounge`); this.emit('enter_lounge', { player: p.name }); return true; }
+        if (pass) { this._ascend(p); this.log(`    ${p.name} passes the Why Ask? check (rolled ${roll}) -> ${this._where(p)}`); this.emit('enter_lounge', { player: p.name }); return true; }
         this.log(`    ${p.name} fails the Why Ask? check (rolled ${roll}) -> +1 Risk`); this.add_risk(p, 1, 'failed Why Ask? roll'); return false;
       }
       // BOTS: bribe if held, else the WHY ASK? roll. Classic path is parity-locked (raw 5+); Benchmark
       // routes the roll through the character-aware check so bot Class Ring / The Safe / Raptor also apply.
-      if (p.bribes > 0) { this.spendBribe(p); p.in_lounge = true; p.pos = 'LOUNGE'; return true; }
+      if (p.bribes > 0) { this.spendBribe(p); this._ascend(p); return true; }
       if (this.rules.charAwareTrust) {
-        if (await this.charTrustResolve(p, 5, 'failed Why Ask? roll')) { p.in_lounge = true; p.pos = 'LOUNGE'; return true; }
+        if (await this.charTrustResolve(p, 5, 'failed Why Ask? roll')) { this._ascend(p); return true; }
         return false;
       }
-      if (this.rng.randint(1, 6) >= 5) { p.in_lounge = true; p.pos = 'LOUNGE'; return true; }
+      if (this.rng.randint(1, 6) >= 5) { this._ascend(p); return true; }
       this.add_risk(p, 1, 'failed Why Ask? roll'); return false;
     }
 
@@ -1055,8 +1445,11 @@
       // Danny — Doughmination: give 4 Juice to an opponent, DOUBLE current Hype
       if (p.abilityName === 'Danny Dough' && p.juice >= 4 && p.hype > 0 && opps.length &&
         await this.decide(p, { kind: 'ability', ability: 'Doughmination', cost: 'give 4 Juice → double Hype' })) {
-        const t = weakest(); p.juice -= 4; t.juice += 4; const b = p.hype; p.hype *= 2;
+        const t = weakest(); p.juice -= 4; p._spent = (p._spent || 0) + 4; p._gift = (p._gift || 0) + 4; t.juice += 4; const b = p.hype; p.hype *= 2;
         this.log(`    Danny Doughmination: 4 Juice to ${t.name}, Hype ${b}->${p.hype}`);
+        // BENCHMARK character-card lever (decision 5c): the Hype spike is EXPOSURE — +doughExposure Risk (default 0). Per the June ruling, exposure not shutdown.
+        const dx = this.rules.doughExposure || this._cv('charDanny', this.players.length <= 3 ? 2 : 1);   // benchmarkChars v4: Doughmination +1 Risk (+2 at 3p, where Danny's spiral runs longest). Round 6: the 6p exemption (Round 5) is back to +1, paired with the 6p cadence fix
+        if (dx) this.add_risk(p, dx, 'Doughmination (the spike draws the eye)');
       }
       // Danny — Reflux: START a turn with 7+ Hype → highest-Trust player(s) roll a Trust Check (triggered)
       if (p.abilityName === 'Danny Dough' && hypeAtStart >= 7) {
@@ -1065,6 +1458,11 @@
           for (const q of top) { this.log(`    Danny Reflux: ${q.name} (top Trust) must roll a Trust Check`); await this.trust_check(q); } }
       }
       // Vonda — Notary Public: spend 2 Trust to discard 1 of your own played Assets
+      // chars v4 (charVonda): Notary Public can notarize an ALIBI instead — spend 2 Trust to remove -1 Risk
+      if (p.abilityName === 'Vonda Vouch' && this._cv('charVonda', 3) && p.trust >= 2 && p.risk > 0 &&
+        await this.decide(p, { kind: 'ability', ability: 'NotaryAlibi', cost: 'spend 2 Trust → remove -1 Risk' })) {
+        p.trust -= 2; this.add_risk(p, -1); this.log(`    Vonda Notary Public: -2 Trust, notarizes an alibi (-1 Risk)`);
+      } else
       if (p.abilityName === 'Vonda Vouch' && p.trust >= 2 && p.lineup.length &&
         await this.decide(p, { kind: 'ability', ability: 'Notary', cost: 'spend 2 Trust → discard a played Asset' })) {
         const a = await this.pick_asset(p, p.lineup, 'notary');
@@ -1073,29 +1471,40 @@
       // Feeding the Raptors (faithful): while it's in your Lineup, you MAY at the START of your turn transfer
       // 4 Juice + up to 3 Risk + the Asset itself to an opponent (a recurring option, not an on-play effect).
       if (this.rules.faithfulCards) {
-        const feed = p.lineup.find(t => t.card.fx === 'MANUAL_FEED_RAPTORS');
+        const feed = p.lineup.find(t => t.card.fx === 'MANUAL_FEED_RAPTORS' && !(this._v4Deck() && t._fed));   // v4: "1 use only" holds (the fed Asset can't be fed back)
         if (feed && opps.length && await this.decide(p, { kind: 'ability', ability: 'FeedRaptors', cost: 'give 4 Juice + up to 3 Risk + this Asset to an opponent' })) {
           const t = weakest() || opps[0];
-          const j = Math.min(4, p.juice); p.juice -= j; t.juice += j;
+          const j = Math.min(this._v4Deck() ? 2 : 4, p.juice); p.juice -= j; t.juice += j;   // v4 Round 6: the feed costs 2 Juice, not 4
           const r = Math.min(3, p.risk); this.add_risk(p, -r); this.add_risk(t, r, 'Feeding the Raptors');
           const i = p.lineup.indexOf(feed); if (i >= 0) { p.lineup.splice(i, 1); t.lineup.push(feed); }
-          this.log(`    Feeding the Raptors: ${p.name} feeds ${t.name} — 4 Juice, ${r} Risk, + the Asset`);
+          if (this._v4Deck()) feed._fed = true;
+          if (this._v4Deck()) this.emit('cardFire', { player: p.name, card: 'Feeding the Raptors' });
+          this.log(`    Feeding the Raptors: ${p.name} feeds ${t.name} — ${j} Juice, ${r} Risk, + the Asset`);
         }
       }
     }
 
     async take_turn(p) {
+      const r = await this._takeTurnCore(p);
+      // FF reading 'Burned 8+ Juice' (knob ffBurn8): you spent 8+ of your own Juice in one turn
+      const burnt = (p._spent || 0) - (this.rules.ffBurn8 === 'bank' ? (p._gift || 0) : 0);   // 'bank': only Juice lost to the bank, not gifts to rivals
+      if (this.edition === 'benchmark' && this.rules.ffBurn8 && burnt >= 8) { p.ff_burned_8plus_juice += 1; this.log(`    ${p.name} burned ${burnt} Juice this turn (+1 Final Favor)`); }
+      return r;
+    }
+    async _takeTurnCore(p) {
       if (!p.alive) return;
       // Executive Shuffling: the ability swap reverts once a full round has passed
       if (this._pendingUnswap && this.turn >= this._pendingUnswap.atTurn) { const s = this._pendingUnswap; s.a.abilityName = s.aName; s.b.abilityName = s.bName; this._pendingUnswap = null; this.log(`    Executive Shuffling: abilities revert`); }
       p._graceUsed = false;   // Benchmark floor resets each turn
+      p._spent = 0; p._gift = 0;   // FF reading 'burned 8+ Juice': Juice you spent yourself this turn
       if (p.skip_next) { p.skip_next = false; this.log(`  ${p.name} skips this turn`); if (p.grace_immunity) p.grace_immunity = false; return; }
       this.log(`  -- ${p.name}'s turn (J${p.juice} T${p.trust} H${p.hype} R${p.risk} pos=${p.pos} lounge=${p.in_lounge}) --`);
       // Claudia — Unimpeachable: "BEFORE rolling to move", may give 5 Juice to an opponent for +1 Trust (printed timing)
       if (p.abilityName === 'Claudia Numbers') { const opps = this.others_of(p);
-        if (p.juice >= 5 && opps.length && await this.decide(p, { kind: 'ability', ability: 'Unimpeachable', cost: 'give 5 Juice → +1 Trust' })) {
-          const t = opps.reduce((m, x) => threat(this, x) < threat(this, m) ? x : m); p.juice -= 5; t.juice += 5; this.gainTrust(p, 1);
-          this.log(`    Claudia Unimpeachable: gives 5 Juice to ${t.name}, +1 Trust (pre-roll)`); } }
+        const uc = this._cv('charClaudia', 3) || 5;   // benchmarkChars v4: Unimpeachable costs 3 Juice
+        if (p.juice >= uc && opps.length && await this.decide(p, { kind: 'ability', ability: 'Unimpeachable', cost: `give ${uc} Juice → +1 Trust`, juiceCost: uc })) {
+          const t = opps.reduce((m, x) => threat(this, x) < threat(this, m) ? x : m); p.juice -= uc; p._spent = (p._spent || 0) + uc; p._gift = (p._gift || 0) + uc; t.juice += uc; this.gainTrust(p, 1);
+          this.log(`    Claudia Unimpeachable: gives ${uc} Juice to ${t.name}, +1 Trust (pre-roll)`); } }
       const R = this.rng;
       const roll = R.randint(1, 6); p.juice += roll;
       this.lastRoll = roll;
@@ -1113,26 +1522,34 @@
       // Benny can decline and play the board instead of being teleported into the Lounge every turn.
       // (The bug: forced + position-independent => a human Benny could NEVER move.)
       if (p.abilityName === 'Benny Boye') {
-        if (!p.isHuman) { p.in_lounge = true; p.pos = 'LOUNGE'; this.log('    Benny: Golden Walk -> Executive Lounge (free)'); }
-        else if (!p.in_lounge && (p.pos === 'START' || this.track.exits.has(p.pos)) && await this.decide(p, { kind: 'goldenWalk' })) {
-          p.in_lounge = true; p.pos = 'LOUNGE'; this.log('    Benny: Golden Walk -> Executive Lounge (free)'); this.emit('enter_lounge', { player: p.name });
+        if (!p.isHuman) { if (!(this.rules.levels && (p.in_lounge || this.floorOf(p) !== null))) { const gw = this._ascend(p); if (gw === 'lounge') this.log('    Benny: Golden Walk -> Executive Lounge (free)');
+          const br = this._cv('charBenny', 1); if (br && this.rules.levels && gw) this.add_risk(p, br, 'Golden Walk (the free ride is noticed)'); } }
+        else if (!p.in_lounge && this.floorOf(p) === null && (p.pos === 'START' || this.track.exits.has(p.pos)) && await this.decide(p, { kind: 'goldenWalk' })) {
+          this._ascend(p); this.log('    Benny: Golden Walk -> Executive Lounge (free)'); this.emit('enter_lounge', { player: p.name });
+          const br = this._cv('charBenny', 1); if (br && this.rules.levels) this.add_risk(p, br, 'Golden Walk (the free ride is noticed)');
         }
       }
       // Danny — The Dough-Man Cometh: DOUBLE current Juice. CLASSIC (frozen): keyed off the global turn
       // counter, so the cadence is SEAT-DEPENDENT — the tuned quirk, intentionally LEFT AS-IS (user decision).
       // BENCHMARK proposal (see docs/BENCHMARK.md §B): switch to literal "every other OWN turn" for a
       // seat-independent rule — faithful to the card, but it starves Danny in short games, so it's a knob.
-      if (p.abilityName === 'Danny Dough' && this.turn >= 2 && this.turn % 2 === 0) { const b = p.juice; p.juice *= 2; this.log(`    Danny: Dough-Man doubles Juice ${b}->${p.juice}`); }
+      // v4 Round 6 knob charDannyCadence (byPlayers-scalable, default off): N = double on every Nth OWN turn
+      // (2 = the card's literal "every other OWN turn": Danny's 2nd, 4th, 6th... turn). At an even table (4p, 6p) the global-turn quirk locks Danny's seat into
+      // doubling EVERY turn or NEVER; at 6p that split was 5% vs 20% win by seat.
+      const dc = p.abilityName === 'Danny Dough' && this._cv('charDannyCadence', this.players.length >= 6 ? 2 : 0);   // v4: the literal cadence at 6p
+      if (dc) { p._doughTurns = (p._doughTurns || 0) + 1; if (p._doughTurns % dc === 0) { const b = p.juice; p.juice *= 2; this.log(`    Danny: Dough-Man doubles Juice ${b}->${p.juice}`); } }
+      else if (p.abilityName === 'Danny Dough' && this.turn >= 2 && this.turn % 2 === 0) { const b = p.juice; p.juice *= 2; this.log(`    Danny: Dough-Man doubles Juice ${b}->${p.juice}`); }
 
       await this.startAbilities(p);   // printed secondary abilities (Unimpeachable / Doughmination / Reflux / Notary)
 
       if (p.juice >= 3 && p.bribes === 0) {
-        if (await this.decide(p, { kind: 'bribe' })) { p.juice -= 3; p.bribes += 1; this.log(`    ${p.name} buys a Bribe (-3 Juice)`); this.emit('bribe', { player: p.name }); }
+        if (await this.decide(p, { kind: 'bribe' })) { p.juice -= 3; p._spent = (p._spent || 0) + 3; p.bribes += 1; this.log(`    ${p.name} buys a Bribe (-3 Juice)`); this.emit('bribe', { player: p.name }); }
       }
 
       // The edition's track (this.track: Classic = the golden 12, Benchmark = the printed 13 — TRACKS up top).
       let moved = false;
-      if (!p.in_lounge) {
+      if (!p.in_lounge && this.rules.levels && this.floorOf(p) !== null) moved = await this.floors_turn(p);
+      else if (!p.in_lounge) {
         const T = this.track, LOOP_N = T.n, DOOR_SPACES = T.doors, DECK_BY_INDEX = T.deck;
         let want = await this.decide(p, { kind: 'steps' });
         const wu_free = (p.abilityName === 'Wu Drainer');
@@ -1142,18 +1559,22 @@
         // the golden track counts START as space 0; the printed START CIRCLE sits between 12 and 0
         let cur = (typeof p.pos === 'number') ? p.pos : (T.startOwnSpace ? (dir > 0 ? -1 : LOOP_N) : 0);
         for (let k = 0; k < count; k++) {
-          const free_step = (wu_free && p.juice < 1 && steps === 0);
+          const free_step = (wu_free && steps === 0 && (p.juice < 1 || this._cv('charWu', 0)));   // charWu (A/B only, v4 leaves it off: a free first step HURT Wu, 21 -> 16% at 4p)
           if (p.juice < 1 && !free_step) break;
           const nxt = ((cur + dir) % LOOP_N + LOOP_N) % LOOP_N;
           // Wu — Floorplan Master: ignores anything that would stop movement (walks through occupied spaces)
-          if (!wu_free && this.alive_players().some(q => q !== p && typeof q.pos === 'number' && q.pos === nxt)) { this.log(`    ${p.name} blocked: space ${nxt} occupied`); break; }
-          if (!free_step) p.juice -= 1;
+          // Round 7 A/B knob blockRule (default OFF; Benchmark only): 'start' = leaving the START CIRCLE ignores occupied spaces this move
+          // (the late seats were walled in at START); 'pass' = you may pass through an occupied space but not stop on one.
+          const br7 = this.edition === 'benchmark' ? this.rules.blockRule : null;
+          const occ = !wu_free && this.alive_players().some(q => q !== p && typeof q.pos === 'number' && q.pos === nxt);
+          if (occ && !(br7 === 'start' && p.pos === 'START') && !(br7 === 'pass' && k < count - 1)) { this.log(`    ${p.name} blocked: space ${nxt} occupied`); break; }
+          if (!free_step) { p.juice -= 1; p._spent = (p._spent || 0) + 1; }
           if (!free_step && junkTax) p.juice -= 1;   // Junk Vehicle Trust: 2 Juice per space this turn
           cur = nxt; steps += 1;
           if (DOOR_SPACES.has(cur)) {
             // Index 4 is the blank TO MARKET door — can't end on it; it's pass-through BOTH ways.
             // The +1 Final Favor only applies crossing FORWARD into Market; backward just passes through.
-            if (dir > 0 && p.juice >= 1 && await this.decide(p, { kind: 'door', at: cur })) { p.juice -= 1; cur = ((cur + dir) % LOOP_N + LOOP_N) % LOOP_N; p.ff_passed_to_market += 1; this.log(`    ${p.name} takes TO MARKET door -> ${cur} [+1 Final Favor]`); this.emit('door', { player: p.name, to: cur, took: true }); }
+            if (dir > 0 && p.juice >= 1 && await this.decide(p, { kind: 'door', at: cur })) { p.juice -= 1; p._spent = (p._spent || 0) + 1; cur = ((cur + dir) % LOOP_N + LOOP_N) % LOOP_N; if (!(this.edition === 'benchmark' && this.rules.doorFFOnce && p.ff_passed_to_market >= 1)) p.ff_passed_to_market += 1;   /* Round 7 A/B knob doorFFOnce: the door scores once a game */ this.log(`    ${p.name} takes TO MARKET door -> ${cur} [+1 Final Favor]`); this.emit('door', { player: p.name, to: cur, took: true }); }
             else { cur = ((cur + dir) % LOOP_N + LOOP_N) % LOOP_N; this.log(`    ${p.name} crosses the TO MARKET door (no rest) -> ${cur}`); this.emit('door', { player: p.name, to: cur, took: false }); }
           }
         }
@@ -1162,14 +1583,26 @@
         if (moved) {
           this.emit('move', { player: p.name, to: cur });
           const key = DECK_BY_INDEX[cur];
-          const c = this.draw(key);
+          let c = this.draw(key);
+          // assetSquareKeep (decision 7, a RULE not a card, default off): the ASSET square draws 2, you keep 1, the other is discarded
+          if (c && key === 'Asset' && this.edition === 'benchmark' && this.rules.assetSquareKeep) {
+            const c2 = this.draw(key);
+            if (c2) { const pick = await this.decide(p, { kind: 'keepAsset', candidates: [c, c2] }); const keep = (pick === c2) ? c2 : c;
+              const toss = keep === c ? c2 : c; this.discards[this._discard_key(toss)].push(toss);
+              this.log(`    ASSET square: draws 2, keeps 1 (discards ${toss.name})`); c = keep; }
+          }
           if (c) {
             this.log(`    lands on loop ${cur}, draws ${key}: ${c.name}`);
             this.emit('draw', { player: p.name, deck: key, card: c.name });
             if (key === 'Asset') { this.consecutive_assets += 1; if (this.consecutive_assets >= 3) { this.raise_global_sec(1, '3 Assets drawn consecutively'); this.consecutive_assets = 0; } }
             else this.consecutive_assets = 0;
             if (key === 'SEC') {
-              if (p.sec_immunity > 0) { p.sec_immunity -= 1; this.log(`    ${p.name} uses SEC Immunity (ignores ${c.name})`); this.emit('secImmunity', { player: p.name, card: c.name, left: p.sec_immunity }); this.discards['SEC'].push(c); }
+              if (this.edition === 'benchmark' && this.rules.ffSecWilling && this.rules.ffSecWilling !== 'tower' && (this.rules.ffSecWilling !== 'once' || !p.ff_entered_sec_willingly)) p.ff_entered_sec_willingly += 1;   // FF reading: you walked onto the SEC square
+              const tower = (this.rules.levels && this.rules.levelsTipOff) ? this.others_of(p).filter(q => this.floorOf(q) !== null && (!this.rules.levelsTipTop || this.floorOf(q) === FLOORS.n - 1)) : [];   // levelsTipTop: only someone one check from the Lounge
+              const tipped = tower.length ? await this.decide(p, { kind: 'tipOff', card: c, candidates: tower }) : null;
+              if (tipped && tower.indexOf(tipped) >= 0) await this.tip_off(p, tipped, c);
+              else if (this._v4Keep(c)) { p.hand.push(c); this.log(`    ${p.name} keeps ${c.name} in hand (it waits for its trigger)`); }
+              else if (p.sec_immunity > 0) { p.sec_immunity -= 1; this.log(`    ${p.name} uses SEC Immunity (ignores ${c.name})`); this.emit('secImmunity', { player: p.name, card: c.name, left: p.sec_immunity }); this.discards['SEC'].push(c); }
               else if (p.grace_immunity) { this.log(`    ${p.name} immune (Grace Period) — ignores ${c.name}`); this.discards['SEC'].push(c); }
               else { await this.resolve_card(c, p, this.others_of(p)); this.after_sec_draw(c); }
             }
@@ -1192,7 +1625,7 @@
           await this.enter_tower(p);
         }
       }
-      if (p.abilityName === 'Wu Drainer' && !moved) this.add_risk(p, -1);
+      if (p.abilityName === 'Wu Drainer' && (!moved || this._cv('charWuFade', this.players.length >= 5 ? 2 : 0) >= 2 || (this._cv('charWuFade', this.players.length >= 5 ? 2 : 0) && this.floorOf(p) !== null))) this.add_risk(p, -1);   // charWuFade 1: also on any turn you END in the tower; 2 (v4 at 5p+): every turn
 
       // play 1 card (reaction cards held in hand are excluded — they wait for their trigger)
       const playable = p.hand.filter(proactivelyPlayable);
@@ -1201,7 +1634,7 @@
         const c = chosen; p.hand.splice(p.hand.indexOf(c), 1);
         this.log(`    plays from hand: ${c.name}`);
         this.emit('play', { player: p.name, card: c.name });
-        if (p.abilityName === 'Mark Markit' && (c.deck === 'Market' || c.deck === 'AdvMarket')) p.hype += 1;
+        if (p.abilityName === 'Mark Markit' && (c.deck === 'Market' || c.deck === 'AdvMarket')) { p.hype += 1; const mr = this._cv('charMark', this.players.length === 4 ? 6 : 7); if (mr && p.hype >= mr) this.add_risk(p, 1, 'Hype-Man (the bubble draws the eye)'); }   // chars v4: at 7+ Hype, Hype-Man also costs +1 Risk
         const others = this.others_of(p);
         if (['Clean', 'Dirty', 'Conditional'].includes(c.ctype) && ['FaceUp', 'FaceDown', 'KeepInHand'].includes(c.play)) {
           const fu = (c.play === 'FaceUp'); const isdirty = (c.ctype === 'Dirty');
@@ -1224,7 +1657,7 @@
       }
 
       // end of turn
-      if (p.hasConstant('CONSTANT_3ASSET_HYPE1') && p.asset_count() >= 3) p.hype += 1;
+      if (p.hasConstant('CONSTANT_3ASSET_HYPE1') && p.asset_count() >= (this.edition === 'benchmark' && this.rules.benchmarkDeck === 'v4' ? 2 : 3)) p.hype += 1;
       if (p.hasConstant('CONSTANT_EXACTLY1OTHER_JUICE1') && p.asset_count() === 2) p.juice += 1;  // Leverage Loop (once/turn)
       if (p.abilityName === 'Mark Markit' && p.hype >= MAX_HYPE) { p.juice += 1; p.trust -= 1; p.maxhype_streak += 1; }
       else if (p.abilityName === 'Mark Markit') p.maxhype_streak = 0;
@@ -1245,7 +1678,7 @@
       p._forcePassOn = 0;                         // The Safe debuff was only for this turn
 
       // BENCHMARK edition only: ending a turn deep in Risk feeds the Shadow meter (self-inflicted collapse)
-      if (this.rules.shadowOnRisk && p.risk >= this.rules.shadowRiskThreshold)
+      if (this.rules.shadowOnRisk && p.risk >= this.rules.shadowRiskThreshold - (this.rules.levels && this.floorOf(p) !== null ? 2 : 0))
         this.raise_shadow_sec(1, `${p.name} ended a turn at Risk ${p.risk} (Benchmark: Shadow +1)`);
 
       // BENCHMARK Tall Poppy (L3 rubber band): the conspicuous sole Juice leader draws scrutiny → +1 Risk
@@ -1293,9 +1726,10 @@
           else { r = R.randint(1, 6); survived = r >= pass_on; }
           if (survived) { q.ff_survived_collapse_round += 1; continue; }
           // Vonda — Leaky Bucket: stay anyway by discarding an Asset AND passing a (fee-free) Trust Check
-          if (q.abilityName === 'Vonda Vouch' && q.lineup.length &&
-            await this.decide(q, { kind: 'ability', ability: 'LeakyBucket', cost: 'discard an Asset + pass a Trust Check to STAY' })) {
-            const a = await this.pick_asset(q, q.lineup, 'leaky-bucket'); if (a) this._discard_asset(q, a);
+          const lbv2 = this._cv('charVonda', 3) >= 2;
+          if (q.abilityName === 'Vonda Vouch' && (q.lineup.length || (lbv2 && q.juice >= 2)) &&
+            await this.decide(q, { kind: 'ability', ability: 'LeakyBucket', cost: lbv2 ? 'discard an Asset OR pay 2 Juice + pass a Trust Check to STAY' : 'discard an Asset + pass a Trust Check to STAY' })) {
+            const a = (lbv2 && q.juice >= 2) ? null : await this.pick_asset(q, q.lineup, 'leaky-bucket'); if (a) this._discard_asset(q, a); else if (lbv2) q.juice -= 2;
             if (await this.trust_check(q)) { q.ff_survived_collapse_round += 1; this.log(`    Vonda Leaky Bucket: discards ${a ? a.card.name : 'an Asset'}, passes — STAYS in the Lounge`); continue; }
           }
           q.in_lounge = false; q.pos = 'START'; q.lounge_streak = 0; this.log(`    COLLAPSE EVICTION: ${q.name} failed check${r !== undefined ? ` (rolled ${r})` : ''}, booted to START`); this.emit('evict', { player: q.name });
@@ -1327,6 +1761,10 @@
       // BENCHMARK parity bonuses (Classic FF is frozen; these are reversible edition knobs).
       if (this.rules.stampScoresFF && this.victoryCleanCount(p) === 2 && p.clean_count() !== 2) v += 1;
       if (this.rules.hypeExitFF) v += p.ff_hype_exit;
+      // Vonda v3 kit (charVonda 3): The Stamp vouches at the reckoning too: every 2 Dirty Assets in your Lineup = +1 Final Favor
+      if (p.abilityName === 'Vonda Vouch' && this._cv('charVonda', 3) >= 3) v += Math.floor(p.lineup.filter(t => p.effDirty(t)).length / 2);
+      // LEVELS experiment: "made the Lounge" as a Final Favor line (levelsFF = points for having reached it)
+      if (this.rules.levels && this.rules.levelsFF && p.peak_level >= 2) v += this.rules.levelsFF;
       return v;
     }
     resolve_final_favor(contenders) {
@@ -1349,8 +1787,11 @@
       // Classic: highest [FF, Juice, -Risk] — but Juice-as-tiebreak rewards the RICHEST, which lets the
       // Juice-hoarder run away with collapses. BENCHMARK aligns the tiebreak with the design thesis
       // ("least-dirty-at-collapse is the real scoreboard"): the CLEANEST survivor wins — [FF, -Risk, Clean, Juice].
+      // LEVELS levelsTieTier: on an FF tie the tower counts BEFORE Risk — how high you got (peak_level: 1 = the tiers,
+      // 2 = the Lounge) outranks how clean you stayed. A/B lever for the loop-camper edge (docs/BENCHMARK-LEVELS.md).
+      const tier = (this.rules.levels && this.rules.levelsTieTier) ? (p => p.peak_level >= this.rules.levelsTieTier ? p.peak_level : 0) : (() => 0);
       const key = this.rules.cleanestSurvives
-        ? p => [this.ff(p), -this.effRisk(p), this.victoryCleanCount(p), p.juice]
+        ? p => [this.ff(p), tier(p), -this.effRisk(p), this.victoryCleanCount(p), p.juice]
         : p => [this.ff(p), p.juice, -this.effRisk(p)];
       return this.alive_players().slice().sort((a, b) => {
         const ka = key(a), kb = key(b);
@@ -1391,7 +1832,12 @@
   global.ERSN_VERSION = VERSION;
   global.ERSN_EDITIONS = EDITIONS;
   global.ERSN_TRACKS = TRACKS;                   // UI reads the loop (length / door / exits / deck per space) from here
+  global.ERSN_FLOORS = FLOORS;                   // LEVELS knob: the tower's tiers (UI pawn spots read n/bands)
   global.ERSN_REACTS = REACTS;                   // UI reads this for the passive "⚡ can react" cue
-  global.ERSN_BENCHMARK_TEXT = BENCHMARK_TEXT;   // UI shows these on-card in Benchmark edition
-  if (typeof module !== 'undefined' && module.exports) module.exports = { makeRng, Game, Player, BotAgent, CharacterAgent, VERSION, EDITIONS, TRACKS, BENCHMARK_FX, BENCHMARK_TEXT };
+  global.ERSN_BENCHMARK_TEXT = BENCHMARK_TEXT;
+  global.ERSN_ASSET_FLOW_TEXT = ASSET_FLOW_TEXT;
+  global.ERSN_CAMPER = CAMPER;
+  global.ERSN_V4 = BENCH_V4; global.ERSN_V4_TEXT = BENCH_V4_TEXT;   // UI + docs: the v4 deck rewrite (benchmarkDeck:'v4')                    // UI: on-card text for the CAMPER rewrites (camperCards bitmask)   // UI: on-card text for the ASSET FLOW rewrite (assetFlow knob)
+  global.ERSN_LEVELS_TEXT = LEVELS_TEXT;         // UI: on-card text for the LEVELS tower riders   // UI shows these on-card in Benchmark edition
+  if (typeof module !== 'undefined' && module.exports) module.exports = { makeRng, Game, Player, BotAgent, CharacterAgent, VERSION, EDITIONS, TRACKS, FLOORS, BENCHMARK_FX, BENCHMARK_TEXT };
 })(typeof window !== 'undefined' ? window : globalThis);
