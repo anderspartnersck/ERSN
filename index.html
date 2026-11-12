@@ -1526,8 +1526,9 @@ const ASSETFLOW_LV=(()=>{ const m=(location.search+location.hash).match(/[?&#]as
 const RO_URL=(()=>{ const m=(location.search+location.hash).match(/[?&#]ro=([^&#]+)/); if(!m) return null; try{ return JSON.parse(decodeURIComponent(m[1])); }catch(e){ console.warn('bad ?ro= JSON'); return null; } })();
 function benchOverrides(){
   if(S.edition!=='benchmark') return undefined;
-  // ?v4: the whole recommended Benchmark v4 package (docs/BENCHMARK-CARD-REVIEW.md) — LEVELS + Package B scaled + the v4 deck + v4 characters
-  const V4_ON=/[?&#]v4\b/i.test(location.search+location.hash), np=S.count;
+  // BENCHMARK v4 is THE Benchmark (Joe 1112: the git/Pages build must be the new Benchmark): LEVELS + Package B scaled + the v4 deck +
+  // v4 characters (docs/BENCHMARK-CARD-REVIEW.md). ?v4=0 plays the pre-v4 Benchmark for comparison.
+  const V4_ON=!/[?&#]v4=0\b/i.test(location.search+location.hash), np=S.count;
   const v4=V4_ON?{levels:true, levelsTrustEase:2, levelsClimbRisk:np>4, levelsLastElevator:np<=4, benchmarkDeck:'v4', benchmarkChars:'v4', ffCleanDirty:1}:{};
   const o=Object.assign({}, v4, LEVELS_ON?{levels:true}:{}, ASSETFLOW_LV?{assetFlow:ASSETFLOW_LV}:{}, RO_URL||{});
   return Object.keys(o).length?o:undefined;
