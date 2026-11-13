@@ -1,0 +1,159 @@
+{
+ "fps_drawings": 12,
+ "note": "on twos: each cell is held for 2 frames of a 24 fps beat (83 ms)",
+ "stick": {
+  "atlas": "dynamite_stick.webp",
+  "cell": 256,
+  "cells": [
+   [
+    0,
+    0,
+    256,
+    256
+   ],
+   [
+    256,
+    0,
+    256,
+    256
+   ],
+   [
+    512,
+    0,
+    256,
+    256
+   ],
+   [
+    768,
+    0,
+    256,
+    256
+   ],
+   [
+    1024,
+    0,
+    256,
+    256
+   ],
+   [
+    0,
+    256,
+    256,
+    256
+   ],
+   [
+    256,
+    256,
+    256,
+    256
+   ],
+   [
+    512,
+    256,
+    256,
+    256
+   ],
+   [
+    768,
+    256,
+    256,
+    256
+   ],
+   [
+    1024,
+    256,
+    256,
+    256
+   ]
+  ],
+  "drop": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7
+  ],
+  "fuse_loop": [
+   8,
+   9
+  ],
+  "draw": "width = 0.24*min(W,H); centre on the fall path the code already animates (THROW 540 ms easeIn, then FUSE 460 ms holding cells 8/9)"
+ },
+ "blast": {
+  "atlas": "dynamite_blast.webp",
+  "cell": 512,
+  "cells": [
+   [
+    0,
+    0,
+    512,
+    512
+   ],
+   [
+    512,
+    0,
+    512,
+    512
+   ],
+   [
+    1024,
+    0,
+    512,
+    512
+   ],
+   [
+    1536,
+    0,
+    512,
+    512
+   ],
+   [
+    2048,
+    0,
+    512,
+    512
+   ],
+   [
+    0,
+    512,
+    512,
+    512
+   ],
+   [
+    512,
+    512,
+    512,
+    512
+   ],
+   [
+    1024,
+    512,
+    512,
+    512
+   ],
+   [
+    1536,
+    512,
+    512,
+    512
+   ],
+   [
+    2048,
+    512,
+    512,
+    512
+   ]
+  ],
+  "draw": "width = 0.85*min(W,H) centred on (cx, cy) (1:1 at 600p, ~1.8x at 1080p: the fire is soft, the debris is the only crisp part); reveal() at cell 1 (the flash peak), as today"
+ },
+ "bytes": {
+  "dynamite_stick_webp": 42846,
+  "dynamite_blast_webp": 213340,
+  "total_webp": 256186,
+  "quantised_png_total": 168044,
+  "today_dynamite_png": 66252
+ }
+}

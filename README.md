@@ -2,6 +2,8 @@
 
 **Play it in your browser: <https://anderspartnersck.github.io/ERSN/>**
 
+**3D edition:** the same game on a Blender-built board at the gateway table: <https://anderspartnersck.github.io/ERSN/3d.html>
+
 The video edition of the board game. Two to six players, one collapsing market, and a Lounge almost nobody
 reaches clean.
 
@@ -18,9 +20,11 @@ clean win comes up in fewer than one game in two hundred. That is the design, no
 
 ## Editions
 
-- **BENCHMARK** is the default: the digital edition, now with the REGULATION and CORRUPTION tower tiers and
-  the rebalanced cards and characters.
-- **CLASSIC** is the printed edition, kept frozen. Pick it on the setup screen.
+- **BENCHMARK** is the default: the digital edition. It has the REGULATION and CORRUPTION tower tiers, the
+  rebalanced cards and characters, an SEC meter the players can push and pull, and a three-turn raid when the
+  market collapses. It has its own one-page rules sheet.
+- **CLASSIC** is the printed game, played as the printed rule sheet and cards are written. Pick it on the setup
+  screen.
 - The expansion is on by default; there's a switch for it on the setup screen.
 
 ## How to play
@@ -42,8 +46,8 @@ clean win comes up in fewer than one game in two hundred. That is the design, no
 
 Left alone on the title for 30 seconds, the game plays a bots-only demo. Any key or click stops it.
 
-**Options** (add to the link): `?v4=0` plays the older Benchmark, before the tower tiers and the rebalance ·
-`?attract=0` turns off the title demo.
+**Options** (add to the link): `?b1112=0` plays the Benchmark without the SEC-meter and raid changes ·
+`?v4=0` plays the older Benchmark, before the tower tiers and the rebalance · `?attract=0` turns off the title demo.
 
 ## Credits
 

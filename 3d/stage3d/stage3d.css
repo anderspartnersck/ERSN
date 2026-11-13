@@ -1,0 +1,46 @@
+/* ER$N HYSCORE GATEWAY 3D LAB — only active under body.s3d (the ?stage=3d / 3-key toggle). */
+#s3stage{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;display:none;pointer-events:none;background:#000}
+body.s3d #s3stage{display:block}
+body.s3d .screen{z-index:1}
+body.s3d #intro{z-index:2}
+/* the screens go see-through so the 3D sets show behind them */
+body.s3d #boot{background:transparent}
+body.s3d #boot .stage3d{opacity:.0;pointer-events:none}          /* the CSS box gives way to the atrium + Blender boxes */
+body.s3d #boot .presents,body.s3d #boot .tagline,body.s3d #boot .byline,body.s3d #boot .sub{text-shadow:0 2px 6px #000,0 0 18px #000}
+body.s3d #setup{background:linear-gradient(rgba(6,7,10,.10),rgba(6,7,10,.35))}
+body.s3d #setup{justify-content:flex-start;padding-top:12px}
+/* the card sits high and scrolls, so the RESERVED table + the Blender boxes stay in view below it */
+body.s3d #setup .card{background:rgba(18,22,32,.80);backdrop-filter:none;max-height:calc(62vh - 40px);overflow-y:auto}
+body.s3d #setup h2,body.s3d #setup .setup-sub{text-shadow:0 2px 6px #000}
+body.s3d.s3-lift #setup > *{opacity:0;transition:opacity .35s;pointer-events:none}
+body.s3d #game{background:transparent}
+body.s3d #boardwrap{display:block}
+body.s3d #board{position:absolute;left:0;top:0;transform-origin:0 0;image-rendering:auto}
+#s3pawns{display:none}
+body.s3d #s3pawns{display:block;position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+body.s3d #game{transition:opacity .6s}
+body.s3d.s3-intro #game{opacity:0;pointer-events:none;transition:none}
+body.s3d.s3-outro #game{opacity:0;pointer-events:none}
+body.s3d #over{background:rgba(0,0,0,.35)}
+/* the toggle badge */
+#s3badge{position:fixed;left:10px;top:10px;z-index:9800;font:700 11px/1 "Trebuchet MS",system-ui,sans-serif;letter-spacing:.08em;
+  color:#cdbf9e;background:rgba(10,12,18,.82);border:1px solid #3a3326;border-radius:999px;padding:7px 12px;cursor:pointer;user-select:none}
+#s3badge b{color:#f0cf7a}
+#s3badge span{opacity:.6;margin-left:6px;font-weight:600}
+#s3badge.on{border-color:#d6a93f;box-shadow:0 0 14px rgba(214,169,63,.35)}
+/* the OPTIONS panel (every open Joe call is a toggle): collapsed to one line, opens on hover */
+#s3opts{position:fixed;left:10px;top:40px;z-index:9800;font:700 11px/1.25 "Trebuchet MS",system-ui,sans-serif;color:#cdbf9e;
+  background:rgba(10,12,18,.86);border:1px solid #3a3326;border-radius:10px;padding:6px 10px;max-height:22px;overflow:hidden;
+  width:250px;cursor:default;transition:max-height .2s}
+#s3opts::before{content:"3D OPTIONS ▾";display:block;color:#f0cf7a;letter-spacing:.1em;margin-bottom:6px}
+#s3opts:hover{max-height:480px}
+#s3opts .row{padding:4px 0;border-top:1px solid #2a2620;cursor:pointer}
+#s3opts .row b{color:#9a927e;letter-spacing:.08em;font-size:10px} #s3opts .row span{color:#f0cf7a;float:right}
+#s3opts .row i{display:block;font-style:normal;font-weight:600;color:#776f5e;font-size:10px}
+#s3opts .row:hover span{color:#fff}
+/* the verdict on the painted TOWER LEADERS board: the scoreboard steps left so the board reads on the right */
+body.s3d.s3-leaders #over{background:linear-gradient(90deg,rgba(0,0,0,.55),rgba(0,0,0,.1) 60%,rgba(0,0,0,0));justify-content:center;align-items:flex-start;padding-left:4vw}
+body.s3d.s3-leaders #over .card{max-width:min(46vw,620px)}
+
+/* THE 3D EDITION (Pages 3d.html): the badge keeps clear of the game's MENU button (top-left) */
+#s3badge.ed{top:auto;bottom:10px;left:10px;opacity:.8}

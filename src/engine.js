@@ -93,7 +93,10 @@
   const EDITIONS = {
     classic:   { shadowOnRisk: false, shadowRiskThreshold: 6, tallPoppy: false, tallPoppyAt: 8, floor: false, blackHoleFloor: false,
                  stampScoresFF: false, hypeExitFF: false, hypeExitAt: MAX_HYPE, hypeExitJuiceCap: null, cleanestSurvives: false,
-                 charAwareTrust: false, faithfulCards: false, printedTrack: false, levels: false },
+                 charAwareTrust: true, faithfulCards: true, printedTrack: true, levels: false,
+                 // PRINT RULES (1112, Joe: "classic mode plays exactly as the original version and rules state").
+                 // docs/CLASSIC-FIDELITY-1112.md lists every change with the printed text behind it.
+                 staircaseEntry: true, collapseRounds: true, repeatBurnout: true, doughOwnTurns: true, assetEffects: true, ffCleanDirty: 1, ffBurn8: 'move' },
     // PARITY KNOBS (benchmark only — the FF axis that historically locked out Mark/Vonda).
     // Final Favor decides ~99% of games but scores only doors/theft/survive-round/clean-count — never Hype,
     // and Vonda's Stamp is invisible to it. Re-baselined for the canonical 12-tile track (scripts/_parity_ab.js):
@@ -122,6 +125,26 @@
                  charAwareTrust: true, faithfulCards: true, printedTrack: true, levels: false, levelsPlaqueClean: false, levelsTrustEase: true, levelsTipOff: false, levelsTipRisk: 1, levelsTipTop: false, levelsChain: true, levelsLastElevator: false, levelsClimbRisk: true, levelsFF: 0, levelsTieTier: 0,
                  assetFlow: 0, camperCards: 0, doughExposure: 0, assetSquareKeep: false, benchmarkDeck: null, benchmarkChars: null,
                  ffSecWilling: 0, ffBurn8: 0, ffCleanDirty: 0 },
+  };
+  // BENCHMARK_PLAY — THE Benchmark as shipped (web default, headless --benchmark, parity 'benchmark+play' lines).
+  // EDITIONS.benchmark stays the pre-v4 base (every A/B script layers on it); this package is layered by ruleOverrides.
+  //   v4 (1112 a.m.): LEVELS tower + Package B scaled + the v4 deck + v4 characters + Clean→Dirty FF line.
+  //   1112 (Joe: "new benchmark build"): print rules kept (staircase entry, repeat burnout, Danny's own-turn cadence, Asset
+  //   EFFECTS, Burned 8+ on movement); SEC meter made interactive (BURY a file for +1 Risk, LOBBY with a Bribe, LEAK from
+  //   the Lounge); THE RAID (collapse = 3 player-turns, every Lounge resident checks, survive FF only on a passed check);
+  //   CASTLE DOCTRINE = tower checks pass on 2+ and Benny may SIC THE SEC on a loop player (2 Juice + 1 Risk).
+  //   docs/BENCHMARK-1112-WHAT-CHANGED.md has the paired-seed numbers behind every knob.
+  const BENCHMARK_PLAY = {
+    levels: true, levelsTrustEase: 2,
+    levelsClimbRisk: { byPlayers: { 3: false, 4: false, default: true } },
+    levelsLastElevator: { byPlayers: { 3: true, 4: true, default: false } },
+    benchmarkDeck: 'v4', benchmarkChars: 'v4', ffCleanDirty: 1,
+    staircaseEntry: true, repeatBurnout: true, doughOwnTurns: true, assetEffects: true, ffBurn8: 'move',
+    charDanny: { byPlayers: { 3: 3, 4: 2, default: 1 } },
+    secBury: 2, secLobby: true, secLeak: true,
+    collapseRounds: 'turns', raidAll: true, ffSurvive: 'check',
+    bennyCastle: 'ease2+sic', bennySicCost: 2, bennySicRisk: 1,
+    charClaudiaTrust: 0,   // v4 gave Claudia +1 starting Trust at 5p+; under 1112 it over-feeds her (6p 22% -> 17%)
   };
   // Benchmark CARD OVERRIDES — same card name, sharper job (effect + on-card text). Read only when
   // edition==='benchmark'; Classic never sees these. fx swaps route through resolve_card; text feeds the UI.
@@ -325,7 +348,7 @@
       if (!persona) return this.bot.decide(req, game, p);
       switch (req.kind) {
         case 'bribe':       return persona.bribe(p, game);
-        case 'steps':       return persona.steps(p, game);
+        case 'steps':       { const s = game._stairSteps(p, (p.trust >= 4 || p.hype >= 8) && persona.enterLounge(p, game)); return s !== null ? s : persona.steps(p, game); }
         case 'door':        return persona.door(p, game);
         case 'enterLounge': return persona.enterLounge(p, game);
         case 'climbTier':   return true;                                              // up is the only way to the Lounge
@@ -335,6 +358,24 @@
           return threat(game, t) > threat(game, p) ? t : null;
         }
         case 'climbLounge': return true;                                              // only offered when eligible
+        case 'bury': {      // sharks embrace collapse: bury the file when you're positioned (tower / Lounge) or when it would burn you
+          if (game.global_sec >= 7 && !(p.in_lounge || game.floorOf(p) !== null)) return false;   // don't pull the pin while you're still on the loop
+          return p.in_lounge || game.floorOf(p) !== null || p.risk >= 4;
+        }
+        case 'lobby':       return game.global_sec >= 6 && !p.in_lounge && game.floorOf(p) === null && p.risk + 2 < 8;   // buy time while you're out of position
+        case 'leak': {      // pull the pin when you're holding the best books in the room
+          if (p.risk > 4) return false; const mine = game.ff(p);
+          return game.others_of(p).every(q => game.ff(q) <= mine);
+        }
+        case 'assetEffect': {   // re-fire an in-play Asset effect (print ASSET EFFECTS) only when it plainly helps you or hurts a rival
+          if (R.random() >= persona.playRate) return null;
+          const opps = game.others_of(p).length;
+          const val = c => ({ SELF_JUICE1: 2, JUICE_TANKER: 3, STAKEHOLDER_SUMMIT: opps ? 2 : 0, JUNK_VEHICLE: opps ? 1.5 : 0, THE_SAFE: 1, RANK_YANK: 1, TARGET_REVEAL: 0.5,
+            FOUND_FAMILY: p.asset_count() <= 2 && p.trust < 4 ? 2 : 0, MANUAL_BENCHMARK: opps ? 1.5 : 0,
+            MYASS_HOLDINGS: p.risk >= 2 && p.juice >= 4 ? 2 : 0, MANUAL_RAPTOR_IMPLODE: p.risk <= 4 ? 1.5 : 0 })[c.fx] || 0;
+          let best = null, bv = 0; for (const c of req.candidates) { const v = val(c); if (v > bv) { bv = v; best = c; } }
+          return best;
+        }
         case 'bribeClimb':  return !!req.toLounge && p.trust < 4;                     // v4: buy past the plaque only when your name won't carry you
         case 'keepAsset':   return req.candidates.reduce((m, x) => persona.playScore(x) > persona.playScore(m) ? x : m);   // keep the one your kit wants
         case 'react':       return (R.random() < persona.reactRate) ? req.card : null;
@@ -356,6 +397,8 @@
           if (req.ability === 'Notary') return false;                       // Vonda keeps her Assets (the Stamp wants them)
           if (req.ability === 'NotaryAlibi') return game._cv('charVonda', 3) >= 2 ? (p.risk >= 2 && p.trust >= 3) : (p.risk >= 3 && p.trust >= 4);   // v4: buy down Risk only with Trust to spare (v2 kit: a looser notary)
           if (req.ability === 'LeakyBucket') return true;                   // Vonda always clings to the Lounge
+          if (req.ability === 'CastleOrder') return p.risk <= 5;             // Benny orders the help around while he can carry the Risk
+          if (req.ability === 'CastleDefend') return p.risk <= 5;            // his building, his Security — while he can carry the Risk
           if (req.ability === 'FeedRaptors') return game._v4Deck() && p.risk >= 2;   // v4 Round 6: feed the raptors to dump Risk (pre-v4 bots never fed: the card was dead)
           return false;
         default:            return this.bot.decide(req, game, p);   // asset/hand/choice/giveHype
@@ -456,7 +499,8 @@
       // edition knobs; classic = print-faithful. opts.ruleOverrides lets a balance harness A/B single knobs.
       this.rules = opts.ruleOverrides ? Object.assign({}, EDITIONS[this.edition], opts.ruleOverrides) : EDITIONS[this.edition];
       // player-count-scaled knobs: an override may be { byPlayers: { 3: v, 4: v, default: v } } (e.g. Package B at 3–4p only)
-      if (opts.ruleOverrides) { const np = (opts.characters && opts.characters.length) || opts.n_players || 4;
+      { const np = (opts.characters && opts.characters.length) || opts.n_players || 4;
+        if (Object.values(this.rules).some(v => v && typeof v === 'object' && v.byPlayers)) this.rules = Object.assign({}, this.rules);   // never write into EDITIONS
         for (const k of Object.keys(this.rules)) { const v = this.rules[k];
           if (v && typeof v === 'object' && v.byPlayers) this.rules[k] = (np in v.byPlayers) ? v.byPlayers[np] : v.byPlayers.default; } }
       this.track = this.rules.printedTrack ? TRACKS.printed : TRACKS.golden;   // the loop this game is played on
@@ -665,6 +709,9 @@
     // The tower Trust Check's pass-on: 5+, or 4+ at Trust 4+ (levelsTrustEase). levelsTrustEase: 2 grades it one more
     // step — Trust 6+ passes on 3+ ("a spotless name is the elevator pass"): an A/B lever for the high-Trust climbers.
     _towerPassOn(p) {
+      // 1112 CASTLE DOCTRINE (bennyCastle): it's his building — Benny's tower Trust Checks pass on 3+
+      if (this._castle('ease2') && p.abilityName === 'Benny Boye') return 2;
+      if (this._castle('ease') && p.abilityName === 'Benny Boye') return 3;
       const e = this.rules.levelsTrustEase;
       if (e >= 2 && p.trust >= 6) return 3;
       return (e && p.trust >= 4) ? 4 : 5;
@@ -697,10 +744,12 @@
         // v4 rule (levelsBribe): a Bribe buys you past a TOWER check too, exactly as at the staircase (+2 Risk, -1 FF)
         const bribed = this._cv('levelsBribe', 1) && p.bribes > 0 && await this.decide(p, { kind: 'bribeClimb', toLounge, at });
         if (bribed) { this.spendBribe(p); this.emit('spendBribe', { player: p.name }); this.log(`    ${p.name} spends a Bribe past ${what}`); }
-        const ok = bribed || (this.rules.charAwareTrust ? await this.charTrustResolve(p, base, `failed ${what}`, failRisk) : (failRisk ? await this.trust_check(p, base) : this.rng.randint(1, 6) >= this.effPassOn(p, base)));
+        const auto = !bribed && this._castle('auto') && p.abilityName === 'Benny Boye';   // CASTLE DOCTRINE: "No Trust Check. No die roll. Ever." — inside his own tower too
+        if (auto) { this.log(`    Benny CASTLE DOCTRINE: walks past ${what} — no check`); if (this.rules.bennyAutoRisk) this.add_risk(p, this.rules.bennyAutoRisk, 'Castle Doctrine (the free pass is noticed)'); }
+        const ok = bribed || auto || (this.rules.charAwareTrust ? await this.charTrustResolve(p, base, `failed ${what}`, failRisk) : (failRisk ? await this.trust_check(p, base) : this.rng.randint(1, 6) >= this.effPassOn(p, base)));
         if (!ok) { this.log(`    ${p.name} fails ${what} (stays on ${band})`); break; }
         if (this.floorOf(p) !== at) break;   // a reaction moved them
-        if (toLounge) { this._ascend(p); this.log(`    ${p.name} passes the ANDERS APPROVED TRUST CHECK -> Executive Lounge`); this.emit('enter_lounge', { player: p.name }); return true; }
+        if (toLounge) { this._ascend(p); this.log(`    ${p.name} passes the ANDERS APPROVED TRUST CHECK -> Executive Lounge`); this.emit('enter_lounge', { player: p.name }); await this._bennyDefends(p, top); return true; }
         p.pos = 'F' + (at + 1); climbed = true;
         this.log(`    ${p.name} passes ${what} -> climbs to ${FLOORS.bands[at + 1]}`); this.emit('move', { player: p.name, to: p.pos }); this.emit('climb', { player: p.name, band: FLOORS.bands[at + 1] });
         if (!this.rules.levelsChain) break;
@@ -721,10 +770,11 @@
       this.log(`    draws ${key}: ${c.name}`);
       this.emit('draw', { player: p.name, deck: key, card: c.name });
       const pile = this.discards[this._discard_key(c)];
+      if (await this._buryOffer(p, c)) return;
       if (this._v4Keep(c)) { p.hand.push(c); this.log(`    ${p.name} keeps ${c.name} in hand (it waits for its trigger)`); }
       else if (p.sec_immunity > 0) { p.sec_immunity -= 1; this.log(`    ${p.name} uses SEC Immunity (ignores ${c.name})`); this.emit('secImmunity', { player: p.name, card: c.name, left: p.sec_immunity }); pile.push(c); }
       else if (p.grace_immunity) { this.log(`    ${p.name} immune (Grace Period) — ignores ${c.name}`); pile.push(c); }
-      else { await this.resolve_card(c, p, this.others_of(p)); this.after_sec_draw(c); }
+      else { await this.resolve_card(c, p, this.others_of(p)); this.after_sec_draw(c); this._discardLoose(c); }
     }
     // TIP OFF THE SEC (from the loop): the SEC card you just drew goes after a tier resident instead of you.
     // You take +1 Risk (now the SEC knows your name too); they pass a Trust Check or get knocked down a tier.
@@ -738,12 +788,12 @@
       else this._knockDown(q, `${p.name} tipped off the SEC`);
     }
 
-    raise_global_sec(amt, why) {
+    raise_global_sec(amt, why, by) {
       amt = amt || 1;
       if (this.global_sec >= 8) return;
       this.global_sec = Math.min(8, this.global_sec + amt);
       this.log(`    [Global SEC +${amt} -> ${this.global_sec}] ${why || ''}`);
-      this.emit('globalsec', { value: this.global_sec, why });
+      this.emit('globalsec', by ? { value: this.global_sec, why, by: by.name, delta: amt } : { value: this.global_sec, why });
       if (this.global_sec >= 8 && !this.collapsed) this.begin_collapse('Global SEC reached 8');
     }
     raise_shadow_sec(amt, why) {
@@ -885,7 +935,7 @@
     // Bribe's penalty, e.g. Asset in Transit, handle their own Risk and don't route through here.)
     spendBribe(p) { p.bribes -= 1; p.ff_bribe_used += 1; if (this.rules.faithfulCards) this.add_risk(p, 2, 'used a Bribe (+2 Risk)'); }
     burnout(p) {
-      if (p.burned) return;
+      if (p.burned && !this.rules.repeatBurnout) return;   // print: "If your Risk reaches 8" — every time, not once a game
       p.burned = true; p.ff_burnout += 1;
       p.lineup = p.lineup.filter(t => t.card.undiscardable);
       p.trust = 0; p.bribes = 0; p.risk = 5; p.juice = 1;
@@ -1056,8 +1106,19 @@
 
     // ============== CARD RESOLUTION ==============
     async resolve_card(card, p, others) {
+      // 1112 SEC (secFizzle): an SEC file that lands on nothing STAYS OPEN — Global SEC +1 (the deck now feeds the meter)
+      if (this.rules.secFizzle && (card.deck === 'SEC' || card.deck === 'ShadowSEC') && !this._inFizzle) {
+        const snap = () => JSON.stringify(this.players.map(q => [q.juice, q.trust, q.hype, q.risk, q.bribes, q.pos, q.skip_next, q.hand.length, q.lineup.map(t => [t.up, t.dirty, t.mods.length])]).concat([this.global_sec, this.shadow_sec]));
+        const before = snap(); this._inFizzle = true;
+        let r; try { r = await this._resolveCC(card, p, others); } finally { this._inFizzle = false; }
+        if (snap() === before && !this.collapsed) this.raise_global_sec(1, `the file stays open (${card.name} found nothing)`, { name: '(the deck)' });
+        return r;
+      }
+      return this._resolveCC(card, p, others);
+    }
+    async _resolveCC(card, p, others) {
       // FF reading 'Clean turned Dirty' (knob ffCleanDirty): a card leaves one of YOUR Clean Lineup Assets Dirty → −1 Final Favor
-      if (!(this.edition === 'benchmark' && this.rules.ffCleanDirty)) return this._resolveDeck(card, p, others);
+      if (!this.rules.ffCleanDirty) return this._resolveDeck(card, p, others);
       const snap = new Map(this.players.map(q => [q, q.lineup.filter(t => !q.effDirty(t))]));
       const r = await this._resolveDeck(card, p, others);
       for (const [q, clean] of snap) { const n = clean.filter(t => q.lineup.includes(t) && q.effDirty(t)).length; if (n) { q.ff_clean_turned_dirty += n; this.log(`    ${q.name}: a Clean Asset turned Dirty (−${n} Final Favor)`); } }
@@ -1142,7 +1203,7 @@
         case 'SELF_RISK_PER_DIRTY': { const per = (this.rules.faithfulCards && p.ff_bribe_used > 0) ? 2 : 1; this.add_risk(p, p.faceup_dirty().length * per, 'What the Hell'); break; }   // faithful: +2/Asset if you have used a Bribe
         case 'SELF_JUICE1': p.juice += 1; break;
         case 'GOLDEN_PARACHUTE': if (others.length) { const tgt = await this.pick_target(p, others, undefined, card); if (tgt) { if (this.rules.faithfulCards) p.juice -= 3; tgt.juice += 3; const gone = await this.pickOrDefault(tgt, tgt.lineup.slice(), 'golden-parachute'); if (gone) D(tgt, gone); } } break;   // printed: "discard an Asset of THEIR choice"   // faithful: YOU give them the 3 Juice
-        case 'JUICE_TANKER': { const roll = R.randint(1, 6); p.juice += roll; if (roll <= 2) { for (const t of p.lineup) if (t.card === card) { t.up = true; t.dirty = true; } this.log(`    Juice Tanker broke (rolled ${roll}) -> dead Dirty Asset`); } break; }
+        case 'JUICE_TANKER': { const roll = R.randint(1, 6); p.juice += roll; if (roll <= 2) { for (const t of p.lineup) if (t.card === card) { t.up = true; t.dirty = true; t._broken = true; } this.log(`    Juice Tanker broke (rolled ${roll}) -> dead Dirty Asset`); } break; }
         case 'JUNK_VEHICLE': if (others.length) { const tgt = await this.pick_target(p, others, undefined, card); if (tgt) { tgt._junk_tax_pending = true; this.log(`    Junk Vehicle Trust: ${tgt.name} pays 2 Juice/space on their next turn`); } } break;
         case 'STAKEHOLDER_SUMMIT': if (others.length) { const tgt = await this.pick_target(p, others, undefined, card); if (tgt) { if (tgt.hype > 0) { tgt.hype -= 1; p.hype += 1; } else this.add_risk(tgt, 1, 'Stakeholder Summit'); } } break;
         case 'THE_SAFE': { const stair = others.filter(q => q.pos === 'START' || this.track.exits.has(q.pos)); const pool = this.rules.faithfulCards ? stair : others; if (pool.length) { const tgt = await this.pick_target(p, pool, undefined, card); if (tgt) { tgt._safe_pending = 6; this.log(`    The Safe: ${tgt.name} must roll a 6 to pass any Trust Check next turn`); } } break; }   // faithful: only an opponent ON a Golden Staircase
@@ -1393,6 +1454,106 @@
     }
     effDirtyOrCond(p, t) { return p.effDirty(t) || (t.card.ctype === 'Conditional'); }
 
+    // bennyCastle is a '+'-joined set: ease (tower checks pass on 3+) · auto (NO tower Trust Check: his name is the check) ·
+    // order (hand his SEC file to an opponent) · defend (call Security on a new Lounge arrival) · both = order+defend
+    // the ability lines a character sheet shows for THIS game (the printed card, with Benchmark rule changes folded in)
+    abilitiesText(p, base) {
+      if (p.abilityName !== 'Benny Boye' || !this.rules.bennyCastle) return base;
+      const ease = this._castle('ease2') ? 2 : this._castle('ease') ? 3 : 0, sic = this._castle('sic');
+      const cost = this.rules.bennySicCost != null ? this.rules.bennySicCost : 2, rk = this.rules.bennySicRisk != null ? this.rules.bennySicRisk : 1;
+      const extra = [ease ? `his Tower Trust Checks pass on ${ease}+` : '', sic ? `from the Tower or the Lounge, at the start of his turn he may pay ${cost} Juice${rk ? ` + take ${rk} Risk` : ''} to ORDER a loop player to answer to the SEC (they draw an SEC card)` : ''].filter(Boolean).join('; ');
+      return base.map(a => /^Castle Doctrine/.test(a) ? `${a.replace(/\.$/, '')}. It's his building: ${extra}.` : a);
+    }
+    _castle(t) { const m = this.rules.bennyCastle; if (!m) return false; const set = String(m).split('+'); return set.includes(t) || (m === 'both' && (t === 'order' || t === 'defend')); }
+    // 1112 SEC METER — BURY THE FILE (secBury): an SEC card that lands on you (loop square or tower SEC ROLL) may be BURIED
+    // instead — it never resolves on you, the Global SEC meter takes it (+1). secBury 2: burying also costs you +1 Risk.
+    async _buryOffer(p, c) {
+      if (!this.rules.secBury || this.collapsed || this.global_sec >= 8 || this._v4Keep(c)) return false;
+      if (!(await this.decide(p, { kind: 'bury', card: c, options: ['BURY'] }))) return false;
+      this.discards[this._discard_key(c)].push(c);
+      this.log(`    ${p.name} BURIES ${c.name} — the SEC meter takes it`); this.emit('bury', { player: p.name, card: c.name });
+      if (this.rules.secBury >= 2) this.add_risk(p, 1, 'buried an SEC file');
+      this.raise_global_sec(1, `${p.name} buried ${c.name}`, p);
+      return true;
+    }
+    // 1112 CASTLE DOCTRINE (bennyCastle 'order'): at the start of his turn in the tower or the Lounge, Benny may ORDER an
+    // opponent to carry his Risk — up to 2 Risk moves to them, and he pays them bennyOrderCost (default 1) Juice per Risk moved.
+    async _bennyOrders(p) {
+      if (this._castle('sic')) return this._bennySics(p);
+      if (!this._castle('order') || p.abilityName !== 'Benny Boye' || this.collapsed || p.risk <= 0) return;
+      if (!(p.in_lounge || this.floorOf(p) !== null)) return;
+      const cost = this.rules.bennyOrderCost || 1, n = Math.min(this.rules.bennyOrderMax || 2, p.risk, Math.floor(p.juice / cost)); if (n <= 0) return;
+      const opps = this.others_of(p); if (!opps.length) return;
+      if (!(await this.decide(p, { kind: 'ability', ability: 'CastleOrder', cost: `order an opponent to carry ${n} of your Risk (pay them ${n * cost} Juice)` }))) return;
+      const tgt = await this.pick_target(p, opps, undefined, null); if (!tgt) return;
+      p.juice -= n * cost; tgt.juice += n * cost; this.add_risk(p, -n); this.add_risk(tgt, n, 'Castle Doctrine (carrying Benny\'s Risk)');
+      this.log(`    Benny CASTLE DOCTRINE: orders ${tgt.name} to carry ${n} Risk (pays ${n * cost} Juice)`); this.emit('castleOrder', { player: p.name, target: tgt.name, n });
+    }
+    // 1112 CASTLE DOCTRINE (bennyCastle 'sic'): from the tower or the Lounge, at the start of his turn Benny may ORDER an
+    // opponent on the loop to answer to the SEC — he pays bennySicCost Juice (default 2) and takes bennySicRisk (default 1);
+    // they draw an SEC card and resolve it (or bury it, if burying is in play).
+    async _bennySics(p) {
+      if (p.abilityName !== 'Benny Boye' || this.collapsed || !(p.in_lounge || this.floorOf(p) !== null)) return;
+      const cost = this.rules.bennySicCost != null ? this.rules.bennySicCost : 2, rk = this.rules.bennySicRisk != null ? this.rules.bennySicRisk : 1;
+      if (p.juice < cost) return;
+      const pool = this.others_of(p).filter(q => this._onLoop(q)); if (!pool.length) return;
+      if (!(await this.decide(p, { kind: 'ability', ability: 'CastleOrder', cost: `pay ${cost} Juice${rk ? ` + take ${rk} Risk` : ''}: order an opponent on the loop to draw an SEC card` }))) return;
+      const tgt = await this.pick_target(p, pool, undefined, null); if (!tgt) return;
+      p.juice -= cost; if (rk) this.add_risk(p, rk, 'Castle Doctrine (the order is on record)');
+      const c = this.draw('SEC'); if (!c) return;
+      this.log(`    Benny CASTLE DOCTRINE: orders ${tgt.name} to answer to the SEC (${c.name})`); this.emit('castleOrder', { player: p.name, target: tgt.name, card: c.name });
+      this.emit('draw', { player: tgt.name, deck: 'SEC', card: c.name, via: 'Castle Doctrine' });
+      if (await this._buryOffer(tgt, c)) return;
+      if (this._v4Keep(c)) { tgt.hand.push(c); return; }
+      if (tgt.sec_immunity > 0) { tgt.sec_immunity -= 1; this.discards[this._discard_key(c)].push(c); return; }
+      await this.resolve_card(c, tgt, this.others_of(tgt)); this.after_sec_draw(c); this._discardLoose(c);
+    }
+    // 1112 CASTLE DOCTRINE (bennyCastle 'defend' | 'both'): someone else reaches the Lounge while Benny is in the tower or the
+    // Lounge — Benny may call Security (+1 Risk to Benny): they pass a Trust Check or fall back to CORRUPTION.
+    async _bennyDefends(q, top) {
+      if (!this._castle('defend') || this.collapsed || q.abilityName === 'Benny Boye') return;
+      const b = this.alive_players().find(x => x.abilityName === 'Benny Boye' && (x.in_lounge || this.floorOf(x) !== null)); if (!b) return;
+      if (!(await this.decide(b, { kind: 'ability', ability: 'CastleDefend', cost: `call Security on ${q.name} (+1 Risk to you)`, target: q }))) return;
+      this.add_risk(b, 1, 'Castle Doctrine (called Security)');
+      const held = await this.charTrustResolve(q, 5, null, false);
+      this.emit('tipoff', { player: b.name, target: q.name, card: 'Castle Doctrine' });
+      if (held) { this.log(`    Benny calls Security on ${q.name} — they hold the Lounge`); return; }
+      q.in_lounge = false; q.pos = 'F' + top; q.lounge_streak = 0; this.log(`    Benny calls Security on ${q.name} — escorted back down to ${FLOORS.bands[top]}`); this.emit('fall', { player: q.name, why: 'Castle Doctrine', to: q.pos });
+    }
+    // ASSET EFFECTS (rule sheet, MARKET LOOP): "You may play 1 effect from an in-play Asset per turn INSTEAD of playing a card —
+    // no rewinds for CONSTANTS or card management." Knob assetEffects. Re-usable = an in-play Asset with an active EFFECT that is
+    // not a CONSTANT, not a reaction (those fire on their trigger), not "1 use only", not a broken Juice Tanker.
+    _reusable(p) {
+      const react = new Set([].concat(...Object.values(REACTS)));
+      const NOT = new Set(['MANUAL_FEED_RAPTORS', 'MANUAL_ACCT_WHISPER', 'MANUAL_MYASS_INTL', 'MANUAL_LAST_ENCHILADA', 'MANUAL_MOU', 'GOLDEN_PARACHUTE', 'FRESH_OFFSHORE', 'LEGAL_OPINION', 'SHREDDED_AUDIT']);
+      return p.lineup.filter(t => !p.noEffect(t) && !t._broken && t.card.fx && !/^CONSTANT/.test(t.card.fx) && !react.has(t.card.fx) && !NOT.has(t.card.fx) && !/1 use/i.test(t.card.text || '') && t.card.play !== 'Immediate' && t.card.play !== 'KeepInHand');
+    }
+    async _assetEffect(p) {
+      const pool = this._reusable(p); if (!pool.length) return;
+      const pick = await this.decide(p, { kind: 'assetEffect', options: pool.map(t => t.card), candidates: pool.map(t => t.card) });
+      const t = pool.find(x => x.card === pick); if (!t) return;
+      this.log(`    uses an in-play Asset EFFECT: ${t.card.name}`);
+      this.emit('assetEffect', { player: p.name, card: t.card.name });
+      if (t.card.fx === 'MANUAL_RAPTOR_IMPLODE') this.add_risk(p, 1, 'Raptor Implosion (re-use)');   // printed: "+1 Risk per use after initial play"
+      await this.resolve_card(t.card, p, this.others_of(p));
+    }
+    // GOLDEN STAIRCASES (rule sheet): "There are 2 GOLDEN STAIRCASES — the START CIRCLE and the MARKET VIP STAIRCASE."
+    _onStair(p) { return p.pos === 'START' || this.track.exits.has(p.pos); }
+    // BOT POLICY under staircaseEntry (not a rule): a bot that wants the Lounge walks to the nearest Golden Staircase it can
+    // reach this turn with 1 Juice left for the PARKING MACHINE FEE (0 steps if it is already standing on one). null = no plan.
+    _stairSteps(p, wants) {
+      if (!this.rules.staircaseEntry || p.in_lounge || this.floorOf(p) !== null || !wants) return null;
+      const T = this.track;
+      if (this._onStair(p)) return p.juice >= 1 ? 0 : null;
+      const from = typeof p.pos === 'number' ? p.pos : 0;
+      for (let d = 1; d <= Math.min(p.juice - 1, T.n); d++) {
+        const nx = (from + d) % T.n;
+        if (!T.exits.has(nx)) continue;
+        if (p.abilityName !== 'Wu Drainer' && this.alive_players().some(q => q !== p && q.pos === nx)) return null;   // someone is standing on it
+        return d;
+      }
+      return null;
+    }
     async enter_tower(p) {
       if (p.juice < 1) return false;
       p.juice -= 1; p._spent = (p._spent || 0) + 1;   // parking fee, paid whether or not the check passes
@@ -1487,8 +1648,9 @@
     async take_turn(p) {
       const r = await this._takeTurnCore(p);
       // FF reading 'Burned 8+ Juice' (knob ffBurn8): you spent 8+ of your own Juice in one turn
-      const burnt = (p._spent || 0) - (this.rules.ffBurn8 === 'bank' ? (p._gift || 0) : 0);   // 'bank': only Juice lost to the bank, not gifts to rivals
-      if (this.edition === 'benchmark' && this.rules.ffBurn8 && burnt >= 8) { p.ff_burned_8plus_juice += 1; this.log(`    ${p.name} burned ${burnt} Juice this turn (+1 Final Favor)`); }
+      // 'move' (the printed meter: "Burn 8+ Juice in one MOVE"): only the Juice spent moving (steps + the TO MARKET door)
+      const burnt = this.rules.ffBurn8 === 'move' ? (p._moveSpent || 0) : (p._spent || 0) - (this.rules.ffBurn8 === 'bank' ? (p._gift || 0) : 0);   // 'bank': only Juice lost to the bank, not gifts to rivals
+      if (this.rules.ffBurn8 && burnt >= 8) { p.ff_burned_8plus_juice += 1; this.log(`    ${p.name} burned ${burnt} Juice this turn (+1 Final Favor)`); }
       return r;
     }
     async _takeTurnCore(p) {
@@ -1496,7 +1658,7 @@
       // Executive Shuffling: the ability swap reverts once a full round has passed
       if (this._pendingUnswap && this.turn >= this._pendingUnswap.atTurn) { const s = this._pendingUnswap; s.a.abilityName = s.aName; s.b.abilityName = s.bName; this._pendingUnswap = null; this.log(`    Executive Shuffling: abilities revert`); }
       p._graceUsed = false;   // Benchmark floor resets each turn
-      p._spent = 0; p._gift = 0;   // FF reading 'burned 8+ Juice': Juice you spent yourself this turn
+      p._spent = 0; p._gift = 0; p._moveSpent = 0;   // FF reading 'burned 8+ Juice': Juice you spent yourself this turn
       if (p.skip_next) { p.skip_next = false; this.log(`  ${p.name} skips this turn`); if (p.grace_immunity) p.grace_immunity = false; return; }
       this.log(`  -- ${p.name}'s turn (J${p.juice} T${p.trust} H${p.hype} R${p.risk} pos=${p.pos} lounge=${p.in_lounge}) --`);
       // Claudia — Unimpeachable: "BEFORE rolling to move", may give 5 Juice to an opponent for +1 Trust (printed timing)
@@ -1522,7 +1684,7 @@
       // Benny can decline and play the board instead of being teleported into the Lounge every turn.
       // (The bug: forced + position-independent => a human Benny could NEVER move.)
       if (p.abilityName === 'Benny Boye') {
-        if (!p.isHuman) { if (!(this.rules.levels && (p.in_lounge || this.floorOf(p) !== null))) { const gw = this._ascend(p); if (gw === 'lounge') this.log('    Benny: Golden Walk -> Executive Lounge (free)');
+        if (!p.isHuman) { if (!(this.rules.levels && (p.in_lounge || this.floorOf(p) !== null)) && !(this.rules.staircaseEntry && (p.in_lounge || this.floorOf(p) !== null || !this._onStair(p)))) { const gw = this._ascend(p); if (gw === 'lounge') this.log('    Benny: Golden Walk -> Executive Lounge (free)');
           const br = this._cv('charBenny', 1); if (br && this.rules.levels && gw) this.add_risk(p, br, 'Golden Walk (the free ride is noticed)'); } }
         else if (!p.in_lounge && this.floorOf(p) === null && (p.pos === 'START' || this.track.exits.has(p.pos)) && await this.decide(p, { kind: 'goldenWalk' })) {
           this._ascend(p); this.log('    Benny: Golden Walk -> Executive Lounge (free)'); this.emit('enter_lounge', { player: p.name });
@@ -1536,13 +1698,19 @@
       // v4 Round 6 knob charDannyCadence (byPlayers-scalable, default off): N = double on every Nth OWN turn
       // (2 = the card's literal "every other OWN turn": Danny's 2nd, 4th, 6th... turn). At an even table (4p, 6p) the global-turn quirk locks Danny's seat into
       // doubling EVERY turn or NEVER; at 6p that split was 5% vs 20% win by seat.
-      const dc = p.abilityName === 'Danny Dough' && this._cv('charDannyCadence', this.players.length >= 6 ? 2 : 0);   // v4: the literal cadence at 6p
+      const dc = p.abilityName === 'Danny Dough' && (this.rules.doughOwnTurns ? 2 : this._cv('charDannyCadence', this.players.length >= 6 ? 2 : 0));   // doughOwnTurns (print): "starting turn 2, DOUBLE every other turn" = Danny's own 2nd, 4th, 6th... turn   // v4: the literal cadence at 6p
       if (dc) { p._doughTurns = (p._doughTurns || 0) + 1; if (p._doughTurns % dc === 0) { const b = p.juice; p.juice *= 2; this.log(`    Danny: Dough-Man doubles Juice ${b}->${p.juice}`); } }
       else if (p.abilityName === 'Danny Dough' && this.turn >= 2 && this.turn % 2 === 0) { const b = p.juice; p.juice *= 2; this.log(`    Danny: Dough-Man doubles Juice ${b}->${p.juice}`); }
 
+      await this._bennyOrders(p);
       await this.startAbilities(p);   // printed secondary abilities (Unimpeachable / Doughmination / Reflux / Notary)
 
-      if (p.juice >= 3 && p.bribes === 0) {
+      // 1112 SEC METER — LOBBY (secLobby): before moving, spend a Bribe (its usual +2 Risk / -1 Final Favor) to pull Global SEC down 1
+      if (this.rules.secLobby && p.bribes > 0 && this.global_sec > 0 && !this.collapsed && await this.decide(p, { kind: 'lobby' })) {
+        this.spendBribe(p); this.global_sec -= 1; this.log(`    ${p.name} LOBBIES the SEC with a Bribe [Global SEC -1 -> ${this.global_sec}]`);
+        this.emit('globalsec', { value: this.global_sec, why: `${p.name} lobbied (Bribe)`, by: p.name, delta: -1 }); this.emit('spendBribe', { player: p.name });
+      }
+      if (p.juice >= 3 && (p.bribes === 0 || (this.rules.faithfulCards && p.isHuman))) {   // print sets no Bribe cap; bots keep their one-at-a-time policy
         if (await this.decide(p, { kind: 'bribe' })) { p.juice -= 3; p._spent = (p._spent || 0) + 3; p.bribes += 1; this.log(`    ${p.name} buys a Bribe (-3 Juice)`); this.emit('bribe', { player: p.name }); }
       }
 
@@ -1553,7 +1721,7 @@
         const T = this.track, LOOP_N = T.n, DOOR_SPACES = T.doors, DECK_BY_INDEX = T.deck;
         let want = await this.decide(p, { kind: 'steps' });
         const wu_free = (p.abilityName === 'Wu Drainer');
-        if (wu_free && want === 0) want = 1;
+        if (wu_free && want === 0 && !this.rules.faithfulCards) want = 1;   // print: Floorplan Master "MAY move 1 space with 0 Juice" — Wu may also stand still (Strategic Fade)
         let steps = 0;
         const dir = want < 0 ? -1 : 1, count = Math.abs(want);   // HUMAN may move BACKWARD (negative want); bots only ever pass >=0, so parity is untouched
         // the golden track counts START as space 0; the printed START CIRCLE sits between 12 and 0
@@ -1566,15 +1734,18 @@
           // Round 7 A/B knob blockRule (default OFF; Benchmark only): 'start' = leaving the START CIRCLE ignores occupied spaces this move
           // (the late seats were walled in at START); 'pass' = you may pass through an occupied space but not stop on one.
           const br7 = this.edition === 'benchmark' ? this.rules.blockRule : null;
-          const occ = !wu_free && this.alive_players().some(q => q !== p && typeof q.pos === 'number' && q.pos === nxt);
+          // the TO MARKET door is pass-through, so the space you would really stand on is the one beyond it (faithful: check THAT one —
+          // "No 2 players may occupy the same space"; the door crossing used to drop you onto an occupied MARKET VIP STAIRCASE)
+          const land = (this.rules.faithfulCards && DOOR_SPACES.has(nxt)) ? ((nxt + dir) % LOOP_N + LOOP_N) % LOOP_N : nxt;
+          const occ = !wu_free && this.alive_players().some(q => q !== p && typeof q.pos === 'number' && q.pos === land);
           if (occ && !(br7 === 'start' && p.pos === 'START') && !(br7 === 'pass' && k < count - 1)) { this.log(`    ${p.name} blocked: space ${nxt} occupied`); break; }
-          if (!free_step) { p.juice -= 1; p._spent = (p._spent || 0) + 1; }
-          if (!free_step && junkTax) p.juice -= 1;   // Junk Vehicle Trust: 2 Juice per space this turn
+          if (!free_step) { p.juice -= 1; p._spent = (p._spent || 0) + 1; p._moveSpent += 1; }
+          if (!free_step && junkTax) { p.juice -= 1; p._moveSpent += 1; }   // Junk Vehicle Trust: 2 Juice per space this turn
           cur = nxt; steps += 1;
           if (DOOR_SPACES.has(cur)) {
             // Index 4 is the blank TO MARKET door — can't end on it; it's pass-through BOTH ways.
             // The +1 Final Favor only applies crossing FORWARD into Market; backward just passes through.
-            if (dir > 0 && p.juice >= 1 && await this.decide(p, { kind: 'door', at: cur })) { p.juice -= 1; p._spent = (p._spent || 0) + 1; cur = ((cur + dir) % LOOP_N + LOOP_N) % LOOP_N; if (!(this.edition === 'benchmark' && this.rules.doorFFOnce && p.ff_passed_to_market >= 1)) p.ff_passed_to_market += 1;   /* Round 7 A/B knob doorFFOnce: the door scores once a game */ this.log(`    ${p.name} takes TO MARKET door -> ${cur} [+1 Final Favor]`); this.emit('door', { player: p.name, to: cur, took: true }); }
+            if (dir > 0 && p.juice >= 1 && await this.decide(p, { kind: 'door', at: cur })) { p.juice -= 1; p._spent = (p._spent || 0) + 1; p._moveSpent += 1; cur = ((cur + dir) % LOOP_N + LOOP_N) % LOOP_N; if (!(this.edition === 'benchmark' && this.rules.doorFFOnce && p.ff_passed_to_market >= 1)) p.ff_passed_to_market += 1;   /* Round 7 A/B knob doorFFOnce: the door scores once a game */ this.log(`    ${p.name} takes TO MARKET door -> ${cur} [+1 Final Favor]`); this.emit('door', { player: p.name, to: cur, took: true }); }
             else { cur = ((cur + dir) % LOOP_N + LOOP_N) % LOOP_N; this.log(`    ${p.name} crosses the TO MARKET door (no rest) -> ${cur}`); this.emit('door', { player: p.name, to: cur, took: false }); }
           }
         }
@@ -1601,10 +1772,11 @@
               const tower = (this.rules.levels && this.rules.levelsTipOff) ? this.others_of(p).filter(q => this.floorOf(q) !== null && (!this.rules.levelsTipTop || this.floorOf(q) === FLOORS.n - 1)) : [];   // levelsTipTop: only someone one check from the Lounge
               const tipped = tower.length ? await this.decide(p, { kind: 'tipOff', card: c, candidates: tower }) : null;
               if (tipped && tower.indexOf(tipped) >= 0) await this.tip_off(p, tipped, c);
+              else if (await this._buryOffer(p, c)) { /* buried: the meter took it */ }
               else if (this._v4Keep(c)) { p.hand.push(c); this.log(`    ${p.name} keeps ${c.name} in hand (it waits for its trigger)`); }
               else if (p.sec_immunity > 0) { p.sec_immunity -= 1; this.log(`    ${p.name} uses SEC Immunity (ignores ${c.name})`); this.emit('secImmunity', { player: p.name, card: c.name, left: p.sec_immunity }); this.discards['SEC'].push(c); }
               else if (p.grace_immunity) { this.log(`    ${p.name} immune (Grace Period) — ignores ${c.name}`); this.discards['SEC'].push(c); }
-              else { await this.resolve_card(c, p, this.others_of(p)); this.after_sec_draw(c); }
+              else { await this.resolve_card(c, p, this.others_of(p)); this.after_sec_draw(c); this._discardLoose(c); }
             }
             else p.hand.push(c);
           }
@@ -1621,7 +1793,7 @@
               await this.decide(p, { kind: 'enterLounge', qualifies, gamble: !qualifies, bribes: p.bribes })) {
             await this.enter_tower(p);
           }
-        } else if (qualifies && await this.decide(p, { kind: 'enterLounge' })) {
+        } else if (qualifies && (!this.rules.staircaseEntry || this._onStair(p)) && await this.decide(p, { kind: 'enterLounge' })) {   // staircaseEntry (print): bots too climb in only at a GOLDEN STAIRCASE
           await this.enter_tower(p);
         }
       }
@@ -1652,9 +1824,9 @@
           if (!(this.rules.faithfulCards && intercepted)) await this.resolve_card(c, p, others);
         } else {
           await this.resolve_card(c, p, others);
-          this.discards[this._discard_key(c)].push(c);
+          if (!(this.rules.faithfulCards && this.holderOf(c))) this.discards[this._discard_key(c)].push(c);   // faithful: a card that put ITSELF in play (Hypothetical Future Value) isn't also discarded
         }
-      }
+      } else if (this.rules.assetEffects) await this._assetEffect(p);   // print: an in-play Asset's EFFECT INSTEAD of playing a card
 
       // end of turn
       if (p.hasConstant('CONSTANT_3ASSET_HYPE1') && p.asset_count() >= (this.edition === 'benchmark' && this.rules.benchmarkDeck === 'v4' ? 2 : 3)) p.hype += 1;
@@ -1689,6 +1861,9 @@
           this.add_risk(p, 1, `Tall Poppy (Benchmark): Juice ${mx} draws the eye`);
       }
 
+      // 1112 SEC METER — LEAK (secLeak): end your turn in the Executive Lounge? You may leak to the press: +1 Risk, Global SEC +1
+      if (this.rules.secLeak && p.in_lounge && !this.collapsed && await this.decide(p, { kind: 'leak' })) {
+        this.add_risk(p, 1, 'leaked to the press'); this.raise_global_sec(1, `${p.name} LEAKED to the press`, p); }
       if (p.in_lounge) { p.lounge_streak += 1; if (p.abilityName === 'Benny Boye' && p.lounge_streak >= 3 && !this.collapsed) this.begin_collapse('Benny Castle Doctrine (3 turns ended in Lounge)'); }
       else { p.lounge_streak = 0; p._stamped = false; }
 
@@ -1700,10 +1875,13 @@
         if (await this.trust_check(p)) { p._stamped = true; this.log(`    ${p.name} STAMPS THE BOOKS (Trust Check passed) — victory pending`); }
       }
 
+      // DURING COLLAPSE (print): "On collapse turn 1 each player MUST draw and resolve a SEC Card to end their turn (if any remain)"
+      if (this.rules.collapseRounds && this.collapsed && this._cTurn != null && this._cRound === 1) await this._collapseSecDraw(p);
+
       p.tickMods();          // count down asset-modifier timers
       this.check_table_risk();
 
-      if (this.collapsed && this.collapse_turns_left !== null && this.collapse_turns_left <= 2) {
+      if (!this.rules.collapseRounds && this.collapsed && this.collapse_turns_left !== null && this.collapse_turns_left <= 2) {
         for (const q of this.alive_players()) if (q.in_lounge) {
           const under = (q.trust < 4 && q.hype < 8);
           if (under && q.bribes > 0) {
@@ -1737,9 +1915,62 @@
       }
     }
 
+    // collapse round 1: the forced SEC draw. "if any remain" = no reshuffle of the SEC discards.
+    async _collapseSecDraw(p) {
+      if (!p.alive || !this.decks.SEC.length) return;
+      const c = this.decks.SEC.pop(); this._forget(c);
+      this.log(`    collapse turn 1: ${p.name} must draw SEC: ${c.name}`);
+      this.emit('draw', { player: p.name, deck: 'SEC', card: c.name, via: 'collapse turn 1' });
+      if (this._v4Keep(c)) { p.hand.push(c); return; }
+      if (p.sec_immunity > 0) { p.sec_immunity -= 1; this.log(`    ${p.name} uses SEC Immunity (ignores ${c.name})`); this.emit('secImmunity', { player: p.name, card: c.name, left: p.sec_immunity }); this.discards[this._discard_key(c)].push(c); return; }
+      if (p.grace_immunity) { this.log(`    ${p.name} immune (Grace Period) — ignores ${c.name}`); this.discards[this._discard_key(c)].push(c); return; }
+      await this.resolve_card(c, p, this.others_of(p)); this.after_sec_draw(c); this._discardLoose(c);
+    }
+    // faithfulCards: a resolved SEC card goes to its discard pile (it used to vanish, so the SEC deck slowly emptied)
+    _discardLoose(c) { if (!this.rules.faithfulCards || !c || this.holderOf(c)) return; const pile = this.discards[this._discard_key(c)]; if (!pile.includes(c)) pile.push(c); }
+    // the END of a collapse round. Rounds 2-3: "players under the Hype or Trust thresholds must use a Bribe or pass an Anders
+    // Approved TRUST CHECK to stay in the EXECUTIVE LOUNGE. If failed, move to the START CIRCLE." Anyone still in the Lounge has
+    // survived a Tower round during collapse (+1 Final Favor). After the last round: VICTORY POST-COLLAPSE (SPIRALING) = in the
+    // Lounge with 2 Clean, having maintained that status for every collapse round; several -> Final Favor; none -> the books close.
+    async _collapseRoundEnd(r) {
+      this.log(`  *** end of collapse round ${r}/${this._cRounds} ***`);
+      for (const q of this.alive_players()) {
+        if (!q.in_lounge) { q._cLoungeRounds = 0; continue; }
+        const under = q.trust < 4 && q.hype < 8;   // raidAll (Benchmark SEC): the raid checks EVERYONE in the Lounge — qualified pass on 4+, under on 5+
+        let res = null;
+        if (r >= 2 && (under || this.rules.raidAll)) { res = await this._evictionCheck(q, under ? 5 : 4); if (!res) { q._cLoungeRounds = 0; continue; } }
+        // ffSurvive 'check' (Benchmark): the Final Favor line goes only to a resident who PASSED a raid check (a Bribe or no check = no line)
+        if (this.rules.ffSurvive !== 'check' || res === 'passed') q.ff_survived_collapse_round += 1;
+        q._cLoungeRounds = (q._cLoungeRounds || 0) + 1;
+      }
+      if (r < this._cRounds) return;
+      this._endgameEnchilada();
+      const won = this.alive_players().filter(q => q.in_lounge && q._cLoungeRounds >= this._cRounds && this.victoryCleanCount(q) === 2);
+      if (won.length) { this.winner = won.length === 1 ? won[0] : this.resolve_final_favor(won); this.end_reason = (this.end_reason || '') + ' (SPIRALING: held the Lounge + 2 Clean through the collapse)'; }
+      else { this.winner = this.score_on_timeout(); this.end_reason = (this.end_reason || '') + ' (resolved on collapse timeout)'; }
+      this.done = true;
+    }
+    // one under-threshold Lounge resident at an eviction: Bribe, or the Trust Check (5+), or Vonda's Leaky Bucket. true = stays.
+    async _evictionCheck(q, passOn = 5) {
+      if (q.bribes > 0 && (q.isHuman || passOn >= 5)) {   // a qualified bot (raidAll, 4+) rolls rather than burn a Bribe
+        const wouldBurn = (q.risk + 2) >= BURNOUT_RISK; let useBribe = !wouldBurn;
+        if (q.isHuman) { const pick = await this.decide(q, { kind: 'chooseOr', title: 'Security is clearing the Lounge', a: 'Spend a Bribe to stay (+2 Risk)', b: 'Take the Trust Check instead', bCls: 'no' }); useBribe = (pick !== 'b'); }
+        if (useBribe) { this.spendBribe(q); this.log(`    ${q.name} bribes Security and stays`); return 'bribed'; }
+      }
+      let r, ok;
+      if (this.rules.charAwareTrust) ok = await this.charTrustResolve(q, passOn, null, false); else { r = this.rng.randint(1, 6); ok = r >= passOn; }
+      if (ok) return 'passed';
+      if (q.abilityName === 'Vonda Vouch' && q.lineup.length && await this.decide(q, { kind: 'ability', ability: 'LeakyBucket', cost: 'discard an Asset + pass a Trust Check to STAY' })) {
+        const a = await this.pick_asset(q, q.lineup, 'leaky-bucket'); if (a) this._discard_asset(q, a);
+        if (await this.trust_check(q)) { this.log(`    Vonda Leaky Bucket: discards ${a ? a.card.name : 'an Asset'}, passes — STAYS in the Lounge`); return 'passed'; }
+      }
+      q.in_lounge = false; q.pos = 'START'; q.lounge_streak = 0; q._stamped = false;
+      this.log(`    COLLAPSE EVICTION: ${q.name} failed the check${r !== undefined ? ` (rolled ${r})` : ''} — Security escorts them to the START CIRCLE`); this.emit('evict', { player: q.name });
+      return false;
+    }
     meets_victory(p) {
       if (!(p.in_lounge && this.victoryCleanCount(p) === 2)) return false;
-      if (this.collapsed) return p.ff_survived_collapse_round >= 1;
+      if (this.collapsed) return this.rules.collapseRounds ? false : p.ff_survived_collapse_round >= 1;   // collapseRounds: judged at the END of the collapse (_collapseRoundEnd)
       // faithful: pre-collapse win also requires the Books to be STAMPED (a passed Trust Check).
       return p.lounge_streak >= 1 && (!this.rules.faithfulCards || p._stamped);
     }
@@ -1755,17 +1986,22 @@
       if (q.length === 1) return q[0];
       return this.resolve_final_favor(q);
     }
+    // Final Favor lines BEYOND the printed checklist (Player.final_favor), as [label, value] rows — the UI ledger and the
+    // game-over scoreboard read these so the number they show is the number that decides the game (1112 metric-drift fix).
+    ffExtras(p) {
+      const x = [];
+      // BENCHMARK parity bonuses (edition knobs; all OFF in Classic).
+      if (this.rules.stampScoresFF && this.victoryCleanCount(p) === 2 && p.clean_count() !== 2) x.push(['The Stamp scores 2 Clean', 1]);
+      if (this.rules.hypeExitFF && p.ff_hype_exit) x.push(["Believer's exit (rode the bubble)", p.ff_hype_exit]);
+      // Vonda v3 kit (charVonda 3): The Stamp vouches at the reckoning too: every 2 Dirty Assets in your Lineup = +1 Final Favor
+      if (p.abilityName === 'Vonda Vouch' && this._cv('charVonda', 3) >= 3) { const n = Math.floor(p.lineup.filter(t => p.effDirty(t)).length / 2); if (n) x.push(['The Stamp vouches (2 Dirty = +1)', n]); }
+      // LEVELS experiment: "made the Lounge" as a Final Favor line (levelsFF = points for having reached it)
+      if (this.rules.levels && this.rules.levelsFF && p.peak_level >= 2) x.push(['Made the Lounge', this.rules.levelsFF]);
+      return x;
+    }
     ff(p) {
       // Accounting Whisper (Risk->0 if Shadow<6) feeds tie-break ordering via effRisk, not the FF total.
-      let v = p.final_favor();
-      // BENCHMARK parity bonuses (Classic FF is frozen; these are reversible edition knobs).
-      if (this.rules.stampScoresFF && this.victoryCleanCount(p) === 2 && p.clean_count() !== 2) v += 1;
-      if (this.rules.hypeExitFF) v += p.ff_hype_exit;
-      // Vonda v3 kit (charVonda 3): The Stamp vouches at the reckoning too: every 2 Dirty Assets in your Lineup = +1 Final Favor
-      if (p.abilityName === 'Vonda Vouch' && this._cv('charVonda', 3) >= 3) v += Math.floor(p.lineup.filter(t => p.effDirty(t)).length / 2);
-      // LEVELS experiment: "made the Lounge" as a Final Favor line (levelsFF = points for having reached it)
-      if (this.rules.levels && this.rules.levelsFF && p.peak_level >= 2) v += this.rules.levelsFF;
-      return v;
+      return p.final_favor() + this.ffExtras(p).reduce((s, r) => s + r[1], 0);
     }
     resolve_final_favor(contenders) {
       const best = Math.max(...contenders.map(c => this.ff(c)));
@@ -1808,9 +2044,17 @@
       this.activePlayer = p;
       this.log(`[Turn ${this.turn}] global_sec=${this.global_sec} shadow_sec=${this.shadow_sec} collapsed=${this.collapsed}`);
       this.emit('turn_start', { player: p.name, n: this.turn });
+      // collapseRounds (print): "Collapse begins next turn" and "a collapsed game will end in 3 turns" — a collapse turn is a
+      // full table ROUND (on collapse turn 1 EACH player draws an SEC card). Round 1 starts with the turn after the trigger.
+      if (this.rules.collapseRounds && this.collapsed) {
+        // collapseRounds 'turns' (Benchmark SEC — THE RAID): the SEC moves fast; a collapse "turn" is ONE player's turn (3 turns, not 3 rounds)
+        if (this._cTurn == null) { this._cTurn = 0; this._cRounds = this.collapse_turns_left || 3; this._cN = this.rules.collapseRounds === 'turns' ? 1 : this.order.length; this.log(`  *** COLLAPSE: ${this._cRounds} round(s) of ${this._cN} turns ***`); }
+        this._cTurn += 1; this._cRound = Math.ceil(this._cTurn / this._cN);
+      }
       await this.take_turn(p);
       const w = this.check_victory();
       if (w) { this.winner = w; this.end_reason = this.end_reason || 'Victory conditions met'; this.done = true; }
+      else if (this.collapsed && this.rules.collapseRounds) { if (this._cTurn != null && this._cTurn % this._cN === 0) await this._collapseRoundEnd(this._cRound); }
       else if (this.collapsed) {
         this.collapse_turns_left -= 1;
         if (this.collapse_turns_left <= 0) { this.winner = this.score_on_timeout(); this.end_reason = (this.end_reason || '') + ' (resolved on collapse timeout)'; this.done = true; }
@@ -1831,6 +2075,7 @@
   global.ERSNCharacterAgent = CharacterAgent;
   global.ERSN_VERSION = VERSION;
   global.ERSN_EDITIONS = EDITIONS;
+  global.ERSN_BENCHMARK_PLAY = BENCHMARK_PLAY;
   global.ERSN_TRACKS = TRACKS;                   // UI reads the loop (length / door / exits / deck per space) from here
   global.ERSN_FLOORS = FLOORS;                   // LEVELS knob: the tower's tiers (UI pawn spots read n/bands)
   global.ERSN_REACTS = REACTS;                   // UI reads this for the passive "⚡ can react" cue
@@ -1839,5 +2084,5 @@
   global.ERSN_CAMPER = CAMPER;
   global.ERSN_V4 = BENCH_V4; global.ERSN_V4_TEXT = BENCH_V4_TEXT;   // UI + docs: the v4 deck rewrite (benchmarkDeck:'v4')                    // UI: on-card text for the CAMPER rewrites (camperCards bitmask)   // UI: on-card text for the ASSET FLOW rewrite (assetFlow knob)
   global.ERSN_LEVELS_TEXT = LEVELS_TEXT;         // UI: on-card text for the LEVELS tower riders   // UI shows these on-card in Benchmark edition
-  if (typeof module !== 'undefined' && module.exports) module.exports = { makeRng, Game, Player, BotAgent, CharacterAgent, VERSION, EDITIONS, TRACKS, FLOORS, BENCHMARK_FX, BENCHMARK_TEXT };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { makeRng, Game, Player, BotAgent, CharacterAgent, VERSION, EDITIONS, BENCHMARK_PLAY, TRACKS, FLOORS, BENCHMARK_FX, BENCHMARK_TEXT };
 })(typeof window !== 'undefined' ? window : globalThis);
