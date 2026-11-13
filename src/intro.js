@@ -2,10 +2,10 @@
    (assets/fx/dynamite.png) drops onto the peak, bounces down the castle's stepped battlements to
    the base, the fuse burns, and it BLOWS the logo. Subtle Golden Staircase bed + a boom from the
    project SFX. Sprites stolen from the sibling games (CK logo ← SUCK UP, dynamite ← the Expansion).
-   Pure presentation; skippable; falls through to onDone so boot is never stranded. */
+   Pure presentation; not skippable (CK BOOT STANDARD); falls through to onDone so boot is never stranded. */
 (function (global) {
   'use strict';
-  let cv, ctx, logo = null, dyno = null, raf = 0, skipBound = false;
+  let cv, ctx, logo = null, dyno = null, raf = 0;
   // step corners down the RIGHT battlement, normalized to the logo's drawn rect (auto-detected)
   const WP = [[0.50, 0.123], [0.691, 0.294], [0.789, 0.437], [0.882, 0.567], [0.85, 0.93]];
   const DROP = 1200, SEG = 1050, BOUNCE_END = DROP + SEG * (WP.length - 1), BLOW = 8700, END = 10000;
@@ -34,12 +34,8 @@
     const sparks = []; let blown = false, lastBounce = -1;
     try { global.SFX && SFX.play('golden1', 0.32); } catch (e) {}   // subtle bed
 
-    if (!skipBound) {
-      const skip = () => finish();
-      window.addEventListener('keydown', skip, { once: true });
-      cv.addEventListener('click', skip, { once: true });
-      skipBound = true;
-    }
+    // CK BOOT STANDARD (ANDERS CASTLE KILLSCREEN/BOOT-STANDARD.md): the ident is NOT skippable — it plays its ~10 s
+    // and hands off on its own timer. (The loader's "click to start" gate already took the audio-unlock press.)
 
     function dynState(t) {
       if (t < DROP) { const p = easeIn(t / DROP); return { x: wp[0][0], y: (ly - lh * 0.42) + (wp[0][1] - (ly - lh * 0.42)) * p, rot: (1 - p) * 6, s: 1 }; }
