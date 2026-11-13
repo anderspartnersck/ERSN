@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- ER$N 3D EDITION: cut by 3D PIPELINE games/ersn/lab/tools/make_lab_page.py from index.html (this bundle) sha256 5a0963c12a786abd; 29 /*LAB3D*/ hooks. -->
+<!-- ER$N 3D EDITION: cut by 3D PIPELINE games/ersn/lab/tools/make_lab_page.py from index.html (this bundle) sha256 bd55f5e77015b719; 29 /*LAB3D*/ hooks. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -390,7 +390,7 @@
   #infoSheet.scan .rsheet{display:block}
   #infoSheet.scan .bs{display:none}
   /* 1112: Classic shows the printed sheet; Benchmark shows its own one-page sheet (docs/BENCHMARK-RULES-1PAGE.md) */
-  #infoSheet .bs.bench{display:none} #infoSheet.benchEd:not(.scan):not(.cub) .bs.bench{display:block} #infoSheet.benchEd .bs.classic{display:none}
+  #infoSheet .bs.bench{display:none} #infoSheet.benchEd:not(.scan):not(.cub) .bs.bench{display:block} #infoSheet.benchEd .bs.classic{display:none} #infoSheet .bs.b1112{display:none!important} #infoSheet.b1112 .bs.bench:not(.b1112){display:none!important} #infoSheet.b1112.benchEd:not(.scan):not(.cub) .bs.b1112{display:block!important}
   .bs .mh-ed{font-weight:900;font-size:12px;letter-spacing:.32em;color:#a5842c;margin-top:4px}
   .bs .chg{background:linear-gradient(transparent 64%,rgba(214,170,60,.38) 64%)}
   #infoClose{position:absolute;top:11px;right:14px;cursor:pointer;color:#f0cf7a;font-weight:900;font-size:18px;z-index:4}
@@ -889,6 +889,93 @@
         <ul><li class="arr"><b><i>EXCEPT</i></b> the <b><i>START CIRCLE</i></b> or the <b><i>EXECUTIVE LOUNGE</i></b></li></ul>
       </div>
       <div class="sec"><h4>MARKET LOOP</h4>
+        <ul><li>Draw a card when you move to an <b><i>ASSET</i></b>, <b><i>MARKET</i></b>, or <b><i>SEC</i></b> space on the loop around the Tower</li><li>Play only <b>1</b> card per turn from hand after moving to complete your turn</li><li><b><i>ASSET LINEUP</i></b> — Played Assets must be separate from hand, face-up or face-down</li><li><b><i>ASSET EFFECTS</i></b> — You may play <b>1</b> effect from an in-play Asset per turn <b><i>INSTEAD</i></b> of playing a card</li><li><span class="chg"><b><i>BURY THE FILE</i></b> — An SEC card that lands on you (loop, Tower or a hearing) may be buried unread: <b>Global SEC +1</b>, you take <b>+1 Risk</b></span></li></ul>
+        <p>No rewinds for <b><i>CONSTANTS</i></b> or card management — The tools of the Tower are in your hand!</p>
+      </div>
+      <div class="sec"><h4><span class="goldw">GOLDEN</span><br><span class="lil">STAIRCASES</span></h4>
+        <ul><li>There are <b>2 <i>GOLDEN STAIRCASES</b></i> —</li><li class="arr">The <b><i>START CIRCLE</i></b> and</li><li class="arr">The <b><i>MARKET VIP STAIRCASE</i></b></li></ul>
+        <p>For <b>1</b> Juice, the <b><i>PARKING MACHINE FEE</i></b>, you may try to enter ER$N Tower <b><i>LIMITED VALIDATION</i></b></p>
+        <p><span class="chg">The Tower has <b>2</b> tiers — <b><i>REGULATION</i></b>, then <b><i>CORRUPTION</i></b> — and the <b><i>EXECUTIVE LOUNGE</i></b> at the top. The staircase puts you on <b><i>REGULATION</i></b>.</span></p>
+      </div>
+      <div class="sec"><h4>TRUST CHECK</h4>
+        <p class="kick">Double-check your career!</p>
+        <div class="seal">ANDERS<br>APPROVED</div>
+        <p>TO ENTER THE TOWER, YOU MUST HAVE <b>4 OR MORE TRUST</b> OR <b>8+ HYPE</b> — qualified players walk straight in, no roll.</p>
+        <p style="clear:both">IF BELOW THRESHOLD, SPEND A BRIBE OR ROLL 1 DIE — the <b>"<i>WHY ASK?</i>"</b> ROLL:</p>
+        <ul><li><b>5–6</b>: SUCCESS</li><li><b>1–4</b>: FAIL, <b>+1 Risk</b></li></ul>
+        <p><span class="chg"><b><i>CLIMBING</i></b>: each turn in the Tower, pay <b>1 Juice</b> and pass a Trust Check to go up one tier (pass, and you may pay again). Pass on <b>5+</b> — <b>4+</b> at Trust 4, <b>3+</b> at Trust 6. A fail keeps your tier (+1 Risk with 5–6 players). Passing on <b><i>CORRUPTION</i></b> is the ANDERS APPROVED check into the <b><i>LOUNGE</i></b>. Every check you pass draws <b>1 Asset</b> — the floor's perks.</span></p>
+        <p><span class="chg"><b><i>SEC ROLL</i></b>: end a turn in the Tower and roll — <b>1–2</b> on Regulation, <b>1–3</b> on Corruption, and the SEC opens a file: draw and resolve an SEC card. Cards can knock you <b><i>DOWN</i></b> a tier; down from Regulation is the <b><i>START CIRCLE</i></b>.</span></p>
+        <p class="fine">Checks are character-aware — Class Ring passes on 2+, The Safe needs a 6, Raptor Leasing turns a fail into +2 Risk. <span class="chg"><b><i>GRACE</i></b>: broke (0 Juice or less)? Your first failed check of the game adds no Risk.</span></p>
+      </div>
+      <div class="sec"><h4>THE HEARING<br><span class="lil">EXECUTIVE LOUNGE</span></h4>
+        <p><span class="chg">In the <b><i>LOUNGE</i></b> you don't move — every turn there is a <b><i>HEARING</i></b>. Roll for Juice as usual, then:</span></p>
+        <ul><li><span class="chg">Roll <b>1 die + TRUST − RISK</b> (counts up to ±4). Beat the <b><i>HEAT</i></b>: <b>2</b>, +1 at Global SEC 3 and at 6 — <b>3</b> in the collapse. A <b>1</b> always fails</span></li><li><span class="chg">Before you roll: <b><i>LAWYER UP</i></b> — <b>2 Juice = +1</b> (once) · <b><i>SPIN</i></b> — <b>1 Hype = +1</b> (up to +3) · or a <b><i>BRIBE</i></b> passes outright</span></li><li><span class="chg"><b><i>FAIL</i></b>: <b>+1 Risk</b> and the SEC opens a file — draw an SEC card (bury it, or it lands on you)</span></li><li><span class="chg">The hearing is a <b><i>TRUST CHECK</i></b> for every card: Class Ring 2+, The Safe needs a 6, re-rolls and Phantom Holdings work</span></li></ul>
+        <p><span class="chg"><b><i>POINT THE FINGER</i></b>: once a turn, from the Tower or the Lounge, spend <b>2 Hype</b> or <b>2 Trust</b>: a rival there loses <b>1 Trust</b> AND takes <b>+1 Risk</b>, and their run of held hearings starts over.</span></p>
+        <p><span class="chg"><b><i>MAKE IT OUT</i></b>: hold <b>4</b> hearings in a row with <b>2+ Clean Assets</b> — walk out the front door. You win.</span></p>
+      </div>
+      <div class="sec"><h4>BURNOUT</h4>
+        <p>If your Risk reaches <b>8</b>:</p>
+        <ul><li class="arr">Discard or <b><i>ZERO</i></b> all Assets, Trust, and Bribes</li><li class="arr">Set Risk to <b>5</b>, Juice to <b>1</b></li><li class="arr">You remain in play — <b><i>EXPOSED!</i></b> <span class="chg">(Burned out in the Tower or the Lounge? Back to the START CIRCLE.)</span></li></ul>
+      </div>
+      <div class="sec"><h4>COLLAPSE<br><span class="lil">TRIGGERS</span></h4>
+        <p>The Global SEC meter will increase by <b>1</b> if:</p>
+        <ul><li><span class="chg">A <b><i>ROUND</i></b></span> ends with total table personal Risk at <b>8</b> or above (<b>6</b> or above with fewer than <b>4</b> players) <b><i>AND/OR</i></b></li><li><b>3</b> Assets are drawn consecutively (spans turns)</li><li><span class="chg">An SEC file is <b><i>BURIED</i></b>, or a <b><i>LEAK</i></b> — end your turn in the Lounge: take <b>+1 Risk</b>, Global SEC <b>+1</b></span></li></ul>
+        <p>Collapse begins next turn when either of these conditions occur:</p>
+        <ul><li class="arr">Global SEC Meter reaches <b>8</b> <i>Use a golden token star-side up to track</i></li><li class="arr"><b><i>BENNY BOYE</i></b> <span class="chg">holds <b>3</b> hearings in a row in the <b><i>LOUNGE</i></b> — his <b><i>CASTLE DOCTRINE</i></b>: Benny passes Tower checks on <b>2+</b>, and from the Tower or Lounge, at the start of his turn, may pay <b>2 Juice</b> to <b><i>ORDER</i></b> a loop player to answer to the SEC (they draw an SEC card; they may bury it)</span></li><li>A collapsed game will end in <b>3</b> turns</li></ul>
+        <p class="fine">Expansion: the hidden SHADOW SEC meter is card-driven — collapse also triggers at Shadow SEC 8. <span class="chg">Ending a turn at Risk 6+ (4+ in the Tower) adds Shadow +1.</span> <span class="chg"><b><i>TALL POPPY</i></b>: end a turn as the sole Juice leader at 8+ and take +1 Risk.</span></p>
+      </div>
+      <div class="sec"><h4>DURING<br><span class="lil">COLLAPSE</span></h4>
+        <ul><li><span class="chg"><b><i>SUBPOENA</i></b>: anyone on a Tower tier is hauled up into the <b><i>LOUNGE</i></b>. The building is <b><i>SEALED</i></b> — nobody new gets in</span></li><li>On collapse turn <b>1</b> each player <b>MUST</b> draw and resolve a SEC Card to end their turn (if any remain)</li><li><span class="chg">Every collapse turn, <b><i>EVERYONE</i></b> in the <b><i>EXECUTIVE LOUNGE</i></b> faces their <b><i>HEARING</i></b> at <b><i>HEAT 3</i></b> — lawyer up, spin, or bribe</span></li></ul>
+        <p>If failed, move to the <b><i>START CIRCLE</i></b> —</p>
+        <ul><li class="arr">Security has escorted you from the building</li></ul>
+      </div>
+      <div class="sec"><h4>VICTORY CONDITIONS<br><span class="lil">YOU WIN IF YOU:</span></h4>
+        <ul><li>Are inside the <b><i>EXECUTIVE LOUNGE</i></b></li><li><span class="chg">Hold <b>2 or more</b> in-play, Clean Assets</span></li></ul>
+        <p><b><i>PRE-COLLAPSE</i></b>: <span class="chg"><b><i>MAKE IT OUT</i></b> — hold <b>4</b> hearings in a row</span></p>
+        <p><b><i>POST-COLLAPSE</i></b>: SPIRALING — Maintain status for <b>3</b> collapse turns <span class="chg">— hold every hearing</span></p>
+        <p><span class="chg"><b><i>THE RECKONING</i></b> — nobody made it out? Executives still in the <b><i>LOUNGE</i></b> outrank everyone outside it, then the most collapse hearings held, then <b><i>FINAL FAVOR</i></b>.</span></p>
+        <p style="text-align:center"><i>Think you have won?</i> Declare "<b><i>I HAVE FINAL FAVOR!</i></b>"</p>
+      </div>
+      <div class="sec"><h4>FINAL FAVOR</h4>
+        <ul><li><b>Final Favor</b> assures your books are Partner Perfect</li><li class="arr">Card effect may assign it</li><li class="arr">Rule events may impact it <span class="chg">— each collapse <b><i>HEARING</i></b> you hold on the dice scores +1; a Bribe does not. Riding Hype 5+ into the collapse without cashing out (Juice 25 or less, not the richest) scores +1.</span></li><li>If multiple players meet Victory Conditions in the same round <b><i>FINAL FAVOR</i></b> decides who wins <span class="chg">— still tied? the <b><i>LOWER RISK</i></b> wins</span></li><li class="arr"><b><i>CANNOT</i></b> be traded, reassigned, or stolen unless a card allows it</li></ul>
+        <p style="text-align:center"><b><i>PROVEN FALSIFIED RECORDS = INSTANT BURNOUT + EXPULSION TO START CIRCLE</i></b></p>
+        <p style="text-align:center"><b><i>DISPUTED FAVOR CLAIM?</i></b> Players enter "<b><i>WHY ASK?</i></b>" roll-offs (Fail penalties apply)</p>
+        <p class="fine"><span class="chg">Benchmark cards and characters: the v4 errata sheet (docs/benchmark-v4-errata-print.html), plus 1113: Claudia's <b><i>AUDIT TRACE</i></b> — whoever points the finger at her takes +1 Risk; Wu's Fade doesn't work in the Lounge; no Risk on Benny's Golden Walk; Danny's Doughmination costs Risk only at small tables (+2 at 2p, +1 at 3p), and Benny's ORDER costs +1 Risk at 2–3p. docs/BENCHMARK-LOUNGE-1113.md.</span></p>
+      </div>
+    </div>
+    <div class="foot">Make Finance <br>A Family Affair!</div>
+    <div class="colo">ANDERS &amp; PARTNERS · BENCHMARK EDITION · <span class="chg">underlined</span> = changed from the printed sheet</div>
+  </div>
+  <!-- BENCH-RULES:END -->
+  <!-- BENCH-RULES-1112:BEGIN (generated by scripts/build_bench_rules.py from docs/BENCHMARK-RULES-1PAGE-1112.md) -->
+  <div class="bs bench b1112">
+    <div class="mast">
+      <div class="apm"><i class="a">A</i><i class="p">P</i></div>
+      <div class="mhead">
+        <div class="mh-ersn">ER$N</div>
+        <div class="mh-sub">THE HOME GAME</div>
+        <div class="mh-ed">BENCHMARK EDITION</div>
+        <div class="mh-motto">CLIMB FAST. <br>BURN BRIGHT. <br>EXIT CLEAN.</div>
+        <div class="mh-quote">No one asks questions <br>until after the collapse.</div>
+      </div>
+      <div class="apm"><i class="a">A</i><i class="p">P</i></div>
+    </div>
+    <div class="sheetcols">
+      <div class="sec wel"><h4>WELCOME TO<br>THE TOWER</h4>
+        <p>Each player will choose <b>1</b> of <b>6</b> characters and will manage their personal <b><i>RISK</i></b>, <b><i>JUICE</i></b>, <b><i>TRUST</i></b>, and <b><i>HYPE</i></b> — <i>Trust, Hype and Juice have <b>NO CAP</b> (−/+).</i></p>
+        <p>Each player will roll off, highest roll leads off, game continuing clockwise.</p>
+      </div>
+      <div class="sec"><h4>START TURN</h4>
+        <ul><li>Roll <b>1 six-sided die</b>, gain that much Juice <i>Juice is the currency of momentum</i></li><li>Resolve any start-of-turn effects</li></ul>
+        <p><b><i>BRIBES</i></b>: Before moving you may spend <b>3 Juice</b> to acquire a Bribe</p>
+        <ul><li class="arr">Play to <b><i>REVERSE</i></b> a targeted Asset effect or cancel an SEC effect (for you), or buy past a <b><i>TRUST CHECK</i></b> <span class="chg">— at the staircase or a Tower tier</span> — <b>BUT</b> every Bribe used adds <b>+2 Risk</b> (and −1 Final Favor)</li><li class="arr"><span class="chg"><b><i>LOBBY</i></b>: before moving, spend a Bribe to pull the Global SEC meter down <b>1</b></span></li></ul>
+      </div>
+      <div class="sec"><h4>MOVEMENT</h4>
+        <ul><li>Pay <b>1 Juice</b> to move <b>1 MARKET LOOP</b> space — backward moves allowed, same fare</li><li><b><i>TO MARKET</i></b> Door:</li><li class="arr">Pay <b>1 Juice</b> to enter</li><li class="arr">Saunter to the next space beyond the Tower</li><li class="arr">You may not end your turn on a door space</li></ul>
+        <p>No <b>2</b> players may occupy the same space</p>
+        <ul><li class="arr"><b><i>EXCEPT</i></b> the <b><i>START CIRCLE</i></b> or the <b><i>EXECUTIVE LOUNGE</i></b></li></ul>
+      </div>
+      <div class="sec"><h4>MARKET LOOP</h4>
         <ul><li>Draw a card when you move to an <b><i>ASSET</i></b>, <b><i>MARKET</i></b>, or <b><i>SEC</i></b> space on the loop around the Tower</li><li>Play only <b>1</b> card per turn from hand after moving to complete your turn</li><li><b><i>ASSET LINEUP</i></b> — Played Assets must be separate from hand, face-up or face-down</li><li><b><i>ASSET EFFECTS</i></b> — You may play <b>1</b> effect from an in-play Asset per turn <b><i>INSTEAD</i></b> of playing a card</li><li><span class="chg"><b><i>BURY THE FILE</i></b> — An SEC card that lands on you (loop or Tower) may be buried unread: <b>Global SEC +1</b>, you take <b>+1 Risk</b></span></li></ul>
         <p>No rewinds for <b><i>CONSTANTS</i></b> or card management — The tools of the Tower are in your hand!</p>
       </div>
@@ -939,7 +1026,7 @@
     <div class="foot">Make Finance <br>A Family Affair!</div>
     <div class="colo">ANDERS &amp; PARTNERS · BENCHMARK EDITION · <span class="chg">underlined</span> = changed from the printed sheet</div>
   </div>
-  <!-- BENCH-RULES:END -->
+  <!-- BENCH-RULES-1112:END -->
   <!-- ===== VIEW 2: SHARKY'S DISGUSTING CUBICLE — the strategy bible (docs/SHARKYS-CUBICLE.md, rendered) ===== -->
   <div class="cs">
     <div class="memoline"><span class="donot">DO NOT CIRCULATE</span> INTEROFFICE MEMO · ANDERS &amp; PARTNERS · FLOOR 7½ · DESK 3 (THE STICKY ONE)</div>
@@ -1022,7 +1109,7 @@
   var TIPS=["You can't win at fraud, kid. You just get out cleaner than the next guy.","Climb fast. Burn bright. Exit clean.","When the tower falls, the least-dirty books win.","Risk hits 8? You're chum.","Hype's a bridge. It's also a cliff."];
   function $id(i){return document.getElementById(i);}
   function open(){var p=$id('infoPanel'),l=$id('sharkLn');if(!p)return;p.classList.add('on');
-    /* 1112: the sheet for the edition being played */ try{var sh=$id('infoSheet');if(sh)sh.classList.toggle('benchEd',(game?game.edition:S.edition)==='benchmark');}catch(e){}
+    /* 1112: the sheet for the edition being played */ try{var sh=$id('infoSheet');if(sh)sh.classList.toggle('benchEd',(game?game.edition:S.edition)==='benchmark');sh.classList.toggle('b1112',/[?&#]b1113=0\b/i.test(location.search+location.hash));}catch(e){}
     if(l)l.textContent=TIPS[(Math.random()*TIPS.length)|0];try{window.SFX&&SFX.play('makeSel',0.4);}catch(e){}}
   function shut(){var p=$id('infoPanel');if(p)p.classList.remove('on');}
   var b=$id('infoBtn');if(b)b.onclick=open; var c=$id('infoClose');if(c)c.onclick=shut;
@@ -1644,7 +1731,9 @@ function benchOverrides(){
   // 1112: the shipped package lives in the engine (ERSN_BENCHMARK_PLAY: v4 + the interactive SEC meter, THE RAID, Castle Doctrine).
   // ?b1112=0 plays the morning's v4 (no 1112 knobs) for comparison.
   const B1112=!/[?&#]b1112=0\b/i.test(location.search+location.hash);
-  const v4=!V4_ON?{}:B1112&&window.ERSN_BENCHMARK_PLAY?Object.assign({},window.ERSN_BENCHMARK_PLAY):{levels:true, levelsTrustEase:2, levelsClimbRisk:np>4, levelsLastElevator:np<=4, benchmarkDeck:'v4', benchmarkChars:'v4', ffCleanDirty:1};
+  // 1113: THE LOUNGE GAUNTLET (ERSN_BENCHMARK_LOUNGE) is the default Benchmark; ?b1113=0 plays the 1112 Benchmark for A/B.
+  const B1113=!/[?&#]b1113=0\b/i.test(location.search+location.hash);
+  const v4=!V4_ON?{}:B1112&&B1113&&window.ERSN_BENCHMARK_LOUNGE?Object.assign({},window.ERSN_BENCHMARK_LOUNGE):B1112&&window.ERSN_BENCHMARK_PLAY?Object.assign({},window.ERSN_BENCHMARK_PLAY):{levels:true, levelsTrustEase:2, levelsClimbRisk:np>4, levelsLastElevator:np<=4, benchmarkDeck:'v4', benchmarkChars:'v4', ffCleanDirty:1};
   const o=Object.assign({}, v4, LEVELS_ON?{levels:true}:{}, ASSETFLOW_LV?{assetFlow:ASSETFLOW_LV}:{}, RO_URL||{});
   return Object.keys(o).length?o:undefined;
 }
@@ -1690,7 +1779,7 @@ function startGame(){
   show('game');
   if(!raf) loop();
   const humans=S.seats.filter(Boolean).length;
-  logLine(`<span class="t">TABLE SET</span> · ${S.count} players (${humans} human) · ${S.expansion?'Core + Expansion':'Core only'} · ${S.edition==='benchmark'?'BENCHMARK':'Classic'} edition${game.rules.levels?' · LEVELS (the tower: REGULATION · CORRUPTION)':''}`);
+  logLine(`<span class="t">TABLE SET</span> · ${S.count} players (${humans} human) · ${S.expansion?'Core + Expansion':'Core only'} · ${S.edition==='benchmark'?'BENCHMARK':'Classic'} edition${game.rules.levels?' · LEVELS (the tower: REGULATION · CORRUPTION)':''}${game.rules.gauntlet?' · THE LOUNGE GAUNTLET (1113)':''}`);
   if(humans) logLine(`<span class="good">Press NEXT TURN to begin. On your turn the game will ask for your moves.</span>`);
 }
 
@@ -2102,6 +2191,8 @@ function handleEvent(ev){
     case 'fall': { const to=ev.to||'START'; logLine(`&nbsp;&nbsp;↳ <span class="sec">${ev.player} ${to==='START'?'falls out of the tower':'is knocked down to REGULATION'} — ${ev.why}</span>`); sfx('trustFail',0.6);
       const pw=pawns[ev.player]; if(pw){const xy=nodeXY(to);pw.queue=[];pw.tx=xy.x;pw.ty=xy.y;pw.lpos=to;pw.hop=1;} break; }
     case 'climb': logLine(`&nbsp;&nbsp;↳ <span class="good">${ev.player} climbs to ${ev.band}</span>`); sfx('lounge',0.4); break;
+    case 'hearing': logLine(`&nbsp;&nbsp;↳ <span class="${ev.pass?'good':'sec'}">⚖ HEARING (heat ${ev.heat})${ev.collapsed?' — THE COLLAPSE':''}: ${ev.player} ${ev.bribed?'pays off the committee (Bribe)':`rolls ${ev.roll} ${ev.edge>=0?'+':'−'} ${Math.abs(ev.edge)} (Trust − Risk)${ev.boost?` + ${ev.boost} (${[ev.juice?'lawyers −'+ev.juice+' Juice':'',ev.hype?'spin −'+ev.hype+' Hype':''].filter(Boolean).join(', ')})`:''} = ${ev.total}`} → ${ev.pass?'HOLDS':'FAILS'}</span>`); if(ev.roll&&typeof rollDieAnim==='function') rollDieAnim(ev.roll); sfx(ev.pass?'lounge':'trustFail',0.45); break;
+    case 'finger': logLine(`&nbsp;&nbsp;↳ <span class="sec">👉 ${ev.player} points the finger at ${ev.target} (−${ev.cost} ${ev.via==='hype'?'Hype':'Trust'}: ${game&&game.rules.gFingerBoth?'they lose 1 Trust and take +1 Risk':ev.via==='hype'?'they lose 1 Trust':'they take +1 Risk'})</span>`); break;
     case 'secRoll': logLine(`&nbsp;&nbsp;↳ <span class="${ev.hit?'sec':''}">SEC ROLL on ${ev.band}: ${ev.player} rolls ${ev.roll}${ev.hit?' — the SEC opens a file':' — clear'} (1–${ev.hitOn} hits)</span>`); if(typeof rollDieAnim==='function') rollDieAnim(ev.roll); sfx(ev.hit?'trustFail':'roll',0.45); break;
     case 'tipoff': logLine(`&nbsp;&nbsp;↳ <span class="sec">🗣 ${ev.player} tips off the SEC about ${ev.target} (${ev.card})</span>`); break;
     case 'evict': { logLine(`&nbsp;&nbsp;↳ <span class="sec">${ev.player} booted from the Lounge</span>`); sfx('trustFail');
@@ -2168,7 +2259,8 @@ HumanAgent.prototype.decide=function(req,g,p){ return new Promise(res=>presentPr
 const cls4=t=>({Clean:'clean',Dirty:'dirty',Conditional:'cond'}[t]||'neutral');
 const typeColor=t=>({Clean:'#9fd06a',Dirty:'#e0a06a',Conditional:'#c79be8'}[t]||'#9aa3b4');
 const playShort=p=>({Immediate:'PLAY',KeepInHand:'HOLD',FaceUp:'FACE-UP',FaceDown:'FACE-DOWN'}[p]||p);
-function cardText(c){ const lv=(game&&game.rules&&game.rules.levels&&window.ERSN_LEVELS_TEXT&&ERSN_LEVELS_TEXT[c&&c.name])
+function cardText(c){ const lv=(game&&game.rules&&game.rules.gauntlet&&window.ERSN_LOUNGE_TEXT&&ERSN_LOUNGE_TEXT[c&&c.name])   // 1113 gauntlet card text first
+    ||(game&&game.rules&&game.rules.levels&&window.ERSN_LEVELS_TEXT&&ERSN_LEVELS_TEXT[c&&c.name])
     ||(game&&game.edition==='benchmark'&&game.rules&&game.rules.assetFlow&&window.ERSN_ASSET_FLOW_TEXT&&ERSN_ASSET_FLOW_TEXT[c&&c.name])
     ||(game&&game.edition==='benchmark'&&game.rules&&game.rules.benchmarkDeck==='v4'&&window.ERSN_V4_TEXT&&ERSN_V4_TEXT[c&&c.name])
     ||(game&&game.edition==='benchmark'&&game.rules&&game.rules.camperCards&&window.ERSN_CAMPER&&ERSN_CAMPER[c&&c.name]&&(game.rules.camperCards&ERSN_CAMPER[c.name].bit)&&ERSN_CAMPER[c.name].text);   // LEVELS tower riders, then the ASSET FLOW rewrite
@@ -2324,7 +2416,8 @@ function computeHints(req,p){
     case 'door':{ const cur=typeof req.at==='number'?req.at:(typeof p.pos==='number'?p.pos:0);
       h.spaces.add((cur+1)%LOOP_N_UI); h.cursor=(cur+1)%LOOP_N_UI; break; }
     case 'climbTier': if(req.toLounge) h.lounge=true; else { h.spaces.add('F'+(req.at+1)); h.cursor='F'+(req.at+1); } break;   // LEVELS: the tier above you glows
-    case 'tipOff': (req.candidates||[]).forEach(q=>h.pawns.add(q.name)); break;
+    case 'tipOff': case 'finger': (req.candidates||[]).forEach(q=>h.pawns.add(q.name)); break;
+    case 'hearing': h.lounge=true; break;
     case 'enterLounge': case 'goldenWalk': case 'bribeEntry': h.lounge=true; break;
     case 'target': case 'asset': case 'giveHype':{
       const cands=req.candidates||(req.target?[req.target]:[]);
@@ -2358,7 +2451,7 @@ function presentPrompt(req,p,resolve){
       opts=req.candidates.map(q=>({label:q.name,sub:ERSN_FLOORS.bands[+String(q.pos).slice(1)]||'',value:q,cls:'go'})); opts.push({label:'Take it myself',value:null,cls:'no'}); break;
     case 'enterLounge':
       if(game&&game.rules.levels&&!game.collapsed){
-        title='Climb into the tower?'; sub=`${who} · −1 Juice. A Golden Staircase lifts you onto the REGULATION tier — the tower is where the Shadow SEC lives: every turn you end up here, you roll the SEC ROLL. ${req.qualifies?'You QUALIFY (Trust ≥4 or Hype 8) — walk straight up.':'You’re UNDER threshold — roll WHY ASK? (5+); a fail costs +1 Risk.'} The Lounge is at the top, past the TRUST CHECK.`;
+        title='Climb into the tower?'; sub=`${who} · −1 Juice.${game.rules.gauntlet?' THE LOUNGE GAUNTLET: the Lounge is the only way out — when the tower collapses, only executives in the tower or the Lounge face the final hearings.':''} A Golden Staircase lifts you onto the REGULATION tier — the tower is where the Shadow SEC lives: every turn you end up here, you roll the SEC ROLL. ${req.qualifies?'You QUALIFY (Trust ≥4 or Hype 8) — walk straight up.':'You’re UNDER threshold — roll WHY ASK? (5+); a fail costs +1 Risk.'} The Lounge is at the top, past the TRUST CHECK.`;
         opts=[{label:'Climb · −1 Juice',value:true,cls:'go'},{label:'Stay on the loop',value:false,cls:'no'}];
       } else if(req.qualifies){
         title='Ride the Spiral Lift into the Lounge?'; sub=`${who} · −1 Juice. You QUALIFY (Trust ≥4 or Hype 8) — walk straight in. Win by ending a turn here holding exactly 2 Clean Assets.`;
@@ -2407,6 +2500,24 @@ function presentPrompt(req,p,resolve){
     case 'ability':
       title=`Use ${req.ability==='CastleOrder'?'Castle Doctrine':req.ability}?`; sub=`${who}${req.cost?' · '+req.cost:''}`;
       opts=[{label:'Use it',value:true,cls:'go'},{label:'Skip',value:false,cls:'no'}]; break;
+    case 'hearing':{   // 1113 THE LOUNGE GAUNTLET: one Lounge turn = one hearing
+      const g=game.rules, need=Math.max(1,req.need), pass=need<=1?'any roll but a 1':need>6?'NOTHING — add more':`${need}+`;
+      title=req.collapsed?'THE COLLAPSE HEARING — hold or be escorted out':'THE HEARING — you are under scrutiny';
+      sub=`${who} · HEAT ${req.heat}. You roll 1 die + Trust − Risk (${req.edge>=0?'+':''}${req.edge}${g.gEdgeCap?`, capped ±${g.gEdgeCap}`:''})${req.boost?` + ${req.boost} bought`:''}: right now you pass on ${pass} (a 1 always fails). `+
+        (req.collapsed?'FAIL and Security escorts you to the START CIRCLE. ':`FAIL = +${g.gFailRisk} Risk and the SEC opens a file on you. HOLD ${g.gExit} in a row with 2+ Clean Assets and you MAKE IT OUT (you win). Streak: ${req.streak}/${g.gExit}. `)+
+        `LAWYER UP: ${g.gLawyer} Juice = +1${g.gLawyerMax&&g.gLawyerMax<9?` (${g.gLawyerMax===1?'once':'max +'+g.gLawyerMax})`:''} · SPIN: ${g.gSpin} Hype = +1 (max +${g.gSpinMax}) · a Bribe passes outright (+2 Risk, −1 Final Favor).`;
+      opts=[{label:`ROLL — pass on ${pass}`,value:'roll',cls:'go'}];
+      if(req.options.includes('juice')) opts.push({label:`Lawyer up · −${g.gLawyer} Juice → +1`,sub:`Juice ${p.juice}`,value:'juice'});
+      if(req.options.includes('hype')) opts.push({label:`Spin it · −${req.spinCost||g.gSpin} Hype → +1`,sub:`Hype ${p.hype}`,value:'hype'});
+      if(req.options.includes('bribe')) opts.push({label:'Pay off the committee <span class="coinIco"></span>',sub:'pass · +2 Risk · −1 FF',value:'bribe'});
+      opts.push({label:'Roll',value:'roll',cls:'no'}); break; }
+    case 'finger':   // 1113 THE LOUNGE GAUNTLET: POINT THE FINGER
+      { const both=game.rules.gFingerBoth, brk=game.rules.gFingerStreak, eff=v=>both?'−1 Trust & +1 Risk':v==='hype'?'−1 Trust':'+1 Risk';
+      title='Point the finger?'; sub=both?`${who} · once a turn, drag a rival in the tower or the Lounge down before the hearings: spend ${req.cost} Hype or ${req.cost} Trust → they lose 1 Trust AND take +1 Risk${brk?', and their run of held hearings starts over':''}. Their hearing is Trust − Risk.`
+        :`${who} · once a turn, drag a rival in the tower or the Lounge down before the hearings: spend ${req.cost} Hype → they lose 1 Trust (the press turns on them), or ${req.cost} Trust → they take +1 Risk (your testimony). Their hearing is Trust − Risk.`;
+      opts=[]; for(const q of req.candidates){ if(req.options.includes('hype')) opts.push({label:`${q.name.split(' ')[0]}: ${eff('hype')}`,sub:`−${req.cost} Hype · T${q.trust} R${q.risk}${q._gStreak?' · run '+q._gStreak:''}`,value:{target:q,via:'hype'},cls:'go'});
+        if(req.options.includes('trust')) opts.push({label:`${q.name.split(' ')[0]}: ${eff('trust')}`,sub:`−${req.cost} Trust · T${q.trust} R${q.risk}${q._gStreak?' · run '+q._gStreak:''}`,value:{target:q,via:'trust'}}); } }
+      opts.push({label:'Keep quiet',value:null,cls:'no'}); break;
     case 'bury':   // 1112 Benchmark SEC: BURY THE FILE
       title='Bury this SEC file?'; sub=`${who} · ${req.card?req.card.name:'this SEC card'} does nothing to you — the SEC meter takes it instead: Global SEC +1${game.rules.secBury>=2?', and you take +1 Risk':''}. Everyone gets closer to the collapse.`;
       opts=[{label:'Bury it · Global SEC +1',value:'BURY',cls:'go'},{label:'Take it myself',value:null,cls:'no'}]; break;

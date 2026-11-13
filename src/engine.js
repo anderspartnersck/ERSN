@@ -146,6 +146,41 @@
     bennyCastle: 'ease2+sic', bennySicCost: 2, bennySicRisk: 1,
     charClaudiaTrust: 0,   // v4 gave Claudia +1 starting Trust at 5p+; under 1112 it over-feeds her (6p 22% -> 17%)
   };
+  // BENCHMARK_LOUNGE (1113) — THE LOUNGE GAUNTLET, layered on BENCHMARK_PLAY (Joe 11/13: "lean on classic to build what we
+  // discussed with the new tiers into the exec lounge and several rounds of survival and SEC checks where you are forced and
+  // under scrutiny trying to make it out with great stats and at least 2 clean assets … keep rolling juice or offsetting
+  // other's stats with hype or trust"). docs/BENCHMARK-LOUNGE-1113.md has the rules + the paired-seed numbers.
+  //   • THE HEARING: every turn you are in the Lounge (you don't move) is a SCRUTINY CHECK — 1 die + Trust − Risk vs the HEAT
+  //     (gHeatBase + half the Global SEC meter; gHeatCollapse in the collapse). Before you roll: LAWYER UP (gLawyer Juice = +1)
+  //     or SPIN (gSpin Hype = +1), up to gBoostMax; or spend a Bribe to pass outright (+2 Risk). A natural 1 always fails.
+  //     Fail before the collapse: +gFailRisk Risk and the SEC opens a file on you (a tower SEC card). Fail in the collapse:
+  //     Security escorts you out (START).
+  //   • POINT THE FINGER (gFinger): once a turn, spend gFinger Hype (they lose 1 Trust) or gFinger Trust (they take +1 Risk)
+  //     against an executive in the tower or the Lounge.
+  //   • MAKE IT OUT (pre-collapse, the rare clean exit): pass gExit hearings IN A ROW and hold 2+ Clean Assets.
+  //   • THE COLLAPSE (Classic): 3 full rounds; turn 1 everyone answers an SEC card; tier residents are SUBPOENAED up into the
+  //     Lounge (gSubpoena); the building is SEALED (gSealed — nobody new gets in). Held the Lounge every round + 2+ Clean = out.
+  //     Otherwise THE RECKONING (gReckon): executives still in the Lounge outrank everyone outside it, then Final Favor.
+  const BENCHMARK_LOUNGE = Object.assign({}, BENCHMARK_PLAY, {
+    gauntlet: true,
+    // the hearing: 1 die + (Trust − Risk, capped ±3) + boosts vs HEAT 2 + ⌊Global SEC / 3⌋ (2–4); HEAT 3 in the collapse
+    gEdgeCap: 3, gHeatBase: 2, gHeatStep: 3, gHeatCollapse: 3,
+    gLawyer: 2, gLawyerMax: 9, gSpin: 2, gSpinMax: 2, gBoostMax: 9,   // LAWYER UP 2 Juice = +1 (no cap) · SPIN 2 Hype = +1 (max +2)
+    gFailRisk: 1, gFinger: 2, gFingerInside: true,                    // a failed hearing: +1 Risk + an SEC file · FINGER costs 2, from inside the tower only
+    gHearingTC: true,                                                 // the hearing counts as a Trust Check for every card that names one
+    gExit: 4, gDeal: 0, gPerk: true,                                  // MAKE IT OUT = 4 hearings in a row + 2+ Clean · each tier passed draws an Asset (the floor's perks)
+    gSubpoena: true, gSealed: true, gReckon: 2, tableRiskRound: true, gWhyAsk: true,
+    collapseRounds: true, raidAll: false, levelsLastElevator: false,  // Classic's 3-round collapse; the hearing replaces the raid check
+    // characters under the gauntlet (BENCHMARK only)
+    charDanny: 0, charBenny: 0, bennySicRisk: 0, gBennyHeld: true, gWuFadeLoop: true, gClaudiaTrace: true,
+    // ── PASS 2 (1113 late: "make the stats all sing") ──
+    // Juice and Hype are two pockets that COMPLEMENT, not substitute: LAWYER UP once a hearing (2 Juice = +1), SPIN up to 3
+    // times (1 Hype = +1 each). Trust − Risk edge capped ±4 (Trust buys more). THE FINGER hits both ways (−1 Trust AND +1 Risk,
+    // 2 Hype or 2 Trust) and breaks the target's run of held hearings. Small-table character trims: Danny's Doughmination
+    // +2 Risk at 2p / +1 at 3p; Benny's ORDER +1 Risk at 2–3p.
+    gLawyerMax: 1, gSpin: 1, gSpinMax: 3, gEdgeCap: 4, gFingerBoth: true, gFingerStreak: true,
+    charDanny: { byPlayers: { 2: 2, 3: 1, default: 0 } }, bennySicRisk: { byPlayers: { 2: 1, 3: 1, default: 0 } },
+  });
   // Benchmark CARD OVERRIDES — same card name, sharper job (effect + on-card text). Read only when
   // edition==='benchmark'; Classic never sees these. fx swaps route through resolve_card; text feeds the UI.
   const BENCHMARK_FX = {
@@ -251,6 +286,15 @@
     'Raptor Leasing Group': { kind: 'mech', e2: true, then: 'raptorLease', text: 'When played, gain +2 Juice (the lease pays up front). If you fail any Trust Check roll, gain +2 Risk instead of normal penalty.' },
     'Mandatory Clause':     { kind: 'mech', e2: true, dead: (g, p, o) => !o.some(q => q.lineup.length || q.hand.some(c => c.deck === 'Market' || c.deck === 'AdvMarket')), fb: 'towerOne', text: null, nd: ' NO CLAUSE TO ENFORCE? 1 opponent IN THE TOWER must pass a Trust Check or fall one tier.' },
   };
+  // 1113 LOUNGE GAUNTLET card text (shown when the gauntlet knob is on; mechanics live in hearing()/THE_SAFE_V4): the cards that
+  // name a Trust Check now reach the hearing, so they say so.
+  const LOUNGE_TEXT = {
+    'The Safe': 'Target an opponent on a Golden Staircase, IN THE TOWER or IN THE LOUNGE. They must roll a 6 to pass any Trust Check — a HEARING counts — until their next turn ends.',
+    'Class Ring': 'Your Trust Checks — a HEARING counts — pass on a 2+ until end of your next turn.',
+    'Raptor Leasing Group': 'When played, gain +2 Juice (the lease pays up front). If you fail any Trust Check roll — a HEARING counts — gain +2 Risk instead of normal penalty.',
+    'Dual-Layered Instrument': 'EFFECT Discard this card to re-roll a failed Trust Check — a HEARING counts. If this Asset is ever passed to another player, they must discard this card AND lose -2 Trust.',
+    'Phantom Holdings Portfolio': 'EFFECT Flip face-up if you fail a Trust Check — a HEARING counts. Gain +2 Juice, ignore related Risk penalty, then discard this card.',
+  };
   const BENCH_V4_TEXT = {};
   for (const c of (global.CARDS || [])) { const a = BENCH_V4[c.name]; if (a) BENCH_V4_TEXT[c.name] = a.text || (c.text + (a.nd || ND)); }
   const ASSET_FLOW_TEXT = {};
@@ -341,6 +385,39 @@
   // threat score for "target the leader" — closeness to a clean Lounge win dominates
   function threat(g, q) { return (q.in_lounge ? 6 : 0) + (g.floorOf(q) !== null ? 3 : 0) + q.clean_count() * 2 + q.trust * 0.3 + q.hype * 0.12 + q.juice * 0.1 - q.risk * 0.2; }
 
+  // 1113 GAUNTLET bot policy. HEARING: buy +1s until the die needs 3+ (a 67% hearing) — or 2+ in the collapse, where a fail is
+  // the end — paying from whichever pocket the character can spare (Mark/Claudia spend Hype first: Mark has it, Claudia is
+  // Cooked at Hype 4+; Danny keeps his Juice for the doubling), and keep 1 Juice for next turn. Bribe only when the dice can't
+  // be fixed and the +2 Risk won't burn you out.
+  const HYPE_FIRST = new Set(['Mark Markit', 'Claudia Numbers', 'Danny Dough']);
+  function gauntletHearing(req, g, p) {
+    const want = req.collapsed ? 2 : 3, need = req.need;   // need = the die face that passes right now
+    if (need <= want) return 'roll';
+    const o = req.options, hypeFirst = HYPE_FIRST.has(p.name);
+    const canJ = o.includes('juice') && p.juice - g.rules.gLawyer >= (req.collapsed ? 0 : 1);
+    const sc = req.spinCost || g.rules.gSpin, hRes = (p.name === 'Mark Markit' && !req.collapsed ? 3 : 0);
+    const canH = o.includes('hype') && (p.hype - sc >= hRes);
+    if (hypeFirst && canH) return 'hype';
+    if (canH && canJ && (p.hype - hRes) / sc > (p.juice - 1) / g.rules.gLawyer + 1) return 'hype';   // pass 2: spend from the deeper pocket
+    if (canJ) return 'juice';
+    if (canH) return 'hype';
+    // can't buy the odds: a Bribe passes outright — worth it when the hearing is near-hopeless or the collapse would evict you
+    if (o.includes('bribe') && p.risk + 2 < BURNOUT_RISK && (req.collapsed || need >= 6 || (req.streak >= (req.exitAt || 3) - 1 && g.cleanOk(p)))) return 'bribe';
+    return 'roll';
+  }
+  // FINGER: point at the most dangerous rival in the tower/Lounge whose hearing edge beats yours — spend Hype if you can spare it
+  // (keep 2), else Trust only from a Trust surplus (you need Trust at your own hearing). Skip if nobody is ahead of you.
+  function gauntletFinger(req, g, p) {
+    const cs = req.candidates; if (!cs.length) return null;
+    const score = x => threat(g, x) + g.edge(x) + 2 * Math.max(0, (x._gStreak || 0) - 1);   // the closer they are to walking out, the louder you point
+    const t = cs.reduce((m, x) => score(x) > score(m) ? x : m), lead = score(t) - score(p) - (g.rules.gClaudiaTrace && t.abilityName === 'Claudia Numbers' ? 2 : 0);   // pointing at Claudia costs you a Risk
+    if (lead < 0) return null;                                                                  // nobody in the room is ahead of you
+    if (g.rules.gFingerBot === 'threat' && !((t._gStreak || 0) >= (g.rules.gExit || 3) - 2 || lead >= 3)) return null;   // pass 2: only at a real threat
+    if (req.options.includes('hype') && p.hype - req.cost >= (p.name === 'Mark Markit' ? 4 : 2)) return { target: t, via: 'hype' };
+    if (req.options.includes('trust') && p.trust - req.cost >= 4 && (lead >= 3 || (t._gStreak || 0) >= (g.rules.gExit || 3) - 1)) return { target: t, via: 'trust' };   // testimony costs your own name: only against a real threat
+    return null;
+  }
+
   class CharacterAgent {
     constructor() { this.bot = new BotAgent(); }
     decide(req, game, p) {
@@ -348,9 +425,9 @@
       if (!persona) return this.bot.decide(req, game, p);
       switch (req.kind) {
         case 'bribe':       return persona.bribe(p, game);
-        case 'steps':       { const s = game._stairSteps(p, (p.trust >= 4 || p.hype >= 8) && persona.enterLounge(p, game)); return s !== null ? s : persona.steps(p, game); }
+        case 'steps':       { const s = game._stairSteps(p, ((p.trust >= 4 || p.hype >= 8) && persona.enterLounge(p, game)) || (game.rules.gWhyAsk && !game.collapsed && p.juice >= 3 && p.risk <= 5)); return s !== null ? s : persona.steps(p, game); }   // 1113: under the gauntlet everyone heads for a staircase
         case 'door':        return persona.door(p, game);
-        case 'enterLounge': return persona.enterLounge(p, game);
+        case 'enterLounge': return game.rules.gWhyAsk ? true : persona.enterLounge(p, game);   // 1113: under the gauntlet every bot takes the tower (pass 2 fix: a seat that QUALIFIED used to fall back to its persona — Mark at Trust 4+ refused)
         case 'climbTier':   return true;                                              // up is the only way to the Lounge
         case 'tipOff': {    // desperation: snitch on a tower resident only when they're beating you and you can carry the Risk
           const cs = req.candidates; if (!cs || !cs.length || p.risk > 5) return null;
@@ -364,7 +441,7 @@
         }
         case 'lobby':       return game.global_sec >= 6 && !p.in_lounge && game.floorOf(p) === null && p.risk + 2 < 8;   // buy time while you're out of position
         case 'leak': {      // pull the pin when you're holding the best books in the room
-          if (p.risk > 4) return false; const mine = game.ff(p);
+          if (p.risk > (game.rules.gauntlet ? 2 : 4)) return false; const mine = game.ff(p);
           return game.others_of(p).every(q => game.ff(q) <= mine);
         }
         case 'assetEffect': {   // re-fire an in-play Asset effect (print ASSET EFFECTS) only when it plainly helps you or hurts a rival
@@ -376,7 +453,10 @@
           let best = null, bv = 0; for (const c of req.candidates) { const v = val(c); if (v > bv) { bv = v; best = c; } }
           return best;
         }
-        case 'bribeClimb':  return !!req.toLounge && p.trust < 4;                     // v4: buy past the plaque only when your name won't carry you
+        case 'bribeClimb':  return game.rules.gauntlet ? false : (!!req.toLounge && p.trust < 4);   // v4: buy past the plaque only when your name won't carry you; 1113: keep it for the hearing
+        case 'bribeEntry':  return false;                                               // 1113 (gauntlet only): roll WHY ASK? — the Bribe is worth more at a hearing
+        case 'hearing':     return gauntletHearing(req, game, p);                     // 1113: lawyer up / spin / bribe / roll
+        case 'finger':      return gauntletFinger(req, game, p);                      // 1113: drag a rival's stats down
         case 'keepAsset':   return req.candidates.reduce((m, x) => persona.playScore(x) > persona.playScore(m) ? x : m);   // keep the one your kit wants
         case 'react':       return (R.random() < persona.reactRate) ? req.card : null;
         case 'play': {
@@ -397,7 +477,7 @@
           if (req.ability === 'Notary') return false;                       // Vonda keeps her Assets (the Stamp wants them)
           if (req.ability === 'NotaryAlibi') return game._cv('charVonda', 3) >= 2 ? (p.risk >= 2 && p.trust >= 3) : (p.risk >= 3 && p.trust >= 4);   // v4: buy down Risk only with Trust to spare (v2 kit: a looser notary)
           if (req.ability === 'LeakyBucket') return true;                   // Vonda always clings to the Lounge
-          if (req.ability === 'CastleOrder') return p.risk <= 5;             // Benny orders the help around while he can carry the Risk
+          if (req.ability === 'CastleOrder') return p.risk <= (game.rules.gauntlet ? 3 : 5);   // Benny orders the help around while he can carry the Risk (1113: Risk is his hearing edge now)
           if (req.ability === 'CastleDefend') return p.risk <= 5;            // his building, his Security — while he can carry the Risk
           if (req.ability === 'FeedRaptors') return game._v4Deck() && p.risk >= 2;   // v4 Round 6: feed the raptors to dump Risk (pre-v4 bots never fed: the card was dead)
           return false;
@@ -642,6 +722,7 @@
     // Knob ON: a gate lifts you ONE level — Loop -> the Floors (bottom space), Floors -> the Lounge.
     // After the collapse the Floors are rubble, so a staircase goes straight to the Lounge again.
     _ascend(p) {
+      if (this.rules.gSealed && this.collapsed && !p.in_lounge) { this.log(`    the building is SEALED — ${p.name} can't get in now`); return 'sealed'; }
       if (this.rules.levels && !this.collapsed && this.floorOf(p) === null && !p.in_lounge) {
         p.pos = 'F0'; p.peak_level = Math.max(p.peak_level, 1); this.log(`    ${p.name} climbs into the tower (${FLOORS.bands[0]})`); this.emit('enter_floors', { player: p.name });
         return 'floors';
@@ -749,8 +830,9 @@
         const ok = bribed || auto || (this.rules.charAwareTrust ? await this.charTrustResolve(p, base, `failed ${what}`, failRisk) : (failRisk ? await this.trust_check(p, base) : this.rng.randint(1, 6) >= this.effPassOn(p, base)));
         if (!ok) { this.log(`    ${p.name} fails ${what} (stays on ${band})`); break; }
         if (this.floorOf(p) !== at) break;   // a reaction moved them
-        if (toLounge) { this._ascend(p); this.log(`    ${p.name} passes the ANDERS APPROVED TRUST CHECK -> Executive Lounge`); this.emit('enter_lounge', { player: p.name }); await this._bennyDefends(p, top); return true; }
+        if (toLounge) { this._ascend(p); if (this.rules.gPerk) this._assetFlowDraw(p, "the Lounge's welcome package"); this.log(`    ${p.name} passes the ANDERS APPROVED TRUST CHECK -> Executive Lounge`); this.emit('enter_lounge', { player: p.name }); await this._bennyDefends(p, top); return true; }
         p.pos = 'F' + (at + 1); climbed = true;
+        if (this.rules.gPerk) this._assetFlowDraw(p, `the ${FLOORS.bands[at + 1]} floor's perks`);
         this.log(`    ${p.name} passes ${what} -> climbs to ${FLOORS.bands[at + 1]}`); this.emit('move', { player: p.name, to: p.pos }); this.emit('climb', { player: p.name, band: FLOORS.bands[at + 1] });
         if (!this.rules.levelsChain) break;
       }
@@ -813,6 +895,7 @@
       // the tiers go first. levelsLastElevator: everyone still in the tower gets ONE last Trust Check (a plain roll —
       // no reactions mid-collapse): pass = they make the Lounge before the floors give way; fail = out to START.
       if (this.rules.levels) for (const q of this.alive_players()) if (this.floorOf(q) !== null) {
+        if (this.rules.gSubpoena) { const band = FLOORS.bands[this.floorOf(q)]; q.pos = 'LOUNGE'; q.in_lounge = true; q.peak_level = 2; q._gStreak = 0; this.log(`    SUBPOENA: ${q.name} is hauled up from ${band} into the hearing room`); this.emit('enter_lounge', { player: q.name, via: 'subpoena' }); continue; }
         if (this.rules.levelsLastElevator) {
           const need = this._towerPassOn(q), roll = this.rng.randint(1, 6);
           this.emit('trustCheck', { player: q.name, roll, pass: roll >= need, need });
@@ -940,6 +1023,7 @@
       p.lineup = p.lineup.filter(t => t.card.undiscardable);
       p.trust = 0; p.bribes = 0; p.risk = 5; p.juice = 1;
       if (this.rules.levels && this.floorOf(p) !== null) this._dropToLoop(p, 'burnout');
+      if (this.rules.gauntlet && p.in_lounge) { p.in_lounge = false; p.pos = 'START'; p.lounge_streak = 0; p._gStreak = 0; this.log(`    ${p.name} burns out in the Lounge -> START`); this.emit('evict', { player: p.name, why: 'burnout' }); }
       this.log(`    !! BURNOUT ${p.name} -> risk 5, juice 1, assets/trust/bribes wiped (undiscardables kept)`);
       this.emit('burnout', { player: p.name });
     }
@@ -1174,7 +1258,7 @@
         case 'HYPE4_TRUST-2_ELSE_DISCARD_OR_RISK2': for (const q of alive()) { if (q.hype >= 4) await lt(q, 2, 'Mark to Mayhem'); else if (this.rules.faithfulCards && q.isHuman && q.lineup.length) { const pick = await this.decide(q, { kind: 'chooseOr', title: 'Mark to Mayhem', a: 'Discard an in-play Asset', b: 'Take +2 Risk', bCls: 'no' }); if (pick === 'b') this.add_risk(q, 2, 'Mark to Mayhem'); else { const a = await this.pick_asset(q, q.lineup.slice(), 'mayhem'); if (a) D(q, a); else this.add_risk(q, 2, 'Mark to Mayhem'); } } else { if (q.lineup.length) D(q, q.lineup[0]); else this.add_risk(q, 2, 'Mark to Mayhem'); } } break;
         case 'ASSET2_HYPE-2_THEN_0DISCARD': for (const q of alive()) if (q.asset_count() >= 2) { const h0 = q.hype; q.hype -= 2; const brought = this.rules.faithfulCards ? (h0 > 0 && q.hype <= 0) : (q.hype <= 0); if (brought && q.lineup.length) D(q, q.lineup[0]); } break;   // faithful: "if this loss BRINGS any player to 0 Hype" — it must CROSS, not already be there
         case 'CLEAN_DISCARD_ELSE_0ASSET_HYPE2': for (const q of alive()) { if (q.faceup_clean().length) { if (this.rules.faithfulCards && q.isHuman && q.hand.length) { const pick = await this.decide(q, { kind: 'chooseOr', title: 'Marked Livestock', a: 'Discard a card from hand', b: 'Discard an in-play Clean Asset' }); if (pick === 'b') D(q, q.faceup_clean()[0]); else { const c = q.hand.splice(0, 1)[0]; this.discards[this._discard_key(c)].push(c); } } else if (q.hand.length) q.hand.splice(R.randrange(q.hand.length), 1); else D(q, q.faceup_clean()[0]); } else if (q.asset_count() === 0) q.hype += 2; } break;
-        case 'THE_SAFE_V4': { const pool = others.filter(q => q.pos === 'START' || this.track.exits.has(q.pos) || this.floorOf(q) !== null); if (pool.length) { const tgt = await this.pick_target(p, pool, undefined, card); if (tgt) { tgt._safe_pending = 6; this.log(`    The Safe: ${tgt.name} must roll a 6 to pass any Trust Check next turn`); } } break; }
+        case 'THE_SAFE_V4': { const pool = others.filter(q => q.pos === 'START' || this.track.exits.has(q.pos) || this.floorOf(q) !== null || (this.rules.gauntlet && q.in_lounge)); /* 1113: the Lounge is the top of the tower */ if (pool.length) { const tgt = await this.pick_target(p, pool, undefined, card); if (tgt) { tgt._safe_pending = 6; this.log(`    The Safe: ${tgt.name} must roll a 6 to pass any Trust Check next turn`); } } break; }
         case 'PIGS_V4': { const field = alive(), mx = Math.max(...field.map(q => q.asset_count()));
           if (mx >= 2) { for (const q of field.filter(q => q.asset_count() === mx)) { const tgt = q.faceup_clean().length ? q.faceup_clean()[0] : q.lineup[0]; D(q, tgt); await lt(q, 1, 'Pigs Get Slaughtered'); } }
           else await lt(p, 1, 'Pigs Get Slaughtered (the pig is you)'); break; }
@@ -1458,11 +1542,22 @@
     // order (hand his SEC file to an opponent) · defend (call Security on a new Lounge arrival) · both = order+defend
     // the ability lines a character sheet shows for THIS game (the printed card, with Benchmark rule changes folded in)
     abilitiesText(p, base) {
+      if (this.rules.gauntlet) base = this._gauntletAbilityText(p, base);
       if (p.abilityName !== 'Benny Boye' || !this.rules.bennyCastle) return base;
       const ease = this._castle('ease2') ? 2 : this._castle('ease') ? 3 : 0, sic = this._castle('sic');
       const cost = this.rules.bennySicCost != null ? this.rules.bennySicCost : 2, rk = this.rules.bennySicRisk != null ? this.rules.bennySicRisk : 1;
       const extra = [ease ? `his Tower Trust Checks pass on ${ease}+` : '', sic ? `from the Tower or the Lounge, at the start of his turn he may pay ${cost} Juice${rk ? ` + take ${rk} Risk` : ''} to ORDER a loop player to answer to the SEC (they draw an SEC card)` : ''].filter(Boolean).join('; ');
       return base.map(a => /^Castle Doctrine/.test(a) ? `${a.replace(/\.$/, '')}. It's his building: ${extra}.` : a);
+    }
+    // 1113: the character lines the gauntlet changes (the rest of each card stands as printed / v4)
+    _gauntletAbilityText(p, base) {
+      const r = this.rules, n = p.abilityName;
+      return base.map(a => {
+        if (n === 'Claudia Numbers' && r.gClaudiaTrace && /^Audit Trace/.test(a)) return 'Audit Trace: anyone who POINTS THE FINGER at you takes +1 Risk (you trace it back).';
+        if (n === 'Wu Drainer' && r.gWuFadeLoop && /^Strategic Fade/.test(a)) return a.replace(/\.$/, '') + ' — not in the Lounge (nobody moves at a hearing).';
+        if (n === 'Benny Boye' && r.gBennyHeld && /^Castle Doctrine/.test(a)) return a.replace(/ENDS 3 consecutive turns in the Executive Lounge/, 'HOLDS 3 consecutive HEARINGS in the Executive Lounge');
+        if (n === 'Danny Dough' && r.charDanny === 0 && /^Doughmination/.test(a)) return a;
+        return a; });
     }
     _castle(t) { const m = this.rules.bennyCastle; if (!m) return false; const set = String(m).split('+'); return set.includes(t) || (m === 'both' && (t === 'order' || t === 'defend')); }
     // 1112 SEC METER — BURY THE FILE (secBury): an SEC card that lands on you (loop square or tower SEC ROLL) may be BURIED
@@ -1519,6 +1614,111 @@
       this.emit('tipoff', { player: b.name, target: q.name, card: 'Castle Doctrine' });
       if (held) { this.log(`    Benny calls Security on ${q.name} — they hold the Lounge`); return; }
       q.in_lounge = false; q.pos = 'F' + top; q.lounge_streak = 0; this.log(`    Benny calls Security on ${q.name} — escorted back down to ${FLOORS.bands[top]}`); this.emit('fall', { player: q.name, why: 'Castle Doctrine', to: q.pos });
+    }
+    // ── 1113 THE LOUNGE GAUNTLET (knob gauntlet; BENCHMARK_LOUNGE) ─────────────────────────────────────────────
+    // HEAT = how hard the SEC is looking. Before the collapse it climbs with the Global SEC meter; in the collapse it is fixed high.
+    heat() { const r = this.rules; return this.collapsed ? r.gHeatCollapse : r.gHeatBase + Math.floor(this.global_sec / (r.gHeatStep || 2)); }
+    // a seat's standing edge at a hearing: the stats themselves (Trust helps, Risk hurts) — no boosts; capped at ±gEdgeCap
+    edge(p) { const c = this.rules.gEdgeCap || 99; return Math.max(-c, Math.min(c, p.trust - p.risk)); }
+    // "2 Clean Assets": Classic/1112 = exactly 2; the gauntlet = at least 2 (Joe 11/13: "at least 2 clean assets")
+    cleanOk(p) { const n = this.victoryCleanCount(p); return this.rules.gauntlet ? n >= 2 : n === 2; }
+    // THE HEARING — one Lounge turn under scrutiny. Returns true if the executive held.
+    async hearing(p) {
+      const r = this.rules, heat = this.heat(), col = this.collapsed;
+      const tc = !!r.gHearingTC, ring = tc && p._ringTurns > 0, safe = tc && p._forcePassOn >= 6;   // a card has fixed the die you need
+      const fixed = safe ? 6 : ring ? 2 : null;
+      let boost = 0, juiceIn = 0, hypeIn = 0, jB = 0, hB = 0;
+      const jMax = r.gLawyerMax != null ? r.gLawyerMax : r.gBoostMax, hMax = r.gSpinMax != null ? r.gSpinMax : r.gBoostMax;   // per-pocket caps (default: one shared cap)
+      for (let k = 0; k < 12; k++) {
+        const opts = [];
+        if (fixed === null && boost < r.gBoostMax && jB < jMax && p.juice >= r.gLawyer) opts.push('juice');   // lawyers can't beat The Safe (or help a Class Ring)
+        const spinCost = r.gSpin + (r.gSpinStep || 0) * hB;   // gSpinStep (1113 pass 2): each extra spin in the same hearing costs more
+        if (fixed === null && boost < r.gBoostMax && hB < hMax && p.hype >= spinCost) opts.push('hype');
+        if (p.bribes > 0) opts.push('bribe');
+        if (!opts.length) break;
+        opts.push('roll');
+        const pick = await this.decide(p, { kind: 'hearing', heat, edge: this.edge(p), boost, need: fixed !== null ? fixed : Math.max(2, heat - this.edge(p) - boost), fixed, options: opts, collapsed: col, streak: p._gStreak || 0, exitAt: r.gExit, spinCost: r.gSpin + (r.gSpinStep || 0) * hB, lawyerCost: r.gLawyer });
+        if (pick === 'juice') { p.juice -= r.gLawyer; p._spent = (p._spent || 0) + r.gLawyer; boost += 1; jB += 1; juiceIn += r.gLawyer; p._gJuice = (p._gJuice || 0) + r.gLawyer; }
+        else if (pick === 'hype') { const c = r.gSpin + (r.gSpinStep || 0) * hB; p.hype -= c; boost += 1; hB += 1; hypeIn += c; p._gHype = (p._gHype || 0) + c; }
+        else if (pick === 'bribe') {
+          this.spendBribe(p); this.emit('spendBribe', { player: p.name });
+          this.log(`    HEARING: ${p.name} pays off the committee (Bribe) — holds the Lounge`);
+          this.emit('hearing', { player: p.name, heat, bribed: true, pass: true, collapsed: col });
+          if (!p.in_lounge) return false;   // the Bribe's +2 Risk burned them out
+          return this._hearingHeld(p, 'bribe');
+        }
+        else break;
+      }
+      if (hB && r.gSpinSec && !col) this.raise_global_sec(r.gSpinSec === 'spin' ? hB : 1, `${p.name} SPINS the press (the SEC reads it too)`, p);   // gSpinSec (1113 pass 2): spin is loud
+      if (juiceIn || hypeIn) this.log(`    ${p.name} prepares for the hearing:${juiceIn ? ` LAWYERS UP (−${juiceIn} Juice)` : ''}${hypeIn ? ` SPINS (−${hypeIn} Hype)` : ''} → +${boost}`);
+      // the hearing IS a Trust Check for every card that names one (gHearingTC): Class Ring passes it on 2+, The Safe needs a 6,
+      // a failed hearing opens the reroll / Phantom Holdings reactions, and Raptor Leasing / Toxic Asset add their fail Risk.
+      const judge = d => d !== 1 && (safe ? d >= 6 : ring ? d >= 2 : d + this.edge(p) + boost >= heat);   // a natural 1 always fails: nobody is untouchable
+      let roll = this.rng.randint(1, 6), pass = judge(roll), phantom = false;
+      if (!pass && tc) { const re = await this.offerReaction('failedTrustCheck', { player: p, pass_on: heat });
+        if (re === 'reroll') { roll = this.rng.randint(1, 6); pass = judge(roll); } else if (re === 'phantom') { p.juice += 2; phantom = true; this.log(`    ${p.name} Phantom Holdings: +2 Juice, the failed hearing costs no Risk`); } }
+      const edge = this.edge(p), total = roll + edge + boost;
+      this.log(`    HEARING (heat ${heat}): ${p.name} rolls ${roll} ${edge >= 0 ? '+' : '−'} ${Math.abs(edge)} (Trust ${p.trust} − Risk ${p.risk})${boost ? ` + ${boost}` : ''} = ${total}${ring ? ' [Class Ring: 2+]' : safe ? ' [The Safe: needs a 6]' : ''} → ${pass ? 'HOLDS' : 'FAILS'}`);
+      this.emit('hearing', { player: p.name, heat, roll, edge, boost, total, pass, collapsed: col, juice: juiceIn, hype: hypeIn, card: ring ? 'Class Ring' : safe ? 'The Safe' : undefined });
+      if (pass) return this._hearingHeld(p, 'check');
+      p._gStreak = 0; p._gFails = (p._gFails || 0) + 1;
+      if (col) {   // the collapse: a failed hearing is the end of your tenure
+        if (this._leakyBucket(p, 'the hearing')) return true;
+        p.in_lounge = false; p.pos = 'START'; p.lounge_streak = 0; p._stamped = false;
+        this.log(`    COLLAPSE HEARING: ${p.name} fails — Security escorts them to the START CIRCLE`); this.emit('evict', { player: p.name });
+        return false;
+      }
+      if (!phantom) { this.add_risk(p, r.gFailRisk, 'failed the hearing');
+        if (tc && p.hasConstant('CONSTANT_FAIL_TRUSTCHECK_RISK2')) this.add_risk(p, 1, 'Toxic Asset (extra Risk on a failed hearing)'); }
+      if (p.in_lounge) await this._secFile(p, 'the hearing');
+      return false;
+    }
+    _hearingHeld(p, how) {
+      p._gStreak = (p._gStreak || 0) + 1; p._gPasses = (p._gPasses || 0) + 1;
+      if (this.rules.gDeal && !this.collapsed && how === 'check') return this._dealFlow(p).then(() => true);   // the Lounge is where the deals are
+      if (this.collapsed) p._gHeld = (p._gHeld || 0) + 1;   // collapse hearings held (THE RECKONING reads it, gReckon 2)
+      if (this.collapsed && (this.rules.ffSurvive !== 'check' || how === 'check')) p.ff_survived_collapse_round += 1;
+      return true;
+    }
+    // DEAL FLOW (gDeal): a held hearing brings a deal — 1: draw 1 Asset card; 2: draw 2 Asset cards, keep 1 (the other is discarded)
+    async _dealFlow(p) {
+      const c = this.draw('Asset'); if (!c) return;
+      let keep = c;
+      if (this.rules.gDeal >= 2) { const c2 = this.draw('Asset');
+        if (c2) { const pick = await this.decide(p, { kind: 'keepAsset', candidates: [c, c2], via: 'deal' }); keep = pick === c2 ? c2 : c; const toss = keep === c ? c2 : c; this.discards[this._discard_key(toss)].push(toss); } }
+      p.hand.push(keep); this.log(`    DEAL FLOW: ${p.name} held the hearing — a deal comes in (${keep.name})`);
+      this.emit('draw', { player: p.name, deck: 'Asset', card: keep.name, via: 'deal flow' });
+    }
+    // the SEC opens a file on you: a tower SEC card (Shadow SEC lives in the tower), buryable as everywhere else
+    async _secFile(p, why) {
+      const key = this.floorDecks ? 'FSEC' : 'SEC', c = this.draw(key); if (!c) return;
+      this.log(`    the SEC opens a file on ${p.name} (${why}): ${c.name}`); this.emit('draw', { player: p.name, deck: key, card: c.name, via: why });
+      if (await this._buryOffer(p, c)) return;
+      if (this._v4Keep(c)) { p.hand.push(c); return; }
+      if (p.sec_immunity > 0) { p.sec_immunity -= 1; this.emit('secImmunity', { player: p.name, card: c.name, left: p.sec_immunity }); this.discards[this._discard_key(c)].push(c); return; }
+      if (p.grace_immunity) { this.discards[this._discard_key(c)].push(c); return; }
+      await this.resolve_card(c, p, this.others_of(p)); this.after_sec_draw(c); this._discardLoose(c);
+    }
+    // POINT THE FINGER — once a turn: spend Hype (they lose 1 Trust: the press turns on them) or Trust (they take +1 Risk: your
+    // testimony) against an executive in the tower or the Lounge. Offsetting a rival's stats is how you beat a better hearing.
+    async _finger(p) {
+      const cost = this.rules.gFinger; if (!cost) return;
+      if (this.rules.gFingerInside && !(p.in_lounge || this.floorOf(p) !== null)) return;   // you have to be in the room to point
+      const pool = this.others_of(p).filter(q => q.in_lounge || this.floorOf(q) !== null); if (!pool.length) return;
+      const via = []; if (p.hype >= cost) via.push('hype'); if (p.trust >= cost) via.push('trust'); if (!via.length) return;
+      const pick = await this.decide(p, { kind: 'finger', candidates: pool, options: via, cost });
+      if (!pick || !pick.target || pool.indexOf(pick.target) < 0 || via.indexOf(pick.via) < 0) return;
+      const q = pick.target;
+      if (pick.via === 'hype') p.hype -= cost; else p.trust -= cost;
+      if (pick.via === 'hype' || this.rules.gFingerBoth) await this.lose_trust(q, 1, 'pointed at (the press)', p);   // gFingerBoth (1113 pass 2): either pocket does both
+      if (pick.via === 'trust' || this.rules.gFingerBoth) this.add_risk(q, 1, `${p.name} testified`);
+      if (this.rules.gFingerSteal) {   // gFingerSteal (1113 pass 2): the whistle pays — Hype: you look clean next to them (+1 Trust); Trust: the blame moves (−1 Risk)
+        if (pick.via === 'hype') p.trust += 1; else if (p.risk > 0) p.risk -= 1; }
+      if (this.rules.gFingerStreak && q._gStreak) { q._gStreak = 0; this.log(`    ${q.name}'s run of held hearings is broken (the committee reopens the file)`); }   // gFingerStreak (1113 pass 2)
+      if (this.rules.gClaudiaTrace && q.abilityName === 'Claudia Numbers') { this.add_risk(p, 1, 'Audit Trace (Claudia traces it back)'); this.log(`    Claudia AUDIT TRACE: the finger traces back to ${p.name} (+1 Risk)`); this.emit('cardFire', { player: q.name, card: 'Audit Trace' }); }   // 1113 Claudia card
+      p._gFinger = (p._gFinger || 0) + 1; p['_gFinger_' + pick.via] = (p['_gFinger_' + pick.via] || 0) + cost; q._gFingered = (q._gFingered || 0) + 1;
+      this.log(`    ${p.name} POINTS THE FINGER at ${q.name} (−${cost} ${pick.via === 'hype' ? 'Hype' : 'Trust'} → ${this.rules.gFingerBoth ? 'they lose 1 Trust and take +1 Risk' : pick.via === 'hype' ? 'they lose 1 Trust' : 'they take +1 Risk'})`);
+      this.emit('finger', { player: p.name, target: q.name, via: pick.via, cost });
     }
     // ASSET EFFECTS (rule sheet, MARKET LOOP): "You may play 1 effect from an in-play Asset per turn INSTEAD of playing a card —
     // no rewinds for CONSTANTS or card management." Knob assetEffects. Re-usable = an in-play Asset with an active EFFECT that is
@@ -1581,7 +1781,7 @@
       }
       // BOTS: bribe if held, else the WHY ASK? roll. Classic path is parity-locked (raw 5+); Benchmark
       // routes the roll through the character-aware check so bot Class Ring / The Safe / Raptor also apply.
-      if (p.bribes > 0) { this.spendBribe(p); this._ascend(p); return true; }
+      if (p.bribes > 0 && !(this.rules.gauntlet && !(await this.decide(p, { kind: 'bribeEntry' })))) { this.spendBribe(p); this._ascend(p); return true; }   // 1113: a gauntlet bot may keep its Bribe for the hearings
       if (this.rules.charAwareTrust) {
         if (await this.charTrustResolve(p, 5, 'failed Why Ask? roll')) { this._ascend(p); return true; }
         return false;
@@ -1662,7 +1862,7 @@
       if (p.skip_next) { p.skip_next = false; this.log(`  ${p.name} skips this turn`); if (p.grace_immunity) p.grace_immunity = false; return; }
       this.log(`  -- ${p.name}'s turn (J${p.juice} T${p.trust} H${p.hype} R${p.risk} pos=${p.pos} lounge=${p.in_lounge}) --`);
       // Claudia — Unimpeachable: "BEFORE rolling to move", may give 5 Juice to an opponent for +1 Trust (printed timing)
-      if (p.abilityName === 'Claudia Numbers') { const opps = this.others_of(p);
+      if (p.abilityName === 'Claudia Numbers' && !(this.rules.gClaudiaLoop && p.in_lounge)) { const opps = this.others_of(p);   // gClaudiaLoop (1113): "before rolling to MOVE" — in the Lounge you face a hearing, you don't move
         const uc = this._cv('charClaudia', 3) || 5;   // benchmarkChars v4: Unimpeachable costs 3 Juice
         if (p.juice >= uc && opps.length && await this.decide(p, { kind: 'ability', ability: 'Unimpeachable', cost: `give ${uc} Juice → +1 Trust`, juiceCost: uc })) {
           const t = opps.reduce((m, x) => threat(this, x) < threat(this, m) ? x : m); p.juice -= uc; p._spent = (p._spent || 0) + uc; p._gift = (p._gift || 0) + uc; t.juice += uc; this.gainTrust(p, 1);
@@ -1714,9 +1914,12 @@
         if (await this.decide(p, { kind: 'bribe' })) { p.juice -= 3; p._spent = (p._spent || 0) + 3; p.bribes += 1; this.log(`    ${p.name} buys a Bribe (-3 Juice)`); this.emit('bribe', { player: p.name }); }
       }
 
+      // 1113 GAUNTLET: POINT THE FINGER (once a turn, before you move / face your hearing)
+      if (this.rules.gauntlet) await this._finger(p);
       // The edition's track (this.track: Classic = the golden 12, Benchmark = the printed 13 — TRACKS up top).
       let moved = false;
-      if (!p.in_lounge && this.rules.levels && this.floorOf(p) !== null) moved = await this.floors_turn(p);
+      if (p.in_lounge && this.rules.gauntlet) await this.hearing(p);   // 1113: a Lounge turn is a hearing (you don't move)
+      else if (!p.in_lounge && this.rules.levels && this.floorOf(p) !== null) moved = await this.floors_turn(p);
       else if (!p.in_lounge) {
         const T = this.track, LOOP_N = T.n, DOOR_SPACES = T.doors, DECK_BY_INDEX = T.deck;
         let want = await this.decide(p, { kind: 'steps' });
@@ -1793,11 +1996,11 @@
               await this.decide(p, { kind: 'enterLounge', qualifies, gamble: !qualifies, bribes: p.bribes })) {
             await this.enter_tower(p);
           }
-        } else if (qualifies && (!this.rules.staircaseEntry || this._onStair(p)) && await this.decide(p, { kind: 'enterLounge' })) {   // staircaseEntry (print): bots too climb in only at a GOLDEN STAIRCASE
+        } else if ((qualifies || (this.rules.gWhyAsk && !this.collapsed && p.juice >= 2 && p.risk <= 5)) && (!this.rules.staircaseEntry || this._onStair(p)) && await this.decide(p, { kind: 'enterLounge', qualifies })) {   // gWhyAsk (1113): the Lounge is the only way out — bots gamble the WHY ASK? roll   // staircaseEntry (print): bots too climb in only at a GOLDEN STAIRCASE
           await this.enter_tower(p);
         }
       }
-      if (p.abilityName === 'Wu Drainer' && (!moved || this._cv('charWuFade', this.players.length >= 5 ? 2 : 0) >= 2 || (this._cv('charWuFade', this.players.length >= 5 ? 2 : 0) && this.floorOf(p) !== null))) this.add_risk(p, -1);   // charWuFade 1: also on any turn you END in the tower; 2 (v4 at 5p+): every turn
+      if (p.abilityName === 'Wu Drainer' && !(this.rules.gWuFadeLoop && p.in_lounge) && (!moved || this._cv('charWuFade', this.players.length >= 5 ? 2 : 0) >= 2 || (this._cv('charWuFade', this.players.length >= 5 ? 2 : 0) && this.floorOf(p) !== null))) this.add_risk(p, -1);   // charWuFade 1: also on any turn you END in the tower; 2 (v4 at 5p+): every turn
 
       // play 1 card (reaction cards held in hand are excluded — they wait for their trigger)
       const playable = p.hand.filter(proactivelyPlayable);
@@ -1838,7 +2041,7 @@
         else this.raise_global_sec(1, "Mark 'Too Loud to Fail'");
         p.maxhype_streak = 0;
       }
-      if (p.abilityName === 'Claudia Numbers' && p.hype >= 4) {   // Cooked — may Bribe to avert the -1 Trust
+      if (p.abilityName === 'Claudia Numbers' && p.hype >= (this._cv('charClaudiaCooked', 0) || 4)) {   // Cooked — may Bribe to avert the -1 Trust (charClaudiaCooked: the Hype bar, default 4)
         if (p.bribes > 0 && await this.decide(p, { kind: 'ability', ability: 'CookedAvert', cost: 'spend a Bribe to keep your Trust (Bribe = +2 Risk)' })) { this.spendBribe(p); this.log(`    Claudia bribes to avert 'Cooked'`); }
         else p.trust -= 1;
       }
@@ -1864,13 +2067,15 @@
       // 1112 SEC METER — LEAK (secLeak): end your turn in the Executive Lounge? You may leak to the press: +1 Risk, Global SEC +1
       if (this.rules.secLeak && p.in_lounge && !this.collapsed && await this.decide(p, { kind: 'leak' })) {
         this.add_risk(p, 1, 'leaked to the press'); this.raise_global_sec(1, `${p.name} LEAKED to the press`, p); }
-      if (p.in_lounge) { p.lounge_streak += 1; if (p.abilityName === 'Benny Boye' && p.lounge_streak >= 3 && !this.collapsed) this.begin_collapse('Benny Castle Doctrine (3 turns ended in Lounge)'); }
+      if (p.in_lounge) { p.lounge_streak += 1;
+        const pin = this.rules.gBennyHeld ? (p._gStreak || 0) : p.lounge_streak;   // gBennyHeld (1113): the pin counts HELD hearings in a row — he has to survive the scrutiny
+        if (p.abilityName === 'Benny Boye' && pin >= 3 && !this.collapsed) this.begin_collapse(`Benny Castle Doctrine (3 ${this.rules.gBennyHeld ? 'hearings held' : 'turns ended'} in Lounge)`); }
       else { p.lounge_streak = 0; p._stamped = false; }
 
       // STAMP THE BOOKS (faithful, pre-collapse): a Lounge resident holding the 2-Clean win shape must
       // PASS a Trust Check after a full turn before the win counts (rule sheet: "After 1 full turn, pass
       // a TRUST CHECK"). One attempt per qualifying turn-end; a fail carries the standard +1 Risk.
-      if (this.rules.faithfulCards && p.in_lounge && !this.collapsed && !p._stamped &&
+      if (this.rules.faithfulCards && !this.rules.gauntlet && p.in_lounge && !this.collapsed && !p._stamped &&
           this.victoryCleanCount(p) === 2 && p.lounge_streak >= 1) {
         if (await this.trust_check(p)) { p._stamped = true; this.log(`    ${p.name} STAMPS THE BOOKS (Trust Check passed) — victory pending`); }
       }
@@ -1879,7 +2084,8 @@
       if (this.rules.collapseRounds && this.collapsed && this._cTurn != null && this._cRound === 1) await this._collapseSecDraw(p);
 
       p.tickMods();          // count down asset-modifier timers
-      this.check_table_risk();
+      // 1113 tableRiskRound: the table-Risk trigger is read once a ROUND (at the end of the last seat's turn), not every turn
+      if (!this.rules.tableRiskRound || (this.idx % this.order.length) === this.order.length - 1) this.check_table_risk();
 
       if (!this.rules.collapseRounds && this.collapsed && this.collapse_turns_left !== null && this.collapse_turns_left <= 2) {
         for (const q of this.alive_players()) if (q.in_lounge) {
@@ -1938,6 +2144,7 @@
         if (!q.in_lounge) { q._cLoungeRounds = 0; continue; }
         const under = q.trust < 4 && q.hype < 8;   // raidAll (Benchmark SEC): the raid checks EVERYONE in the Lounge — qualified pass on 4+, under on 5+
         let res = null;
+        if (this.rules.gauntlet) { q._cLoungeRounds = (q._cLoungeRounds || 0) + 1; continue; }   // 1113: the per-turn hearing is the check (and scores the FF line)
         if (r >= 2 && (under || this.rules.raidAll)) { res = await this._evictionCheck(q, under ? 5 : 4); if (!res) { q._cLoungeRounds = 0; continue; } }
         // ffSurvive 'check' (Benchmark): the Final Favor line goes only to a resident who PASSED a raid check (a Bribe or no check = no line)
         if (this.rules.ffSurvive !== 'check' || res === 'passed') q.ff_survived_collapse_round += 1;
@@ -1945,7 +2152,7 @@
       }
       if (r < this._cRounds) return;
       this._endgameEnchilada();
-      const won = this.alive_players().filter(q => q.in_lounge && q._cLoungeRounds >= this._cRounds && this.victoryCleanCount(q) === 2);
+      const won = this.alive_players().filter(q => q.in_lounge && q._cLoungeRounds >= this._cRounds && this.cleanOk(q));
       if (won.length) { this.winner = won.length === 1 ? won[0] : this.resolve_final_favor(won); this.end_reason = (this.end_reason || '') + ' (SPIRALING: held the Lounge + 2 Clean through the collapse)'; }
       else { this.winner = this.score_on_timeout(); this.end_reason = (this.end_reason || '') + ' (resolved on collapse timeout)'; }
       this.done = true;
@@ -1969,8 +2176,9 @@
       return false;
     }
     meets_victory(p) {
-      if (!(p.in_lounge && this.victoryCleanCount(p) === 2)) return false;
+      if (!(p.in_lounge && this.cleanOk(p))) return false;
       if (this.collapsed) return this.rules.collapseRounds ? false : p.ff_survived_collapse_round >= 1;   // collapseRounds: judged at the END of the collapse (_collapseRoundEnd)
+      if (this.rules.gauntlet) return (p._gStreak || 0) >= this.rules.gExit;   // 1113 MAKE IT OUT: gExit hearings in a row
       // faithful: pre-collapse win also requires the Books to be STAMPED (a passed Trust Check).
       return p.lounge_streak >= 1 && (!this.rules.faithfulCards || p._stamped);
     }
@@ -2026,8 +2234,9 @@
       // LEVELS levelsTieTier: on an FF tie the tower counts BEFORE Risk — how high you got (peak_level: 1 = the tiers,
       // 2 = the Lounge) outranks how clean you stayed. A/B lever for the loop-camper edge (docs/BENCHMARK-LEVELS.md).
       const tier = (this.rules.levels && this.rules.levelsTieTier) ? (p => p.peak_level >= this.rules.levelsTieTier ? p.peak_level : 0) : (() => 0);
+      const inL = this.rules.gReckon ? (p => (p.in_lounge ? 100 : 0) + (this.rules.gReckon >= 2 ? (p._gHeld || 0) : 0)) : (() => 0);   // 1113 THE RECKONING: still in the Lounge outranks outside; gReckon 2: then the longest-held tenure
       const key = this.rules.cleanestSurvives
-        ? p => [this.ff(p), tier(p), -this.effRisk(p), this.victoryCleanCount(p), p.juice]
+        ? p => [inL(p), this.ff(p), tier(p), -this.effRisk(p), this.victoryCleanCount(p), p.juice]
         : p => [this.ff(p), p.juice, -this.effRisk(p)];
       return this.alive_players().slice().sort((a, b) => {
         const ka = key(a), kb = key(b);
@@ -2075,7 +2284,8 @@
   global.ERSNCharacterAgent = CharacterAgent;
   global.ERSN_VERSION = VERSION;
   global.ERSN_EDITIONS = EDITIONS;
-  global.ERSN_BENCHMARK_PLAY = BENCHMARK_PLAY;
+  global.ERSN_BENCHMARK_PLAY = BENCHMARK_PLAY;   // 1112 Benchmark (?b1113=0 in the browser)
+  global.ERSN_BENCHMARK_LOUNGE = BENCHMARK_LOUNGE;   // 1113 Benchmark: THE LOUNGE GAUNTLET (web default)
   global.ERSN_TRACKS = TRACKS;                   // UI reads the loop (length / door / exits / deck per space) from here
   global.ERSN_FLOORS = FLOORS;                   // LEVELS knob: the tower's tiers (UI pawn spots read n/bands)
   global.ERSN_REACTS = REACTS;                   // UI reads this for the passive "⚡ can react" cue
@@ -2083,6 +2293,7 @@
   global.ERSN_ASSET_FLOW_TEXT = ASSET_FLOW_TEXT;
   global.ERSN_CAMPER = CAMPER;
   global.ERSN_V4 = BENCH_V4; global.ERSN_V4_TEXT = BENCH_V4_TEXT;   // UI + docs: the v4 deck rewrite (benchmarkDeck:'v4')                    // UI: on-card text for the CAMPER rewrites (camperCards bitmask)   // UI: on-card text for the ASSET FLOW rewrite (assetFlow knob)
-  global.ERSN_LEVELS_TEXT = LEVELS_TEXT;         // UI: on-card text for the LEVELS tower riders   // UI shows these on-card in Benchmark edition
-  if (typeof module !== 'undefined' && module.exports) module.exports = { makeRng, Game, Player, BotAgent, CharacterAgent, VERSION, EDITIONS, BENCHMARK_PLAY, TRACKS, FLOORS, BENCHMARK_FX, BENCHMARK_TEXT };
+  global.ERSN_LEVELS_TEXT = LEVELS_TEXT;
+  global.ERSN_LOUNGE_TEXT = LOUNGE_TEXT;         // UI: 1113 gauntlet card text (null = printed/v4 text + "a HEARING counts as a Trust Check")         // UI: on-card text for the LEVELS tower riders   // UI shows these on-card in Benchmark edition
+  if (typeof module !== 'undefined' && module.exports) module.exports = { makeRng, Game, Player, BotAgent, CharacterAgent, VERSION, EDITIONS, BENCHMARK_PLAY, BENCHMARK_LOUNGE, TRACKS, FLOORS, BENCHMARK_FX, BENCHMARK_TEXT };
 })(typeof window !== 'undefined' ? window : globalThis);
