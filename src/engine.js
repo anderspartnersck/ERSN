@@ -180,6 +180,14 @@
     // +2 Risk at 2p / +1 at 3p; Benny's ORDER +1 Risk at 2–3p.
     gLawyerMax: 1, gSpin: 1, gSpinMax: 3, gEdgeCap: 4, gFingerBoth: true, gFingerStreak: true,
     charDanny: { byPlayers: { 2: 2, 3: 1, default: 0 } }, bennySicRisk: { byPlayers: { 2: 1, 3: 1, default: 0 } },
+    // ── 1116 "every ability fires and matters" (scripts/_ability_matter.js; docs/BENCHMARK-LOUNGE-1113.md PASS 3) ──
+    // Mark's whole kit measured ZERO under the gauntlet (he lives in the tower, so Hype-Man's Market plays dried up and his Hype goes
+    // to SPIN, so Bubble Math / Too Loud never fire). HYPE-MAN now also fires on a held hearing (+1 Hype — the believers rally), and
+    // its exposure tax starts at 5 Hype. Vonda's NOTARY ALIBI cost 2 Trust for 1 Risk — a net LOSS of edge at a hearing (Trust − Risk);
+    // it costs 1 Trust at 4p+. Danny's DOUGHMINATION gift grows with the table (5 Juice at 5p, 6 at 6p: the 5–6p spread, Q799a).
+    gMarkRally: 1, gMarkRallyTax: true, charMark: 5,
+    gVondaAlibi: { byPlayers: { 2: 2, 3: 2, default: 1 } },
+    gDannyGift: { byPlayers: { 5: 5, 6: 6, default: 4 } },
   });
   // Benchmark CARD OVERRIDES — same card name, sharper job (effect + on-card text). Read only when
   // edition==='benchmark'; Classic never sees these. fx swaps route through resolve_card; text feeds the UI.
@@ -1556,7 +1564,9 @@
         if (n === 'Claudia Numbers' && r.gClaudiaTrace && /^Audit Trace/.test(a)) return 'Audit Trace: anyone who POINTS THE FINGER at you takes +1 Risk (you trace it back).';
         if (n === 'Wu Drainer' && r.gWuFadeLoop && /^Strategic Fade/.test(a)) return a.replace(/\.$/, '') + ' — not in the Lounge (nobody moves at a hearing).';
         if (n === 'Benny Boye' && r.gBennyHeld && /^Castle Doctrine/.test(a)) return a.replace(/ENDS 3 consecutive turns in the Executive Lounge/, 'HOLDS 3 consecutive HEARINGS in the Executive Lounge');
-        if (n === 'Danny Dough' && r.charDanny === 0 && /^Doughmination/.test(a)) return a;
+        if (n === 'Danny Dough' && r.gDannyGift && r.gDannyGift !== 4 && /^Doughmination/.test(a)) return a.replace(/\b4 Juice/, `${r.gDannyGift} Juice`);
+        if (n === 'Mark Markit' && r.gMarkRally && /^Hype-Man/.test(a)) return `Hype-Man: when you play a Market card OR HOLD A HEARING, gain +${r.gMarkRally} Hype${r.gMarkRallyTax ? ` (at ${this._cv('charMark', 7)}+ Hype it also costs +1 Risk)` : ''}.`;
+        if (n === 'Vonda Vouch' && r.gVondaAlibi && r.gVondaAlibi !== 2 && /^Notary Public/.test(a)) return a.replace(/spend 2 Trust/, `spend 2 Trust (or ${r.gVondaAlibi} Trust to notarize an ALIBI: −1 Risk)`);
         return a; });
     }
     _castle(t) { const m = this.rules.bennyCastle; if (!m) return false; const set = String(m).split('+'); return set.includes(t) || (m === 'both' && (t === 'order' || t === 'defend')); }
@@ -1675,6 +1685,9 @@
     }
     _hearingHeld(p, how) {
       p._gStreak = (p._gStreak || 0) + 1; p._gPasses = (p._gPasses || 0) + 1;
+      if (this.rules.gMarkRally && p.abilityName === 'Mark Markit' && how === 'check' && !(this.collapsed && this.rules.gMarkRallyPre)) {   // gMarkRally (1116): HYPE-MAN — the believers rally behind a held hearing
+        p.hype += this.rules.gMarkRally; this.log(`    Mark HYPE-MAN: he held the hearing — the believers rally (+${this.rules.gMarkRally} Hype)`); this.emit('cardFire', { player: p.name, card: 'Hype-Man' });
+        const mr = this.rules.gMarkRallyTax ? this._cv('charMark', this.players.length === 4 ? 6 : 7) : 0; if (mr && p.hype >= mr) this.add_risk(p, 1, 'Hype-Man (the bubble draws the eye)'); }
       if (this.rules.gDeal && !this.collapsed && how === 'check') return this._dealFlow(p).then(() => true);   // the Lounge is where the deals are
       if (this.collapsed) p._gHeld = (p._gHeld || 0) + 1;   // collapse hearings held (THE RECKONING reads it, gReckon 2)
       if (this.collapsed && (this.rules.ffSurvive !== 'check' || how === 'check')) p.ff_survived_collapse_round += 1;
@@ -1804,10 +1817,11 @@
       const hypeAtStart = p.hype;   // Reflux triggers off the Hype you STARTED the turn with, before Doughmination doubles it
       // (Claudia — Unimpeachable fires PRE-roll, in take_turn — "before rolling to move")
       // Danny — Doughmination: give 4 Juice to an opponent, DOUBLE current Hype
-      if (p.abilityName === 'Danny Dough' && p.juice >= 4 && p.hype > 0 && opps.length &&
-        await this.decide(p, { kind: 'ability', ability: 'Doughmination', cost: 'give 4 Juice → double Hype' })) {
-        const t = weakest(); p.juice -= 4; p._spent = (p._spent || 0) + 4; p._gift = (p._gift || 0) + 4; t.juice += 4; const b = p.hype; p.hype *= 2;
-        this.log(`    Danny Doughmination: 4 Juice to ${t.name}, Hype ${b}->${p.hype}`);
+      const dg = this.rules.gDannyGift || 4;   // gDannyGift (1116): Doughmination's gift (printed 4 Juice)
+      if (p.abilityName === 'Danny Dough' && p.juice >= dg && p.hype > 0 && opps.length &&
+        await this.decide(p, { kind: 'ability', ability: 'Doughmination', cost: `give ${dg} Juice → double Hype` })) {
+        const t = weakest(); p.juice -= dg; p._spent = (p._spent || 0) + dg; p._gift = (p._gift || 0) + dg; t.juice += dg; const b = p.hype; p.hype *= 2;
+        this.log(`    Danny Doughmination: ${dg} Juice to ${t.name}, Hype ${b}->${p.hype}`);
         // BENCHMARK character-card lever (decision 5c): the Hype spike is EXPOSURE — +doughExposure Risk (default 0). Per the June ruling, exposure not shutdown.
         const dx = this.rules.doughExposure || this._cv('charDanny', this.players.length <= 3 ? 2 : 1);   // benchmarkChars v4: Doughmination +1 Risk (+2 at 3p, where Danny's spiral runs longest). Round 6: the 6p exemption (Round 5) is back to +1, paired with the 6p cadence fix
         if (dx) this.add_risk(p, dx, 'Doughmination (the spike draws the eye)');
@@ -1820,9 +1834,10 @@
       }
       // Vonda — Notary Public: spend 2 Trust to discard 1 of your own played Assets
       // chars v4 (charVonda): Notary Public can notarize an ALIBI instead — spend 2 Trust to remove -1 Risk
-      if (p.abilityName === 'Vonda Vouch' && this._cv('charVonda', 3) && p.trust >= 2 && p.risk > 0 &&
-        await this.decide(p, { kind: 'ability', ability: 'NotaryAlibi', cost: 'spend 2 Trust → remove -1 Risk' })) {
-        p.trust -= 2; this.add_risk(p, -1); this.log(`    Vonda Notary Public: -2 Trust, notarizes an alibi (-1 Risk)`);
+      const va = this.rules.gVondaAlibi || 2;   // gVondaAlibi (1116): under the gauntlet the hearing reads Trust − Risk, so 2 Trust for 1 Risk LOST edge; 1 Trust = an even trade that keeps her out of burnout
+      if (p.abilityName === 'Vonda Vouch' && this._cv('charVonda', 3) && p.trust >= va && p.risk > 0 &&
+        await this.decide(p, { kind: 'ability', ability: 'NotaryAlibi', cost: `spend ${va} Trust → remove -1 Risk`, trustCost: va })) {
+        p.trust -= va; this.add_risk(p, -1); this.log(`    Vonda Notary Public: -${va} Trust, notarizes an alibi (-1 Risk)`);
       } else
       if (p.abilityName === 'Vonda Vouch' && p.trust >= 2 && p.lineup.length &&
         await this.decide(p, { kind: 'ability', ability: 'Notary', cost: 'spend 2 Trust → discard a played Asset' })) {
@@ -2000,7 +2015,7 @@
           await this.enter_tower(p);
         }
       }
-      if (p.abilityName === 'Wu Drainer' && !(this.rules.gWuFadeLoop && p.in_lounge) && (!moved || this._cv('charWuFade', this.players.length >= 5 ? 2 : 0) >= 2 || (this._cv('charWuFade', this.players.length >= 5 ? 2 : 0) && this.floorOf(p) !== null))) this.add_risk(p, -1);   // charWuFade 1: also on any turn you END in the tower; 2 (v4 at 5p+): every turn
+      if (p.abilityName === 'Wu Drainer' && !(this.rules.gWuFadeLoop && p.in_lounge) && !(this.rules.gWuFadeTower && this.floorOf(p) !== null) && (!moved || this._cv('charWuFade', this.players.length >= 5 ? 2 : 0) >= 2 || (this._cv('charWuFade', this.players.length >= 5 ? 2 : 0) && this.floorOf(p) !== null))) this.add_risk(p, -1);   // charWuFade 1: also on any turn you END in the tower; 2 (v4 at 5p+): every turn
 
       // play 1 card (reaction cards held in hand are excluded — they wait for their trigger)
       const playable = p.hand.filter(proactivelyPlayable);

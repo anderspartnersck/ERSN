@@ -939,7 +939,7 @@
         <ul><li><b>Final Favor</b> assures your books are Partner Perfect</li><li class="arr">Card effect may assign it</li><li class="arr">Rule events may impact it <span class="chg">— each collapse <b><i>HEARING</i></b> you hold on the dice scores +1; a Bribe does not. Riding Hype 5+ into the collapse without cashing out (Juice 25 or less, not the richest) scores +1.</span></li><li>If multiple players meet Victory Conditions in the same round <b><i>FINAL FAVOR</i></b> decides who wins <span class="chg">— still tied? the <b><i>LOWER RISK</i></b> wins</span></li><li class="arr"><b><i>CANNOT</i></b> be traded, reassigned, or stolen unless a card allows it</li></ul>
         <p style="text-align:center"><b><i>PROVEN FALSIFIED RECORDS = INSTANT BURNOUT + EXPULSION TO START CIRCLE</i></b></p>
         <p style="text-align:center"><b><i>DISPUTED FAVOR CLAIM?</i></b> Players enter "<b><i>WHY ASK?</i></b>" roll-offs (Fail penalties apply)</p>
-        <p class="fine"><span class="chg">Benchmark cards and characters: the v4 errata sheet (docs/benchmark-v4-errata-print.html), plus 1113: Claudia's <b><i>AUDIT TRACE</i></b> — whoever points the finger at her takes +1 Risk; Wu's Fade doesn't work in the Lounge; no Risk on Benny's Golden Walk; Danny's Doughmination costs Risk only at small tables (+2 at 2p, +1 at 3p), and Benny's ORDER costs +1 Risk at 2–3p. docs/BENCHMARK-LOUNGE-1113.md.</span></p>
+        <p class="fine"><span class="chg">Benchmark cards and characters: the v4 errata sheet (docs/benchmark-v4-errata-print.html), plus 1113: Claudia's <b><i>AUDIT TRACE</i></b> — whoever points the finger at her takes +1 Risk; Wu's Fade doesn't work in the Lounge; no Risk on Benny's Golden Walk; Danny's Doughmination costs Risk only at small tables (+2 at 2p, +1 at 3p), and Benny's ORDER costs +1 Risk at 2–3p; 1116: Mark's <b><i>HYPE-MAN</i></b> also pays +1 Hype when he HOLDS A HEARING (at 5+ Hype it costs +1 Risk); Vonda's <b><i>NOTARY</i></b> alibi costs 1 Trust at 4p+; Danny's Doughmination gift is 5 Juice at 5p, 6 at 6p. docs/BENCHMARK-LOUNGE-1113.md.</span></p>
       </div>
     </div>
     <div class="foot">Make Finance <br>A Family Affair!</div>
@@ -1804,14 +1804,14 @@ function spotlight(cardName,who){
   clearTimeout(spotTimer); spotTimer=setTimeout(()=>el.classList.remove('on'), 2600);
 }
 function updateHUD(){
-  pipRow($('#gsPips'),game.global_sec,'f-g'); $('#gsVal').textContent=game.global_sec+' / 8';
+  pipRow($('#gsPips'),game.global_sec,'f-g'); $('#gsVal').textContent=game.global_sec+' / 8'+(game.rules.gauntlet&&game.heat?' · HEAT '+game.heat():'');   // 1116: the gauntlet's HEAT rides the SEC meter (it IS the meter, read at a hearing)
   pipRow($('#ssPips'),game.shadow_sec,'f-s'); $('#ssVal').textContent=game.shadow_sec+' / 8';
   game.players.forEach(p=>{
     const d=$('#pl-'+cssId(p.name)); if(!d)return;
     d.classList.toggle('active',game.activePlayer===p);
     d.classList.toggle('burned',p.burned);
     const loc=d.querySelector('.loc');
-    loc.textContent=p.in_lounge?'LOUNGE':(p.pos==='START'?'START':(typeof p.pos==='string'&&p.pos[0]==='F')?(ERSN_FLOORS.bands[+p.pos.slice(1)]||'TOWER'):'SPACE '+p.pos);
+    loc.textContent=p.in_lounge?(game.rules.gauntlet?`LOUNGE ⚖${p._gStreak||0}/${game.rules.gExit}`:'LOUNGE'):(p.pos==='START'?'START':(typeof p.pos==='string'&&p.pos[0]==='F')?(ERSN_FLOORS.bands[+p.pos.slice(1)]||'TOWER'):'SPACE '+p.pos);
     loc.classList.toggle('lounge',p.in_lounge);
     const sv=d.querySelectorAll('.sv');
     sv[0].textContent=p.juice; sv[1].textContent=p.hype; sv[2].textContent=p.trust; sv[3].textContent=p.risk;
@@ -2007,19 +2007,29 @@ const sharkyHelpShown=new Set();
 const SHARKY_HELP=[
   {id:'intro', when:(p,g)=>g.turn<=1,
    line:"Welcome to the racket, kid. Every turn you ROLL for Juice, ride the loop drawing cards, then bank Trust or Hype. Get to a Golden Staircase ◆ and ride the Spiral Lift up to the Lounge."},
-  {id:'collapsing', when:(p,g)=>g.collapsed,
+  {id:'collapsing', when:(p,g)=>g.collapsed && !g.rules.gauntlet,
    line:"Tower's coming down — it's over in a few turns. Nobody 'wins,' the LEAST dirty books take Final Favor. Dump dirty paper or cash out clean."},
   {id:'burnrisk', when:(p,g)=>p.risk>=6 && !p.burned,
    line:"Risk SIX. Hit 8 and you BURN OUT — assets, Trust, bribes, all gone. Ditch Dirty Assets and quit poking the SEC."},
-  {id:'lounge_wrong', when:(p,g)=>p.in_lounge && p.clean_count()!==2,
+  // 1116 THE LOUNGE GAUNTLET: the Lounge is a run of HEARINGS, not a seat you win from (the two tips below are the pre-1113 win)
+  {id:'g_hearing', when:(p,g)=>g.rules.gauntlet && p.in_lounge && !g.collapsed,
+   line:(p,g)=>`Welcome to the Lounge, kid — now you're under oath. Every turn up here is a HEARING: one die plus your Trust minus your Risk, beat the HEAT (${g.heat()} right now). Lawyer up once with Juice, spin with Hype, and hold ${g.rules.gExit} in a row with 2+ Clean Assets${g.cleanOk(p)?' (you got \'em)':` (you've got ${g.victoryCleanCount(p)})`} to walk out the front door.`},
+  {id:'g_finger', when:(p,g)=>g.rules.gauntlet && (p.in_lounge||g.floorOf(p)!==null) && g.players.some(q=>q!==p&&(q._gStreak||0)>=2),
+   line:(p,g)=>{ const q=g.players.filter(q=>q!==p).reduce((m,x)=>(x._gStreak||0)>(m._gStreak||0)?x:m); return `${q.name} has held ${q._gStreak} hearings in a row — ${g.rules.gExit} and they're out the door. POINT THE FINGER: costs you 2 Hype or 2 Trust, knocks their Trust AND their Risk, and starts their run over. It won't make YOU rich. It keeps THEM from leaving.`; }},
+  {id:'g_collapse', when:(p,g)=>g.rules.gauntlet && g.collapsed,
+   line:(p)=>p.in_lounge?"Building's sealed and the subpoenas are out. Every round's a hearing at heat 3 — fail one and Security walks you to the curb. Whoever's still in this room when the dust settles outranks everybody outside it. Spend what you got."
+     :"Tower's coming down and the building's SEALED — you're on the outside. The ones still in the Lounge outrank you now; after them it's Final Favor. Keep your books the least dirty on the street."},
+  {id:'lounge_wrong', when:(p,g)=>!g.rules.gauntlet && p.in_lounge && p.clean_count()!==2,
    line:(p)=>`You made the Lounge — but you win by ending a turn here with EXACTLY 2 Clean Assets. You've got ${p.clean_count()}. Too many is as dead as too few.`},
-  {id:'stamp', when:(p,g)=>p.in_lounge && p.clean_count()===2 && !g.collapsed && !p._stamped,
+  {id:'stamp', when:(p,g)=>!g.rules.gauntlet && p.in_lounge && p.clean_count()===2 && !g.collapsed && !p._stamped,
    line:"Nice chair, right books — but the Lounge ain't the win yet. Pre-collapse you STAMP THE BOOKS: hold your seat a full turn, then pass a Trust Check. Until that stamp lands you're just a guy with a view."},
-  {id:'qualify', when:(p,g)=>!p.in_lounge && (p.trust>=4||p.hype>=8),
+  {id:'g_climb', when:(p,g)=>g.rules.gauntlet && g.rules.levels && !p.in_lounge && g.floorOf(p)===null && g.turn>=2,
+   line:"Up there's the only way out of this racket. Walk onto a Golden Staircase ◆ with a Juice for the parking machine and climb: REGULATION, CORRUPTION, then the Lounge. Every check you pass hands you an Asset — you'll want 2+ Clean ones when the hearings start."},
+  {id:'qualify', when:(p,g)=>!g.rules.gauntlet && !p.in_lounge && (p.trust>=4||p.hype>=8),
    line:"You QUALIFY for the Lounge (Trust 4+ or Hype 8). Walk onto a Golden Staircase ◆ and ride up. Then sit on EXACTLY 2 Clean Assets to take it all."},
   {id:'lowjuice', when:(p,g)=>p.juice<=1 && !p.in_lounge,
    line:"You're tapped out. Juice is fuel — no Juice, no moves, no buy-in. You roll for more each turn; don't blow it all on one space."},
-  {id:'gamble', when:(p,g)=>!p.in_lounge && g.turn>=6 && p.trust<4 && p.hype<8,
+  {id:'gamble', when:(p,g)=>!g.rules.gauntlet && !p.in_lounge && g.turn>=6 && p.trust<4 && p.hype<8,
    line:"No Trust, no Hype, no velvet rope. Stack Clean Assets for Trust, pump Market plays for Hype — or gamble the WHY ASK? roll at a staircase (5+ slips you in; a miss is +1 Risk)."},
   {id:'door_stop', when:(p,g)=>{ if(typeof p.pos!=='number'||p.juice<1) return false;
      const N=LOOP_N_UI; for(const d of DOORS){ const fwd=((d-p.pos)%N+N)%N; if(fwd>0&&fwd<=p.juice) return true; } return false; },
@@ -2217,9 +2227,11 @@ function endGame(){
   stopAuto();
   const w=game.winner;
   $('#overTitle').textContent=w?`${w.name} WINS`:'NO CLEAN EXIT';
-  $('#overReason').textContent=game.end_reason||'';
+  const reck=!!(game.rules&&game.rules.gauntlet&&game.rules.gReckon&&game.collapsed);   // 1116: THE RECKONING decided it — say so
+  $('#overReason').textContent=(game.end_reason||'')+(reck&&w&&!/SPIRAL/.test(game.end_reason||'')?` · THE RECKONING: nobody made it out — ${w.in_lounge?`${w.name} was still in the Lounge`:'nobody held the Lounge'}${w.in_lounge&&game.rules.gReckon>=2?` (${w._gHeld||0} collapse hearing${(w._gHeld||0)===1?'':'s'} held)`:''}, then Final Favor`:'');
   const F=q=>game.ff?game.ff(q):q.final_favor(), R=q=>game.effRisk?game.effRisk(q):q.risk;   // 1112: rank the way the engine decided (winner first, its FF, its tiebreak)
-  const rows=game.players.slice().sort((a,b)=>(b===w)-(a===w)||F(b)-F(a)||(game.rules&&game.rules.cleanestSurvives?R(a)-R(b):b.juice-a.juice));
+  const L=q=>reck?(q.in_lounge?100:0)+(game.rules.gReckon>=2?(q._gHeld||0):0):0;   // the reckoning key, as the engine ranks it
+  const rows=game.players.slice().sort((a,b)=>(b===w)-(a===w)||L(b)-L(a)||F(b)-F(a)||(game.rules&&game.rules.cleanestSurvives?R(a)-R(b):b.juice-a.juice));
   const tb=$('#scoretab');tb.innerHTML='';
   rows.forEach(p=>{const tr=document.createElement('tr');
     const ff=game.ff?game.ff(p):p.final_favor();   // the FF that decided the game (Benchmark adds lines beyond the printed checklist)
@@ -2229,6 +2241,7 @@ function endGame(){
     const fb=ffBreakdown(p);
     const chips=fb.pos.filter(r=>r[1]).map(r=>`<span class="ffchip pos">+${r[1]} ${r[0]}</span>`)
       .concat(fb.pen.filter(r=>r[1]).map(r=>`<span class="ffchip pen">−${r[1]} ${r[0]}</span>`));
+    if(reck&&p.in_lounge) chips.unshift(`<span class="ffchip pos">⚖ held the Lounge${game.rules.gReckon>=2?` · ${p._gHeld||0} collapse hearing${(p._gHeld||0)===1?'':'s'}`:''}</span>`);
     const br=document.createElement('tr'); br.className='ffbreak';
     br.innerHTML=`<td colspan="4">${chips.length?chips.join(''):'<span class="ffchip">clean slate — no favor banked</span>'}</td>`;
     tb.appendChild(br);});
@@ -4094,7 +4107,12 @@ if(location.hash.indexOf('humandemo')>=0){
     startGame();
     // &climb: the human camps the START CIRCLE (answers 'Stay') so the Golden Staircase offers the tower every turn — drives the LEVELS prompts end to end
     const camp=/climb/.test(location.hash);
-    const iv=setInterval(()=>{ const pr=$('#prompt'); if(pr.classList.contains('on')){ const stay=camp&&[...pr.querySelectorAll('.opt')].find(b=>b.textContent.trim()==='Stay'); (stay||pr.querySelector('.opt.go')||pr.querySelector('.opt'))?.click(); } },50);
+    // &lounge (1116): seat the human straight in the Executive Lounge (gauntlet) to drive THE HEARING prompts end to end;
+    // &boost: the human LAWYERS UP and SPINS whenever the hearing offers it (exercises both pockets)
+    if(/lounge/.test(location.hash)){ const me=game.players[0]; me.in_lounge=true; me.pos='LOUNGE'; const xy=nodeXY('LOUNGE'); pawns[me.name]={x:xy.x,y:xy.y,tx:xy.x,ty:xy.y,hop:0,lpos:'LOUNGE',queue:[]}; updateHUD(); }
+    const boost=/boost/.test(location.hash);
+    const iv=setInterval(()=>{ const pr=$('#prompt'); if(pr.classList.contains('on')){ const ops=[...pr.querySelectorAll('.opt')]; const stay=camp&&ops.find(b=>b.textContent.trim()==='Stay');
+      const bst=boost&&ops.find(b=>/^(Lawyer up|Spin it)/.test(b.textContent.trim())); (bst||stay||pr.querySelector('.opt.go')||pr.querySelector('.opt'))?.click(); } },50);
     for(let k=0;k<n && !game.done;k++){ await playTurn(); await new Promise(r=>setTimeout(r,30)); }
     clearInterval(iv);
   },700));
