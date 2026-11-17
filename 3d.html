@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- ER$N 3D EDITION: cut by 3D PIPELINE games/ersn/lab/tools/make_lab_page.py from index.html (this bundle) sha256 78640441e616cd75; 29 /*LAB3D*/ hooks. -->
+<!-- ER$N 3D EDITION: cut by 3D PIPELINE games/ersn/lab/tools/make_lab_page.py from index.html (this bundle) sha256 75bfd0ff30f61a7a; 29 /*LAB3D*/ hooks. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -215,6 +215,8 @@
   .meter .mval{font-size:13px;font-weight:900;margin-top:2px}
   .pips{display:flex;gap:3px;justify-content:center;margin-top:6px}
   .pip{width:14px;height:14px;border-radius:4px;background:#28303f;transition:background .2s,box-shadow .2s}
+  /* HUD-1117: the 8-pip row (133 px) overflowed the 280 px phone rail and clipped SHADOW SEC off-screen; pips now shrink (stay square) when the card is narrow */
+  .meter{min-width:0} .pips{align-items:center} .pip{flex:0 1 14px;min-width:0;height:auto;aspect-ratio:1}
   .pip.f-g{background:linear-gradient(180deg,#f0a94e,#c0392b);box-shadow:0 0 8px rgba(192,57,43,.6)}
   .pip.f-s{background:linear-gradient(180deg,#b18bd8,#6c3fae);box-shadow:0 0 8px rgba(124,63,174,.6)}
 
