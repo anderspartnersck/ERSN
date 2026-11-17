@@ -849,11 +849,26 @@
     }
     // THE SEC ROLL: the higher you are, the likelier the SEC opens a file on you (a Shadow SEC card, resolved on you).
     async sec_roll(p) {
+      // levelsSecDraws (1116, default OFF — Joe's described tiers: "drawing of 1 sec card per round in the regulation tier and 2 in
+      // the corruption tier"): no die — every turn you end on a tier the SEC opens [REGULATION, CORRUPTION] files on you. The count
+      // is fixed by the tier you are on when the draws begin; if a card moves you off that tier (knocked down / out) the draws stop.
+      const fixed = this.rules.levelsSecDraws;
+      if (fixed) {
+        const t0 = this.floorOf(p), n = fixed[t0] || 0;
+        this.log(`    SEC DRAWS on ${FLOORS.bands[t0]}: the SEC opens ${n} file(s) on ${p.name}`);
+        this.emit('secRoll', { player: p.name, band: FLOORS.bands[t0], fixed: n, hit: n > 0 });
+        for (let k = 0; k < n && p.alive && !p.in_lounge && this.floorOf(p) === t0; k++) await this._secRollFile(p);
+        return;
+      }
       const t = this.floorOf(p), hitOn = (this.rules.levelsSecOn || FLOORS.secOn)[t],   // levelsSecOn: A/B override of the hit bands
             roll = this.rng.randint(1, 6), hit = roll <= hitOn;
       this.log(`    SEC ROLL on ${FLOORS.bands[t]}: ${p.name} rolls ${roll} (${hit ? 'the SEC opens a file' : 'clear'}, 1-${hitOn} hits)`);
       this.emit('secRoll', { player: p.name, band: FLOORS.bands[t], roll, hitOn, hit });
       if (!hit) return;
+      return this._secRollFile(p);
+    }
+    // one SEC-roll file on a tier resident (the d6 SEC ROLL's hit, or one of the levelsSecDraws fixed draws)
+    async _secRollFile(p) {
       if (this.edition === 'benchmark' && this.rules.ffSecWilling === 'tower' && !p.ff_entered_sec_willingly) p.ff_entered_sec_willingly = 1;   // FF reading: the SEC opened a file on you because you chose to stay in the tower (once)
       const key = this.floorDecks ? 'FSEC' : 'SEC', c = this.draw(key);
       if (!c) return;
