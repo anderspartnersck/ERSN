@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- ER$N 3D EDITION: cut by 3D PIPELINE games/ersn/lab/tools/make_lab_page.py from index.html (this bundle) sha256 75bfd0ff30f61a7a; 29 /*LAB3D*/ hooks. -->
+<!-- ER$N 3D EDITION: cut by 3D PIPELINE games/ersn/lab/tools/make_lab_page.py from index.html (this bundle) sha256 c30ffc9d0ac201c9; 29 /*LAB3D*/ hooks. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -764,7 +764,7 @@
           <li>Roll <b>1 six-sided die</b>, gain that much Juice<br><i>Juice is the currency of momentum</i></li>
           <li>Resolve any start-of-turn effects</li>
         </ul>
-        <p><b><i>BRIBES</i></b>: Before moving you may spend <b>3 Juice</b> to acquire a Bribe<br><i>Use a golden token dollar-sign up to track</i></p>
+        <p><b><i>BRIBES</i></b>: Before moving you may spend <b>3 Juice</b> to acquire a Bribe<br><i>Use a golden Ap seal token to track</i></p>
         <ul>
           <li class="arr">Play to <b><i>REVERSE</i></b> a targeted Asset effect or cancel an SEC effect (for you), or buy past a <b><i>TRUST CHECK</i></b> into the <b><i>LOUNGE</i></b> — <b>BUT</b> every Bribe used adds <b>+2 Risk</b> (and −1 Final Favor)</li>
         </ul>
@@ -1241,7 +1241,7 @@ Promise.all([load(A.board),load(A.env),load(A.juice),load(A.pawn),load(A.accr),.
 let liftImgs=[], liftPad=null;
 Promise.all([1,2,3,4,5].map(n=>load(`assets/sprites/teleporter/lift${n}.png`))).then(r=>{ liftImgs=r; });
 load('assets/sprites/teleporter/pad.png').then(img=>{ liftPad=img; });
-// BRIBE coin (assets/sprites/coin-bribe.png) — Joe's painted $ coin. Spins up off the pawn on buy/spend.
+// BRIBE seal (assets/sprites/coin-bribe.png) — Joe's painted token, its $ re-struck as the Ap seal (NO CASH, 1118). Spins up off the pawn on buy/spend.
 let coinBribeImg=null; load('assets/sprites/coin-bribe.png').then(img=>{ coinBribeImg=img; });
 let coinFX=[];   // {x,y,start,spend} — board coin flourishes
 // DECK MARKER chips (ASSET=bank · MARKET=$ · SEC=watchdog) — mark the deck piles on the black-hole
@@ -2061,7 +2061,7 @@ const SHARKY_HELP=[
   {id:'reaction', when:(p,g)=>(p.hand||[]).some(isReactionCard),
    line:"You're sitting on a reaction (⚡). Don't waste it now — the game freezes and asks YOU the second it can fire."},
   {id:'bribe', when:(p,g)=>p.bribes>0,
-   line:"See that Bribe coin 🪙? It buys you out of a cold WHY ASK? roll or shoves you straight into the Lounge — but every one you spend is +2 RISK on your own head. Play it desperate, play it at the wire, and watch burnout."},
+   line:"See that Bribe seal? It buys you out of a cold WHY ASK? roll or shoves you straight into the Lounge — but every one you spend is +2 RISK on your own head. Play it desperate, play it at the wire, and watch burnout."},
   {id:'bribe_cost', when:(p,g)=>p.ff_bribe_used>=1,
    line:"That Bribe you burned? It was a LOAN. Every Bribe spent is −1 Final Favor when the lights go out. Buy your way past dice that would kill you — not out of pocket change."},
 ];
@@ -2100,11 +2100,11 @@ const IDLE_GENERAL=[
   "The die's the round thing with the dots. It works when you touch it.",
 ];
 const IDLE_PROMPT={
-  bribe:"It's three Juice for a get-out-of-jail coin. Yes or no — the cashier's window is closing.",
+  bribe:"It's three Juice for a get-out-of-jail seal. Yes or no — the notary's window is closing.",
   steps:"Pick a glowing space and CLICK it. Forward, backward, one Juice a step. Standing still is also a choice — usually the wrong one.",
   door:"It's a door, kid. Through it or past it. Just don't sleep in the doorway.",
   enterLounge:"The Lounge is RIGHT THERE. In or out — the velvet rope isn't getting any softer.",
-  bribeEntry:"Spend the coin or roll the bones. Decide before I finish this sandwich.",
+  bribeEntry:"Spend the seal or roll the bones. Decide before I finish this sandwich.",
   goldenWalk:"A FREE walk into the Lounge and you're window-shopping? Take it or play the board — but pick.",
   play:"You're holding cards, not family photos. Play one or pass — the deck doesn't care either way.",
   react:"That's a LIVE reaction window. Windows close. That's the whole point of a window.",
@@ -2447,7 +2447,7 @@ function presentPrompt(req,p,resolve){
   let title='',sub='',opts=[];
   switch(req.kind){
     case 'bribe':
-      title='Buy a Bribe coin?'; sub=`${who} · Juice ${p.juice}. A Bribe skips a Trust Check or forces Lounge entry — but SPENDING one adds +2 Risk and costs a Final-Favor point. (Buying is free; the Risk lands when you use it.)`;
+      title='Buy a Bribe seal?'; sub=`${who} · Juice ${p.juice}. A Bribe skips a Trust Check or forces Lounge entry — but SPENDING one adds +2 Risk and costs a Final-Favor point. (Buying is free; the Risk lands when you use it.)`;
       opts=[{label:'BUY · −3 Juice',value:true,cls:'go'},{label:'Skip',value:false,cls:'no'}]; break;
     case 'steps':{ const max=Math.max(p.abilityName==='Wu Drainer'?1:0,Math.min(Math.max(0,Math.floor(p.juice)),LOOP_N_UI-1));   // as far as Juice permits (1 Juice/space), up to ~a full loop
       title='Move how far around the loop?'; sub=`${who} · Juice ${p.juice}. ${movementTaxes.get(p)?'2 Juice per step (Junk Vehicle Trust).':'1 Juice per step.'} CLICK a glowing space \u2014 forward OR back \u2014 to move there. Door tolls can shorten a move; use the step buttons for those choices. You draw where you land.`;
@@ -2477,7 +2477,7 @@ function presentPrompt(req,p,resolve){
       }
       break;
     case 'bribeEntry':
-      title='Spend a Bribe to walk straight in?'; sub=`${who} · skip the WHY ASK? roll — a Bribe 🪙 forces ${(game.rules.levels&&!game.collapsed)?'your way onto the REGULATION tier':'Lounge entry'}, but it adds +2 Risk and costs 1 Final-Favor point.`;
+      title='Spend a Bribe to walk straight in?'; sub=`${who} · skip the WHY ASK? roll — a Bribe seal forces ${(game.rules.levels&&!game.collapsed)?'your way onto the REGULATION tier':'Lounge entry'}, but it adds +2 Risk and costs 1 Final-Favor point.`;
       opts=[{label:'Spend Bribe <span class="coinIco"></span> · auto-enter',value:true,cls:'go'},{label:'Risk the WHY ASK? roll',value:false,cls:'no'}]; break;
     case 'space':{   // 90M Black Hole: choose a SPACE to swallow everyone on it (Lounge / Start huddle = the kill)
       title='Drop the $90M Black Hole on which space?'; sub=`${who} · every opponent on the chosen space discards an in-play Asset (or drops to ZERO Juice). The Lounge & Start Circle can hold a crowd.`;
@@ -2494,7 +2494,7 @@ function presentPrompt(req,p,resolve){
       opts=req.candidates.map(c=>({card:c,value:c}));
       opts.push({label:'PASS — play nothing',value:null,cls:'no'}); break;
     case 'bribeClimb':
-      title=req.toLounge?'Bribe your way past the plaque?':'Bribe your way up a tier?'; sub=`${who} · skip this Trust Check: a Bribe 🪙 carries you up, but it adds +2 Risk and costs 1 Final-Favor point.`;
+      title=req.toLounge?'Bribe your way past the plaque?':'Bribe your way up a tier?'; sub=`${who} · skip this Trust Check: a Bribe seal carries you up, but it adds +2 Risk and costs 1 Final-Favor point.`;
       opts=[{label:'Spend Bribe <span class="coinIco"></span>',value:true,cls:'go'},{label:'Roll the Trust Check',value:false,cls:'no'}]; break;
     case 'keepAsset':
       title='Keep which Asset?'; sub=`${who} · the ASSET square drew two. Keep one; the other is discarded.`;
@@ -3506,14 +3506,18 @@ function drawSpaces(now){
   // LEGEND — the five card icons, engraved glyph + meaning (matches the classic panel verbatim)
   {
     const P=plaque(0.600,0.800,0.285,0.086,'LEGEND');
-    const rows=[['$','CASH FLOW'],['bank','MARKET / INSTITUTION'],['shield','RISK / PROTECTION'],['Ap','APPROVAL POINT'],['globe','GLOBAL EVENT']];
+    const rows=[['deed','JUICE FLOW'],['bank','MARKET / INSTITUTION'],['shield','RISK / PROTECTION'],['Ap','APPROVAL POINT'],['globe','GLOBAL EVENT']];
     const rh=(P.y+P.h-P.top-BW*0.003)/rows.length, fs=Math.max(6.5,BW*0.0122), gs=rh*0.40;
     const gx=P.x+P.w*0.115, col=tone('#f0cf7a');
     ctx.save(); ctx.textBaseline='middle'; ctx.lineJoin='round';
     rows.forEach(([k,s],i)=>{ const yy=P.top+rh*(i+0.5);
       ctx.strokeStyle=hexA(col,0.9); ctx.fillStyle=hexA(col,0.9); ctx.lineWidth=Math.max(1,gs*0.16);
-      if(k==='$'||k==='Ap'){ ctx.beginPath(); ctx.arc(gx,yy,gs,0,7); ctx.stroke();
-        ctx.font=`800 ${gs*(k==='$'?1.5:1.05)}px Georgia, serif`; ctx.textAlign='center'; ctx.fillText(k,gx,yy+gs*0.06); }
+      if(k==='Ap'){ ctx.beginPath(); ctx.arc(gx,yy,gs,0,7); ctx.stroke();
+        ctx.font=`800 ${gs*1.05}px Georgia, serif`; ctx.textAlign='center'; ctx.fillText(k,gx,yy+gs*0.06); }
+      else if(k==='deed'){ const b=gs*0.95, f=b*0.42;   // NO CASH (1118): a signed deed, not a $ — sheet, folded corner, lines, seal
+        ctx.beginPath(); ctx.moveTo(gx-b*0.75,yy-b); ctx.lineTo(gx+b*0.75-f,yy-b); ctx.lineTo(gx+b*0.75,yy-b+f); ctx.lineTo(gx+b*0.75,yy+b); ctx.lineTo(gx-b*0.75,yy+b); ctx.closePath(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(gx-b*0.42,yy-b*0.45); ctx.lineTo(gx+b*0.35,yy-b*0.45); ctx.moveTo(gx-b*0.42,yy); ctx.lineTo(gx+b*0.2,yy); ctx.moveTo(gx-b*0.42,yy+b*0.5); ctx.lineTo(gx-b*0.05,yy+b*0.5); ctx.stroke();
+        ctx.beginPath(); ctx.arc(gx+b*0.38,yy+b*0.55,b*0.2,0,7); ctx.fill(); }
       else if(k==='bank'){ const b=gs*1.15;
         ctx.beginPath(); ctx.moveTo(gx-b,yy-b*0.28); ctx.lineTo(gx,yy-b*0.95); ctx.lineTo(gx+b,yy-b*0.28); ctx.stroke();   // pediment
         for(let c=-1;c<=1;c++){ ctx.beginPath(); ctx.moveTo(gx+c*b*0.55,yy-b*0.12); ctx.lineTo(gx+c*b*0.55,yy+b*0.62); ctx.stroke(); }
@@ -3591,7 +3595,7 @@ function drawDoorFX(now){
 // in step off these: CHARGE = beam materialises (pawn holds, trembling) · ASCEND = ride up, rider
 // dissolves into the light · SETTLE = spent beam discharges while the rider lands at the Lounge.
 const LIFT_CHARGE=500, LIFT_ASCEND=800, LIFT_SETTLE=450, LIFT_DUR=LIFT_CHARGE+LIFT_ASCEND+LIFT_SETTLE;
-// BRIBE coin flourish — a painted $ coin spins up off the pawn when a Bribe is bought (rises + settles)
+// BRIBE seal flourish — the painted Ap seal token spins up off the pawn when a Bribe is bought (rises + settles)
 // or spent (flips away + fades). Spin = horizontal squash through edge-on. Additive sparkle. Render-only.
 function drawCoinFX(now){
   if(!coinBribeImg || !coinFX.length) return;
