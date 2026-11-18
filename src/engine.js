@@ -582,8 +582,13 @@
     constructor(opts) {
       opts = opts || {};
       this.rng = makeRng(opts.seed);
-      this.expansion = opts.expansion !== false;
       this.edition = EDITIONS[opts.edition] ? opts.edition : 'classic';
+      // 1118 (Joe: "we are not adding decks of cards other than what is in core for the benchmark edition, the only additions the
+      // rules MUST now contend with are the tiers into the exec lounge"): BENCHMARK = the CORE decks only (SEC 23 · Asset 25 ·
+      // Market 25), no Shadow SEC meter, no SEC Immunity; its tier SEC draws come off the core SEC deck. The Anders Expansion on a
+      // Benchmark table is the explicit BENCH+EXPANSION config: pass expansion:true (the pre-1118 default). Classic keeps its old
+      // default (expansion on unless expansion:false). Every harness that passes `expansion` explicitly is unchanged.
+      this.expansion = opts.expansion == null ? this.edition !== 'benchmark' : opts.expansion !== false;
       // edition knobs; classic = print-faithful. opts.ruleOverrides lets a balance harness A/B single knobs.
       this.rules = opts.ruleOverrides ? Object.assign({}, EDITIONS[this.edition], opts.ruleOverrides) : EDITIONS[this.edition];
       // player-count-scaled knobs: an override may be { byPlayers: { 3: v, 4: v, default: v } } (e.g. Package B at 3–4p only)
