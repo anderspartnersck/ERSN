@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- ER$N 3D EDITION: cut by 3D PIPELINE games/ersn/lab/tools/make_lab_page.py from index.html (this bundle) sha256 383807d9e48b1e42; 27 /*LAB3D*/ hooks. -->
+<!-- ER$N 3D EDITION: cut by 3D PIPELINE games/ersn/lab/tools/make_lab_page.py from index.html (this bundle) sha256 c5ee338927e8bfe5; 27 /*LAB3D*/ hooks. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -1541,7 +1541,7 @@ function buildBoardSelect(){
   const seg=$('#boardSeg'); if(!seg) return; seg.innerHTML='';
   BOARDS.forEach(b=>{
     const t=document.createElement('div'); t.className='bthumb'+(S.board===b.f?' on':'');
-    t.innerHTML=`<img src="${ERSN_THUMB(boardSrc(b.f))}" alt="${b.label}" loading="lazy" decoding="async"><div class="bl">${b.label}</div>`;
+    t.innerHTML=`<img src="${ERSN_THUMB(boardSrc(b.f))}" alt="${b.label}" loading="lazy" decoding="async" onerror="if(!this.dataset.r){this.dataset.r=1;this.src+='?r=1'}"><div class="bl">${b.label}</div>`;   // WEBP_ONLY 1120: one retry on a dropped request
     // self-hide a thumbnail whose art isn't present yet (e.g. Joe's 0614 boards before they're copied in)
     t.querySelector('img').onerror=()=>{ t.remove(); if(S.board===b.f) setBoard('blank-color'); };
     t.onclick=()=>{ setBoard(b.f); buildBoardSelect(); try{window.SFX&&SFX.play('select',0.4);}catch(e){} };
