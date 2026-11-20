@@ -14,7 +14,7 @@
     cv = document.getElementById('fxcanvas');
     if (!cv) return false;
     ctx = cv.getContext('2d');
-    if (!sprite) { sprite = new Image(); sprite.onload = () => { spriteOK = true; }; sprite.src = 'assets/fx/dynamite.png'; }
+    if (!sprite) { sprite = new Image(); sprite.onload = () => { spriteOK = true; }; sprite.src = (global.ERSN_ART ? ERSN_ART('assets/fx/dynamite.png') : 'assets/fx/dynamite.png'); }
     return true;
   }
   function fit() { cv.width = cv.clientWidth || window.innerWidth; cv.height = cv.clientHeight || window.innerHeight; }

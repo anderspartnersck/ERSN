@@ -14,8 +14,8 @@
 
   function ensure() {
     cv = document.getElementById('introcv'); if (!cv) return false; ctx = cv.getContext('2d');
-    if (!logo) { logo = new Image(); logo.src = 'assets/logo/castle-killscreen.png'; }
-    if (!dyno) { dyno = new Image(); dyno.src = 'assets/fx/dynamite.png'; }
+    if (!logo) { logo = new Image(); logo.src = (global.ERSN_ART ? ERSN_ART('assets/logo/castle-killscreen.png') : 'assets/logo/castle-killscreen.png'); }
+    if (!dyno) { dyno = new Image(); dyno.src = (global.ERSN_ART ? ERSN_ART('assets/fx/dynamite.png') : 'assets/fx/dynamite.png'); }
     return true;
   }
   function fit() { cv.width = cv.clientWidth || window.innerWidth; cv.height = cv.clientHeight || window.innerHeight; }
