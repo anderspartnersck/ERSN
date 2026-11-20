@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- ER$N 3D EDITION: cut by 3D PIPELINE games/ersn/lab/tools/make_lab_page.py from index.html (this bundle) sha256 b6de45ed98624c08; 27 /*LAB3D*/ hooks. -->
+<!-- ER$N 3D EDITION: cut by 3D PIPELINE games/ersn/lab/tools/make_lab_page.py from index.html (this bundle) sha256 383807d9e48b1e42; 27 /*LAB3D*/ hooks. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -1283,8 +1283,8 @@ const LOADING={};
 function load(src){ if(LOADING[src]) return LOADING[src];
   return LOADING[src]=new Promise(r=>{const i=new Image(); i.decoding='async';
     i.onload=()=>{ const ok=()=>r(i); (i.decode?i.decode():Promise.resolve()).then(ok,ok); };
-    // a WebP that fails (a dropped request, an old browser) falls back to the original PNG once, then gives up
-    i.onerror=()=>{ if(i._fb!==1 && art(src)!==src){ i._fb=1; i.src=src; return; } delete LOADING[src]; r(null); };
+    // a WebP that fails (a dropped request) is retried ONCE (cache-busted): the bundle ships WebP only (WEBP_ONLY 1120)
+    i.onerror=()=>{ if(i._fb!==1 && art(src)!==src){ i._fb=1; i.src=art(src)+'?r=1'; return; } delete LOADING[src]; r(null); };
     i.src=art(src); IMG[src]=i;}); }
 const A={board:'assets/board/blank-color.png', env:'assets/gateway/world-final.png', juice:'assets/juice_blob.png',
   pawn:'assets/sprites/BW PAWN.png', accr:'assets/fx/accretion.png',
