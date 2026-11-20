@@ -479,7 +479,7 @@
       const L = global.__lab; if (L && S3.prevBoard) { L.setBoard(S3.prevBoard); S3.prevBoard = null; }
       if (shot && shot.name !== 'push') shot = null;   // a crane / seat left over from the attract or a quit never strands the title
       document.body.classList.remove('s3-intro', 's3-outro', 's3-lift', 's3-leaders'); S3.pendingSeat = false;
-      want('hall').then(() => { if (S3.screen === 'boot' && !shot) play('hall', { mode: 'pingpong' }); });
+      want('hall').then(() => { if (S3.screen === 'boot' && !shot) play('hall', { mode: 'loop' })   /* 1120: the hall is the real-3D black-hole gateway (art/hall_bh, seamless loop) */; });
     }
     if (id === 'setup') {
       document.body.classList.remove('s3-lift');
