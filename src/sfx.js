@@ -103,7 +103,9 @@
     set muted(m) { muted = m; MUSIC.apply(); },
     toggle() { muted = !muted; MUSIC.apply(); return muted; },
     setVol(x) { vol = Math.max(0, Math.min(1, x)); },
-    unlock() { /* called on first gesture; a play() right after a click is enough to unlock */ },
+    // called inside the loader's activating press: create + resume the one AudioContext NOW, in the gesture, so the
+    // whistle (fired later from ENTER THE TOWER) never meets a context born suspended outside one (iPhone rule).
+    unlock() { try { actx = actx || new (global.AudioContext || global.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) {} },
   };
   global.SFX = SFX;
 })(window);

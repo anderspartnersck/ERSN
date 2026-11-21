@@ -4127,9 +4127,17 @@ window.addEventListener('keydown',e=>{
     const ready=()=>{
       if(h.indexOf('introtest')>=0){ playIntro(); return; }   // headless capture: no gesture available
       const hint=document.getElementById('loaderHint'); if(hint) hint.style.display='block';
+      // AUDIO WAKE 1121 (scripts/audio_wake.mjs): take the gate ONLY on an event the browser grants a user activation for.
+      // The old {once:true} pointerdown/keydown gate burned itself on a phone tap (a touch pointerdown is not an
+      // activation; only pointerup/touchend are) and on Escape (never an activation), so the ident ran silent and nothing
+      // retried. Now a non-activating event is ignored and the gate waits for the next real press.
       let started=false;
-      const start=()=>{ if(started)return; started=true; try{ window.SFX && SFX.play('select',0.01); }catch(e){} playIntro(); };
-      window.addEventListener('pointerdown',start,{once:true}); window.addEventListener('keydown',start,{once:true});
+      const live=e=>{ const u=navigator.userActivation; if(u) return u.isActive;
+        return e.type==='keydown' ? e.key!=='Escape' : (e.type==='pointerup' || e.pointerType==='mouse'); };
+      const EV=['pointerdown','pointerup','keydown'];
+      const start=e=>{ if(started||!live(e))return; started=true; EV.forEach(t=>window.removeEventListener(t,start));
+        try{ if(window.SFX){ SFX.unlock(); SFX.play('select',0.01); } }catch(_){} playIntro(); };
+      EV.forEach(t=>window.addEventListener(t,start));
     };
     const done=()=>{ if(++n>=art.length){ setTimeout(ready, Math.max(0,1200-(performance.now()-t0))); } };
     art.forEach(s=>{ const i=new Image(); i.onload=done; i.onerror=done; i.src=ERSN_ART(s); });
