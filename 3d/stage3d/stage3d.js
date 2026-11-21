@@ -2,7 +2,9 @@
    The engine, rules and golden master are untouched: this file only listens to the screen changes the
    page already makes (show('boot'|'setup'|'game'|'over')), the start/boot buttons and endGame, and draws
    the 3D PIPELINE renders behind / over the existing UI.
-     boot   : the atrium (attract_hall, ping-pong) -> ENTER THE TOWER = the atrium push + the 3D dynamite
+     boot   : the black-hole hall (art/hall_bh, seamless loop; its drawing 0 is the poster while the rest decodes)
+              -> ENTER THE TOWER = the push (art/push_bh: from the hall's drawing-0 camera over the hole to THE TOWER lift,
+              the hall dissolving into it) + the 3D dynamite
      setup  : the RESERVED table with the Blender boxes on it (walk-up drift, ping-pong); START lifts the sign
      start  : JUICE wash (core) / dynamite (expansion), as today -> TAKE YOUR SEAT -> board-matched cut -> THE BOARD
      play   : the board-on-table still plate; the game's own board canvas is laid onto the painted board with
@@ -160,7 +162,8 @@
     }
     const from = opt.from || 0, to = opt.to != null ? opt.to : m.n - 1, fps = opt.fps || m.fps;
     shot = { name, from, to, fps, mode: opt.mode || 'once', t0: now(), onEnd: opt.onEnd, onFrame: opt.onFrame,
-      rectA: opt.rectA, rectB: opt.rectB, tweenMs: opt.tweenMs || 0, tweenAt: opt.tweenAt || 0, last: -1, fadeHold: !!opt.fadeHold };
+      rectA: opt.rectA, rectB: opt.rectB, tweenMs: opt.tweenMs || 0, tweenAt: opt.tweenAt || 0, last: -1, fadeHold: !!opt.fadeHold,
+      fadeImg: opt.fadeImg || null, fadeMs: opt.fadeMs || 400 };
     still = null; dirty = true; kick();
     return Math.abs(to - from + 1) / fps * 1000;
   }
@@ -172,6 +175,12 @@
     return Math.min(sh.to, sh.from + f);
   }
   const frameOf = (sh, t) => Math.floor(posOf(sh, t));
+  // the drawing on screen right now (the hall hands it to the push, which dissolves out of it)
+  function shownImg() {
+    if (shot) { const s = seqs[shot.name]; return s && s.ok ? s.imgs[Math.min(s.imgs.length - 1, frameOf(shot, now()))] : null; }
+    if (still && still.img) return still.img;
+    return still && still.name && seqs[still.name] && seqs[still.name].ok ? seqs[still.name].imgs[still.i] : null;
+  }
   function drawImgRect(img, r, dpr, alpha) {
     if (!img) return; ctx.globalAlpha = alpha == null ? 1 : alpha; ctx.drawImage(img, r.x * dpr, r.y * dpr, r.w * dpr, r.h * dpr); ctx.globalAlpha = 1;
   }
@@ -181,7 +190,8 @@
     let need = !!shot || dirty;
     if (shot) {
       const s = seqs[shot.name], blend = S3.man.seqs[shot.name].blend, pos = posOf(shot, t), i = Math.floor(pos);
-      if (i !== shot.last || dirty || blend) {
+      const xf = shot.fadeImg && t - shot.t0 < shot.fadeMs;
+      if (i !== shot.last || dirty || blend || xf) {
         if (i !== shot.last && shot.onFrame) shot.onFrame(i);
         shot.last = i;
         ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cv.width, cv.height);
@@ -191,6 +201,7 @@
         if (shot.fadeHold) { const a = 1 - (t - shot.t0) / 450, im = imgOf(curHold().src); if (a > 0 && im) drawImgRect(im, r, dpr, a); }
         const fr = pos - i, j = Math.min(s.imgs.length - 1, i + 1);
         if (blend && fr > 0.02 && j !== i) { drawImgRect(s.imgs[j], r, dpr, fr); S3.stats.draws++; }
+        if (shot.fadeImg) { if (xf) drawImgRect(shot.fadeImg, r, dpr, 1 - ease((t - shot.t0) / shot.fadeMs)); else shot.fadeImg = null; }
       } else if (shot.rectA && shot.tweenMs) {         // a rect tween keeps redrawing between frames
         const k = ease((t - shot.t0 - shot.tweenAt) / shot.tweenMs);
         if (k > 0 && k < 1) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cv.width, cv.height); drawImgRect(s && s.imgs[i], lerpR(shot.rectA(), shot.rectB(), k), dpr); S3.stats.draws++; }
@@ -204,6 +215,7 @@
       if (still === 'hold') { const im = imgOf(curHold().src); if (im) drawImgRect(im, holdRect(), dpr); else need = true;
         // the transition's last frame (always the inset/table/gold board) dissolves into the chosen hold
         if (fadeFrom && im) { const a = 1 - (t - fadeFrom.t0) / 600; if (a > 0) { drawImgRect(fadeFrom.img, holdRect(), dpr, a); fading = true; } else fadeFrom = null; } }
+      else if (still && still.img) drawImgRect(still.img, coverRect(), dpr);       // the hall's poster (its drawing 0) while it decodes
       else if (still && still.name && seqs[still.name] && seqs[still.name].ok) drawImgRect(seqs[still.name].imgs[still.i], still.rect ? still.rect() : coverRect(), dpr);
       S3.stats.draws++; dirty = fading || (still === 'hold' && !imgOf(curHold().src)); if (fading) need = true;
     }
@@ -479,6 +491,9 @@
       const L = global.__lab; if (L && S3.prevBoard) { L.setBoard(S3.prevBoard); S3.prevBoard = null; }
       if (shot && shot.name !== 'push') shot = null;   // a crane / seat left over from the attract or a quit never strands the title
       document.body.classList.remove('s3-intro', 's3-outro', 's3-lift', 's3-leaders'); S3.pendingSeat = false;
+      // 1120 pass 2: the hall's drawing 0 goes up ALONE first (the poster), then the loop takes over from it once decoded
+      const hm = S3.man.seqs.hall;
+      if (!(seqs.hall && seqs.hall.ok) && !shot) wantSingle(hm.dir + '0000.webp').then(im => { if (im && S3.screen === 'boot' && !shot) { still = { img: im }; dirty = true; kick(); } });
       want('hall').then(() => { if (S3.screen === 'boot' && !shot) play('hall', { mode: 'loop' })   /* 1120: the hall is the real-3D black-hole gateway (art/hall_bh, seamless loop) */; });
     }
     if (id === 'setup') {
@@ -500,10 +515,12 @@
     };
     Promise.all([want('seat'), wantPlay()]).then(go);
   }
-  // ENTER THE TOWER: the atrium push, the 3D dynamite falling in as it lands on the pedestal board
+  // ENTER THE TOWER: the push (from the hall's drawing-0 camera, over the hole, to THE TOWER lift), the hall drawing that was
+  // up dissolving into its first frame (the loop camera drifts a little: no jump cut); the 3D dynamite falls in front of the doors
   S3.enterTower = function (go) {
+    const from = shownImg();
     want('push').then(ok => {
-      const dur = play('push', {});
+      const dur = play('push', { fadeImg: from, fadeMs: 450 });
       const fire = () => (global.FX ? FX.dynamite(go) : go());
       if (!ok || CAP) fire(); else setTimeout(fire, Math.max(0, dur - 1000));   // flash ~ the push's last frame
     });
