@@ -356,9 +356,21 @@
      The page still runs every flourish's own clock (drawDrawAnim/drawDieFX/... draw into a 1x1 null context,
      so their lifecycles - drawAnim=null, showDie(v), vortex kicks - are untouched); this draws the SAME state
      upright in screen space at H(u,v), sized by depth. Cards rise and turn; the die is the Blender die, rolled on
-     the table; the lift is a standing column of light; sparks and coins fly UP; the chevron and the toss label stand. */
+     the table; the lift is a standing column of light; sparks and signed deeds fly UP; the chevron and the toss label stand. */
   let fxState = null; const sparkSeen = new WeakSet(); let sparks = [];
   S3.fx = st => { fxState = st; };
+  // the bribe deed (Q2443): drawn once, offscreen: cream stock, a gold rule, signature lines, the Ap seal (no figures, no cash)
+  let deedCache = null;
+  function deedImg() {
+    if (deedCache) return deedCache;
+    const cv = document.createElement('canvas'); cv.width = 96; cv.height = 124; const g = cv.getContext('2d');
+    g.fillStyle = '#f2e6c8'; g.fillRect(2, 2, 92, 120); g.strokeStyle = '#b8892f'; g.lineWidth = 3; g.strokeRect(6, 6, 84, 112);
+    g.fillStyle = '#3a2a12'; g.font = '800 13px Georgia,serif'; g.textAlign = 'center'; g.fillText('DEED', 48, 28);
+    g.strokeStyle = 'rgba(58,42,18,.55)'; g.lineWidth = 2; for (let y = 40; y <= 78; y += 9) { g.beginPath(); g.moveTo(16, y); g.lineTo(80, y); g.stroke(); }
+    g.fillStyle = '#1f5a3a'; g.beginPath(); g.arc(66, 100, 11, 0, 7); g.fill(); g.fillStyle = '#e8cf86'; g.font = '700 10px Georgia,serif'; g.fillText('Ap', 66, 104);
+    g.strokeStyle = '#3a2a12'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(14, 104); g.bezierCurveTo(24, 92, 30, 112, 44, 98); g.stroke();
+    return (deedCache = cv);
+  }
   S3._fxDoor = () => fxState && fxState.door ? { start: fxState.door.start, now: fxState.now } : null;
   function cardRect(c, x0, y0, w, h, rad) { c.beginPath(); c.moveTo(x0 + rad, y0); c.arcTo(x0 + w, y0, x0 + w, y0 + h, rad); c.arcTo(x0 + w, y0 + h, x0, y0 + h, rad); c.arcTo(x0, y0 + h, x0, y0, rad); c.arcTo(x0, y0, x0 + w, y0, rad); c.closePath(); }
   function drawCard(c, img, cx, cy, w, h, sx, alpha, glow) {
@@ -413,17 +425,19 @@
       else if (t < 0.82) { const k = (t - 0.28) / 0.54, e = k * k, rad = BW * 0.10 * H0.S * (1 - e), ang = e * 7.5; x = H0.x + Math.cos(ang) * rad; y = H0.y - BW * 0.06 * H0.S * (1 - e) + Math.sin(ang) * rad * 0.36; scl = 1 - 0.85 * e; rot = e * 7; glow = e * 0.5; }
       else { const k = (t - 0.82) / 0.18; x = H0.x; y = H0.y; scl = Math.max(0, 0.14 * (1 - k)); glow = 0.6 * (1 - k); }
       if (t < 1) { const h = BW * 0.16 * q0.S * scl; c.save(); c.translate(x, y); c.rotate(rot); drawCard(c, st.cardFX.art, 0, 0, h * 0.66, h, -1, 1, glow); c.restore(); } }
-    // ---- landing sparks + bribe coins fly UP off the table ----
+    // ---- landing sparks + bribe paperwork flies UP off the table ----
     for (const s of (st.sparks || [])) if (!sparkSeen.has(s)) { sparkSeen.add(s); const q = P(s.x, s.y);
       sparks.push({ x: q.x, y: q.y, vx: s.vx * q.S * 0.9, vy: -(1.8 + Math.abs(s.vy)) * q.S * 1.2, g: 0.32 * q.S, age: 0, life: s.life, hue: s.hue, w: Math.max(0.6, 1.6 * q.S) }); }
     c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
     sparks = sparks.filter(p => { p.age += 1 / 60; const k = p.age / p.life; if (k >= 1) return false; p.vy += p.g; p.x += p.vx; p.y += p.vy;
       c.strokeStyle = `hsla(${p.hue},100%,${62 + 18 * (1 - k)}%,${1 - k})`; c.lineWidth = p.w * (1 - k * 0.4); c.beginPath(); c.moveTo(p.x, p.y); c.lineTo(p.x - p.vx * 0.8, p.y - p.vy * 0.8); c.stroke(); return true; });
     c.restore();
-    if (st.coinFX && st.coinImg) for (const cf of st.coinFX) { const k = (now_ - cf.start) / 1000; if (k >= 1) continue; const q = P(cf.x, cf.y);
+    // 1120 pass 3 (Q2443, [[ersn-no-cash]]): a bribe is PAPERWORK, never a coin: a signed deed flutters up off the pawn
+    if (st.coinFX) for (const cf of st.coinFX) { const k = (now_ - cf.start) / 1000; if (k >= 1) continue; const q = P(cf.x, cf.y);
       const rise = BW * (cf.spend ? 0.08 + k * 0.14 : 0.14 * Math.sin(k * Math.PI * 0.7)) * q.S, fade = cf.spend ? 1 - k : (k < 0.55 ? 1 : 1 - (k - 0.55) / 0.45);
-      const w = BW * 0.06 * q.S, h = w * st.coinImg.height / st.coinImg.width, flip = Math.cos(now_ / 85 + cf.start * 0.7);
-      c.save(); c.globalAlpha = Math.max(0, fade); c.translate(q.x, q.y - BW * 0.08 * q.S - rise); c.scale(Math.max(0.14, Math.abs(flip)), 1); c.drawImage(st.coinImg, -w / 2, -h / 2, w, h); c.restore(); }
+      const dd = deedImg(), w = BW * 0.06 * q.S, h = w * dd.height / dd.width, flip = Math.cos(now_ / 140 + cf.start * 0.7);
+      c.save(); c.globalAlpha = Math.max(0, fade); c.translate(q.x, q.y - BW * 0.08 * q.S - rise); c.rotate(0.18 * Math.sin(now_ / 210 + cf.start));
+      c.scale(1, Math.max(0.25, Math.abs(flip))); c.drawImage(dd, -w / 2, -h / 2, w, h); c.restore(); }
     // ---- the cursor chevron + TOSS THE DIE, standing ----
     if (st.cursor) { const q = P(st.cursor.x, st.cursor.y), s_ = BW * 0.03 * q.S, y = q.y - BW * 0.11 * q.S - Math.abs(Math.sin(now_ / 260)) * BW * 0.02 * q.S;
       c.save(); c.fillStyle = '#f0cf7a'; c.strokeStyle = 'rgba(0,0,0,.6)'; c.lineWidth = s_ * 0.14; c.beginPath(); c.moveTo(q.x, y + s_); c.lineTo(q.x - s_ * 0.7, y - s_ * 0.4); c.lineTo(q.x + s_ * 0.7, y - s_ * 0.4); c.closePath(); c.fill(); c.stroke(); c.restore(); }
