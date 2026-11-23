@@ -620,9 +620,19 @@
       // Rule sheet: "Each player will roll off, highest roll leads off, game continuing clockwise."
       // [BENCHMARK] deterministic per seed; Classic keeps the frozen seat order (parity-locked).
       if (this.rules.faithfulCards) {
-        const rolls = this.order.map(i => ({ i, r: this.rng.randint(1, 6) }));
-        rolls.sort((a, b) => b.r - a.r || a.i - b.i);   // highest leads; ties keep seat order
-        this.order = rolls.map(x => x.i);
+        // Joe 1123 Q3700: TIES RE-ROLL. Only the tied seats roll again, as many times as needed (highest group first).
+        // OBSERVER (CLARITY 1123, no log): rolloffRounds = every throw in the order it happened, [0] = all seats in seat
+        // order, then one round per tie re-roll ({tieOf: the value they tied on}); rolloff = round 0, for the UI's throw.
+        const rounds = [];
+        const settle = (seats, tieOf) => {
+          const rolls = seats.map(i => ({ i, r: this.rng.randint(1, 6) }));
+          rounds.push(Object.assign(rolls.map(x => ({ seat: x.i, roll: x.r })), tieOf == null ? {} : { tieOf }));
+          const vals = [...new Set(rolls.map(x => x.r))].sort((a, b) => b - a), out = [];
+          for (const v of vals) { const g = rolls.filter(x => x.r === v).map(x => x.i); out.push(...(g.length > 1 ? settle(g, v) : g)); }
+          return out;
+        };
+        this.order = settle(this.order, null);
+        this.rolloffRounds = rounds; this.rolloff = rounds[0];
         this.log(`    Roll-off for turn order: ${this.order.map(i => this.players[i].name.split(' ')[0]).join(' -> ')}`);
       }
       // Round 7 A/B knobs (default OFF, not in v4; no RNG): seat-order catch-up. seatJuice: the k-th seat in turn order starts with

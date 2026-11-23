@@ -66,7 +66,9 @@
   const seqs = {};                                   // name -> {imgs:[], ready:Promise, ok:bool}
   const single = {};                                 // hold / pawns / dynamite atlases
   function loadImg(src) {
-    return new Promise(res => { const i = new Image(); i.decoding = 'async'; i.onload = () => { (i.decode ? i.decode() : Promise.resolve()).then(() => res(i), () => res(i)); }; i.onerror = () => res(null); i.src = src; });
+    // CLARITY 1123: a dropped request (a busy static server) is retried 3x with backoff, cache-busted, instead of a board that never shows
+    return new Promise(res => { const i = new Image(); let n = 0; i.decoding = 'async'; i.onload = () => { (i.decode ? i.decode() : Promise.resolve()).then(() => res(i), () => res(i)); };
+      i.onerror = () => { if (n < 3) { n++; setTimeout(() => { i.src = src + (src.includes('?') ? '&' : '?') + 'r=' + n; }, 120 * n * n); } else res(null); }; i.src = src; });
   }
   function want(name) {
     if (!S3.man) return Promise.resolve(false);
@@ -77,7 +79,7 @@
     return s.ready;
   }
   function release(name) { delete seqs[name]; }
-  function wantSingle(src) { if (!src) return Promise.resolve(null); if (!single[src]) single[src] = loadImg(src).then(i => (single['img:' + src] = i)); return single[src]; }
+  function wantSingle(src) { if (!src) return Promise.resolve(null); if (!single[src]) single[src] = loadImg(src).then(i => { if (!i) delete single[src]; return (single['img:' + src] = i); }); return single[src]; }   // a failed single is forgotten, so the next ask retries
   const imgOf = src => src && single['img:' + src];
   const wantPlay = () => Promise.all([wantSingle(curHold().src), wantSingle(curPawns().src), wantSingle((curDice() || {}).src)].concat(wantBoardFX()));
   const PRELOAD = {                                  // what each screen needs NEXT (loaded while it is up)
@@ -156,6 +158,7 @@
     opt = opt || {};
     if (!m || !s || !s.ok || CAP) {                    // not decoded (or capture): never strand the game — land on the end
       const end = () => opt.onEnd && opt.onEnd();
+      shot = null;                                     // CLARITY 1123: this play supersedes whatever was running (a failed 'seat' load left the setup's endless 'reserved' pingpong on screen: black table forever)
       if (opt.onFrame) opt.onFrame(opt.to != null ? opt.to : (m ? m.n - 1 : 0));
       if (m && s && s.ok) still = { name, i: opt.to != null ? opt.to : m.n - 1 };
       dirty = true; setTimeout(end, 0); return 0;
@@ -199,8 +202,8 @@
         if (shot.rectA && shot.rectB) { const k = shot.tweenMs ? ease((t - shot.t0 - shot.tweenAt) / shot.tweenMs) : 1; r = lerpR(shot.rectA(), shot.rectB(), k); }
         drawImgRect(s && s.imgs[i], r, dpr); S3.stats.draws++;
         if (shot.fadeHold) { const a = 1 - (t - shot.t0) / 450, im = imgOf(curHold().src); if (a > 0 && im) drawImgRect(im, r, dpr, a); }
-        const fr = pos - i, j = Math.min(s.imgs.length - 1, i + 1);
-        if (blend && fr > 0.02 && j !== i) { drawImgRect(s.imgs[j], r, dpr, fr); S3.stats.draws++; }
+        const fr = pos - i, j = s ? Math.min(s.imgs.length - 1, i + 1) : i;   // CLARITY 1123: a released/failed sequence (s undefined) threw here and killed the loop: the table never came back
+        if (s && blend && fr > 0.02 && j !== i) { drawImgRect(s.imgs[j], r, dpr, fr); S3.stats.draws++; }
         if (shot.fadeImg) { if (xf) drawImgRect(shot.fadeImg, r, dpr, 1 - ease((t - shot.t0) / shot.fadeMs)); else shot.fadeImg = null; }
       } else if (shot.rectA && shot.tweenMs) {         // a rect tween keeps redrawing between frames
         const k = ease((t - shot.t0 - shot.tweenAt) / shot.tweenMs);
@@ -212,9 +215,9 @@
     } else if (dirty) {
       ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cv.width, cv.height);
       let fading = false;
-      if (still === 'hold') { const im = imgOf(curHold().src); if (im) drawImgRect(im, holdRect(), dpr); else need = true;
+      if (still === 'hold') { const im = imgOf(curHold().src); if (im) drawImgRect(im, holdRect(), dpr); else { need = true; wantSingle(curHold().src).then(i => { if (i) { dirty = true; kick(); } }); }
         // the transition's last frame (always the inset/table/gold board) dissolves into the chosen hold
-        if (fadeFrom && im) { const a = 1 - (t - fadeFrom.t0) / 600; if (a > 0) { drawImgRect(fadeFrom.img, holdRect(), dpr, a); fading = true; } else fadeFrom = null; } }
+        if (fadeFrom && im) { const a = 1 - (t - fadeFrom.t0) / (fadeFrom.ms || 600); if (a > 0) { drawImgRect(fadeFrom.img, fadeFrom.rect ? fadeFrom.rect() : holdRect(), dpr, a); fading = true; } else fadeFrom = null; } }
       else if (still && still.img) drawImgRect(still.img, coverRect(), dpr);       // the hall's poster (its drawing 0) while it decodes
       else if (still && still.name && seqs[still.name] && seqs[still.name].ok) drawImgRect(seqs[still.name].imgs[still.i], still.rect ? still.rect() : coverRect(), dpr);
       S3.stats.draws++; dirty = fading || (still === 'hold' && !imgOf(curHold().src)); if (fading) need = true;
@@ -522,7 +525,18 @@
   };
   function seatIntro() {
     document.body.classList.add('s3-intro');
+    // CLARITY 1123 (no board flash): the baked seat shot's match cut (manifest seat.match) dissolves the box into the BARE GOLD
+    // PLAQUE and holds it to the end, so every other board showed the gold slab first and then switched (Joe 1123: "it seems to
+    // always load that one gold slab board then switch to the one you chose"). Any board but the gold plaque now stops at the
+    // match cut's first drawing (the box close-up) and dissolves from there straight into THE CHOSEN board's hold.
+    const sm = S3.man.seqs.seat, cut = sm.match && !(boardKey() === 'gold' && !plaque()) ? sm.match[0] : null;
+    S3.seatCut = cut;
     const go = () => {
+      if (cut != null) {
+        play('seat', { to: cut, onEnd: () => { const sq = seqs.seat; fadeFrom = sq && sq.ok ? { img: sq.imgs[cut], t0: now(), rect: coverRect, ms: 900 } : null;
+          still = 'hold'; dirty = true; kick(); document.body.classList.remove('s3-intro'); } });
+        return;
+      }
       play('seat', { rectA: coverRect, rectB: holdRect, tweenMs: 650, tweenAt: (S3.man.seqs.seat.n / S3.man.seqs.seat.fps) * 1000 - 150,
         onEnd: () => { const sq = seqs.seat; fadeFrom = sq && sq.ok ? { img: sq.imgs[sq.imgs.length - 1], t0: now() } : null;
           still = 'hold'; dirty = true; kick(); document.body.classList.remove('s3-intro'); } });

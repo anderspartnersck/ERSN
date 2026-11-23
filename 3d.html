@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- ER$N 3D EDITION: cut by 3D PIPELINE games/ersn/lab/tools/make_lab_page.py from index.html (this bundle) sha256 6ba0b4db8ff18aa7; 27 /*LAB3D*/ hooks. -->
+<!-- ER$N 3D EDITION: cut by 3D PIPELINE games/ersn/lab/tools/make_lab_page.py from index.html (this bundle) sha256 852cefb8be9fa08d; 27 /*LAB3D*/ hooks. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -667,6 +667,135 @@ window.ERSN_THUMB=function(p){ return window.ERSN_ASSET_MAP['thumb:'+p]||window.
   html body #log{border-radius:2px}
   html body .bthumb{border-radius:2px}
   html body .bthumb.on{border-color:var(--gold);box-shadow:0 0 0 1px var(--ink),0 0 0 3px var(--gold),0 4px 14px rgba(0,0,0,.4)}
+  /* CLARITY 1123 · GUIDED FIRST ROUND: a stock-paper sign-off sheet + a gold frame on the real thing (static CSS, no per-frame blur) */
+  #guide{position:fixed;inset:0;z-index:9600;display:none;pointer-events:none}
+  #guide.on{display:block}
+  #gFrame{position:fixed;border:3px solid #e2b552;outline:1px solid #1c1409;box-shadow:0 0 0 9999px rgba(6,8,12,.55);border-radius:2px;pointer-events:none;transition:all .25s}
+  #gCard{position:fixed;width:min(360px,calc(100vw - 32px));pointer-events:auto;background:#efe3c4;color:#1c1409;border:1px solid #1c1409;outline:3px double #b48a2c;outline-offset:3px;padding:12px 14px 10px;font:14px/1.42 Georgia,serif;transition:left .25s,top .25s}
+  #gStep{font:900 9.5px Georgia,serif;letter-spacing:.16em;color:#7a5a1a;border-bottom:1px solid #1c1409;padding-bottom:4px;margin-bottom:6px}
+  #gTtl{font:900 18px Georgia,serif;letter-spacing:.06em;margin-bottom:4px}
+  #gTxt b{color:#a3221c}
+  #gRow{display:flex;align-items:center;gap:8px;margin-top:10px;border-top:1px dotted #1c1409;padding-top:8px}
+  #gSig{flex:1;font:italic 11px Georgia,serif;color:#7a6a4a;text-align:center}
+  #gRow button{font:900 11px Georgia,serif;letter-spacing:.1em;border:1px solid #1c1409;border-radius:0;padding:6px 10px;cursor:pointer}
+  #gSkip{background:transparent;color:#1c1409}
+  #gNext{background:linear-gradient(180deg,#f2d47a,#c7962f);color:#1c1409}
+  /* CLARITY 1123 · PROMPT LEDGER SLIP (payoff / risk before commit): ticker rows in the house stock + ink, no pills */
+  #pPrev{margin:-2px 0 10px;border-top:1px solid #3a455f;border-bottom:1px solid #3a455f;font:600 11.5px/1.45 Georgia,serif;color:#d8cdaf;text-align:left}
+  #pPrev:empty{display:none}
+  #pPrev .pv{display:flex;gap:8px;padding:2px 0;border-bottom:1px dotted #2b3446}
+  #pPrev .pv:last-child{border-bottom:0}
+  #pPrev .pvk{flex:0 0 52px;font:900 9.5px/1.9 Georgia,serif;letter-spacing:.12em;color:#e2b552}
+  #pPrev .pv.n .pvk{color:#9aa3b4} #pPrev .pv.f .pvk{color:#e0705f} #pPrev .pv.p .pvk{color:#8fd18f}
+  #pPrev b{color:#f9e9ab} #pPrev b.bad{color:#ff7a66}
+  /* ===== CLARITY 1123 · THE LEDGER: every seat's JUICE / TRUST / HYPE / RISK always on screen (docs/CLARITY-PASS-1123.md goal 3).
+     A sign-off sheet strip per seat: printed stock, ruled in ink, the 0-8 dry-erase track with the levels that MATTER notched in
+     (the stamp-red notch = the bad one), the change ticked with its reason, a one-line meaning on hover/tap. YOUR seat gets the
+     full sheet + where-you-stand line; every rival is one line. The ability card stays one click away and never covers it. ===== */
+  #rail #players{flex:0 0 auto;overflow:visible;gap:6px;padding:8px 10px}
+  #rail #controls{flex:1 1 auto;min-height:0}
+  #rail #log{flex:1 1 60px;height:auto;min-height:36px}
+  .pl{position:relative}
+  .pl .ledger{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) minmax(0,.95fr);margin-top:6px;background:var(--stock);box-shadow:var(--rule2);border-radius:2px;padding:5px 6px 6px}
+  .lg{position:relative;min-width:0;padding:0 5px;border-right:1px dashed rgba(28,20,9,.38);cursor:help;font-family:Georgia,serif;color:var(--ink)}
+  .lg:last-child{border-right:0}
+  .lg .k{display:block;font-size:8.5px;letter-spacing:.13em;font-weight:900;white-space:nowrap}
+  .lg .v{display:block;font-size:20px;font-weight:900;line-height:1.02;font-variant-numeric:tabular-nums}
+  .lg .trk{position:relative;display:block;height:6px;margin:2px 0 1px;background:rgba(28,20,9,.10);box-shadow:inset 0 0 0 1px rgba(28,20,9,.5)}
+  .lg .trk s{position:absolute;left:0;top:0;bottom:0;background:currentColor;opacity:.85;text-decoration:none}
+  .lg .trk u{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--ink);text-decoration:none}
+  .lg .trk u.bad{background:var(--stamp)}
+  .lg .st{display:block;font-size:8.5px;font-style:italic;font-weight:700;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85}
+  .lg.j{color:#a85a0c} .lg.t{color:#1c1409} .lg.h{color:#1f7a47} .lg.r{color:#a3221c}
+  .lg .k,.lg .st{color:var(--ink)}
+  .lg.ff{color:#7a4f06;background:linear-gradient(180deg,rgba(231,191,92,.35),rgba(207,160,59,.25))}
+  .lg.ff .v{font-size:18px}
+  .lg.up .v{animation:lgUp .9s ease-out} .lg.dn .v{animation:lgDn .9s ease-out}
+  @keyframes lgUp{0%{transform:translateY(5px);text-shadow:0 0 0 rgba(31,122,71,0)}30%{transform:none;text-shadow:0 0 10px rgba(240,207,122,.95)}100%{text-shadow:none}}
+  @keyframes lgDn{0%{transform:translateY(-5px)}30%{transform:none;text-shadow:0 0 10px rgba(163,34,28,.7)}100%{text-shadow:none}}
+  .pl .lnote{margin-top:5px;font-family:Georgia,serif;font-size:10.5px;line-height:1.3;color:#e9dcbd;letter-spacing:.02em}
+  .pl .lnote b{color:var(--gold-lite);font-weight:900;letter-spacing:.06em} .pl .lnote b.bad{color:#ff8b78}
+  .pl .lnote .sep{opacity:.45;margin:0 4px}
+  .pl .tick{min-height:14px;margin-top:3px;font-family:Georgia,serif;font-size:10.5px;font-weight:800;color:#e9dcbd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pl .tick .d{font-weight:900;letter-spacing:.05em} .pl .tick .d.j{color:var(--juice-lite)} .pl .tick .d.t{color:#fff} .pl .tick .d.h{color:#7fe0a5} .pl .tick .d.r{color:#ff8b78}
+  .pl .tick .why{font-style:italic;font-weight:600;opacity:.85}
+  .pl .tick.old{opacity:.45;transition:opacity 1.2s}
+  .pl .stats{display:none}
+  .pl.me .top{flex-wrap:wrap} .pl.me .ledger{flex:1 0 100%}
+  /* a rival = ONE line: pawn · name/where · the four levels (numbers, notches read in the hover) */
+  .pl.opp{padding:5px 8px}
+  .pl.opp .top{gap:7px} .pl.opp .top .pawnico,.pl.opp .top svg{width:18px;height:22px}
+  .pl.opp .nm{font-size:12px;flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pl.opp .loc{font-size:8px;padding:1px 4px}
+  .pl.opp .seehint{display:none}
+  .pl.opp .ledger{margin:0 0 0 auto;padding:2px 3px 3px;flex:0 0 164px}
+  .pl.opp .lg{padding:0 3px;text-align:center}
+  .pl.opp .lg .k{font-size:6.5px;letter-spacing:.06em} .pl.opp .lg .v{font-size:13px} .pl.opp .lg.ff .v{font-size:12px}
+  .pl.opp .lg .trk{height:3px;margin:1px 0 0} .pl.opp .lg .trk u{top:-2px;bottom:-2px;width:1.5px}
+  .pl.opp .lg .st,.pl.opp .lnote{display:none}
+  .pl.opp .extra{display:none}
+  .pl.opp .tick{position:absolute;left:34px;bottom:-1px;max-width:calc(100% - 205px);min-height:0;font-size:9px;pointer-events:none}
+  .pl.opp .tick:empty{display:none}
+  .pl.opp .dossier:empty{display:none}
+  /* the ability card: one click away, and its open state is obvious (the seat's sheet tab turns to foil) */
+  .pl .seehint.open{color:var(--ink);background:var(--foil);border:0;padding:1px 5px;font-style:normal;font-weight:900}
+  html body #sheetBtn.open{background:var(--stock);color:var(--ink)}
+  /* the card never covers the levels: it opens over the BOARD, the rail stays live beside it */
+  #sheet{right:336px}
+  @media (max-width:880px){ #sheet{right:280px} }
+  /* big screens: a wider rail, the ledger at reading size */
+  @media (min-width:1600px){ #rail{width:420px;flex-basis:420px} #sheet{right:420px}
+    .pl .nm{font-size:16px} .lg .k{font-size:10px} .lg .v{font-size:24px} .lg .st{font-size:10px} .pl .lnote,.pl .tick{font-size:12px}
+    .pl.opp .ledger{flex-basis:216px} .pl.opp .nm{font-size:14px} .pl.opp .lg .v{font-size:16px} .pl.opp .lg .k{font-size:7.5px} .pl.opp .tick{font-size:10.5px;max-width:calc(100% - 220px)} }
+  /* ===== CLARITY 1123 · THE ROLL-OFF (goal 1): who leads off is a real throw. A felt tray over the board (the rail stays live);
+     each seat picks up the 3D die and throws it: it tumbles, bounces, settles on the ENGINE'S roll (game.rolloff), big reveal. ===== */
+  #rolloff{position:absolute;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(5,7,11,.72)}
+  #rolloff.on{display:flex}
+  #roBox{position:relative;width:min(94%,680px);background:var(--stock);box-shadow:var(--rule2),0 18px 50px rgba(0,0,0,.7);border-radius:2px;padding:14px 16px 12px;color:var(--ink);font-family:Georgia,serif}
+  #roBox h3{margin:0;text-align:center;font-size:20px;letter-spacing:.14em;border-top:3px double var(--ink);border-bottom:3px double var(--ink);padding:3px 0}
+  #roSub{text-align:center;font-style:italic;font-size:12.5px;margin:6px 0 8px;min-height:17px}
+  #roSeats{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
+  .roS{flex:0 1 96px;min-width:74px;text-align:center;padding:4px 3px 5px;border:1px solid rgba(28,20,9,.4);background:rgba(255,255,255,.35)}
+  .roS.now{border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--gold)}
+  .roS .rn{font-size:11px;font-weight:900;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .roS .rv{font-size:26px;font-weight:900;line-height:1.05;min-height:28px}
+  .roS .rp{font-size:10px;font-weight:900;letter-spacing:.1em;min-height:12px;color:var(--stamp)}
+  .roS .rt{font-size:9px;font-style:italic;min-height:11px}
+  #roTray{position:relative;height:clamp(150px,30vh,230px);overflow:hidden;border-radius:2px;cursor:grab;touch-action:none;
+    background:radial-gradient(ellipse at 50% 40%,#1f5a43,#0d2a20 75%);box-shadow:inset 0 0 0 3px #c9a24a,inset 0 0 0 5px #1c1409,inset 0 10px 30px rgba(0,0,0,.6)}
+  #roTray.held{cursor:grabbing}
+  #roShadow{position:absolute;left:0;top:0;width:60px;height:22px;margin:-6px 0 0 -30px;border-radius:50%;background:rgba(0,0,0,.45);filter:blur(4px);pointer-events:none}
+  #roDie{position:absolute;left:0;top:0;width:56px;height:56px;margin:-28px 0 0 -28px;perspective:520px;pointer-events:none}
+  #roCube{position:absolute;inset:0;transform-style:preserve-3d}
+  #roCube i{position:absolute;inset:0;background:#efe3c4 center/cover no-repeat;border-radius:6px;box-shadow:inset 0 0 0 1px rgba(28,20,9,.25);backface-visibility:hidden}
+  #roHint{position:absolute;left:0;right:0;bottom:8px;text-align:center;color:#f0cf7a;font-size:12px;font-weight:900;letter-spacing:.12em;pointer-events:none;text-shadow:0 1px 3px #000}
+  #roBig{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.6);opacity:0;pointer-events:none;white-space:nowrap;
+    font-size:clamp(26px,6vw,52px);font-weight:900;letter-spacing:.1em;color:var(--stamp);background:var(--stock);padding:4px 18px;box-shadow:var(--rule2),0 10px 30px rgba(0,0,0,.6);transition:transform .35s cubic-bezier(.2,1.6,.4,1),opacity .2s}
+  #roBig.on{opacity:1;transform:translate(-50%,-50%) rotate(-4deg) scale(1)}
+  #roFoot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;font-style:italic}
+  #roSkip,#roGo{cursor:pointer;font-family:Georgia,serif;font-weight:900;letter-spacing:.1em;font-size:12px;border:0;padding:6px 12px;color:var(--ink);background:var(--stock);box-shadow:var(--rule2)}
+  #roGo{background:var(--foil);display:none} #roGo.on{display:inline-block}
+  .roS.tie{animation:roTie .32s steps(2,end) 4} .roS.tie .rt{color:var(--stamp,#a3221c);font-weight:900}
+  @keyframes roTie{50%{background:var(--stamp,#a3221c);color:#f3efe4}}
+  /* PHONE (portrait): the board on top, the rail under it with every seat's ledger first (was a 110 px-wide board beside a 280 px rail) */
+  @media (max-width:640px) and (orientation:portrait){
+    #game:not(.table){flex-direction:column}
+    #game:not(.table) #boardwrap{flex:0 0 46vh;width:100%}
+    #game:not(.table) #rail{width:100%;flex:1 1 auto;border-left:0;border-top:1px solid #2c3547;min-height:0}
+    #game:not(.table) .rail-h{display:none}
+    #game:not(.table) #boardwrap{flex-basis:42vh}
+    #game:not(.table) #rail{overflow-y:auto}
+    #game:not(.table) .meters{padding:4px 10px;gap:6px} #game:not(.table) .meter{padding:3px 8px;display:flex;align-items:center;gap:8px;text-align:left}
+    #game:not(.table) .meter .mval{margin:0;white-space:nowrap} #game:not(.table) .pips{margin:0;flex:1}
+    #game:not(.table) .pl .extra:has(.coins:empty):has(.assets:empty){display:none}
+    #game:not(.table) .pl.me .tick:empty{display:none}
+    #game:not(.table) .pl .lnote .fell{display:none}   /* the FAVOR cell carries the standing on a phone */
+    #game:not(.table) .pl.me .lg .st{font-size:8px}
+    #game:not(.table) #players{padding:6px 8px;gap:5px}
+    #game:not(.table) #controls{padding:6px 10px;gap:6px}
+    #game:not(.table) .ctl-row.speed{display:none}
+    #sheet{right:0;bottom:auto;height:42vh;overflow:hidden;padding:8px} #sheetInner{max-height:100%}
+  }
 </style>
 </head>
 <body>
@@ -746,13 +875,16 @@ window.ERSN_THUMB=function(p){ return window.ERSN_ASSET_MAP['thumb:'+p]||window.
 <section id="game" class="screen">
   <div id="boardwrap">
     <canvas id="board" width="1200" height="960"></canvas>
+    <div id="rolloff"><div id="roBox"><h3>WHO LEADS OFF?</h3><div id="roSub"></div><div id="roSeats"></div>
+      <div id="roTray"><div id="roShadow"></div><div id="roDie"><div id="roCube"></div></div><div id="roHint"></div><div id="roBig"></div></div>
+      <div id="roFoot"><button id="roSkip">SKIP THE THROW ▸▸</button><span>Highest roll leads off; play goes clockwise.</span><button id="roGo">LEAD OFF ▸</button></div></div></div>
     <div id="collapseFlash"></div>
     <div class="banner" id="banner"></div>
     <div id="spotlight"><div class="face"></div><div class="tag">—</div><div class="who"></div></div>
     <div class="hand-lbl" id="handLbl"></div>
     <div id="bark"><div class="b"><span class="who"></span><span class="ln"></span></div></div>
     <div id="hand"></div>
-    <div id="prompt"><div class="box"><div class="ttl" id="pTtl">—</div><div class="sub" id="pSub"></div><div class="opts" id="pOpts"></div></div></div>
+    <div id="prompt"><div class="box"><div class="ttl" id="pTtl">—</div><div class="sub" id="pSub"></div><div id="pPrev"></div><div class="opts" id="pOpts"></div></div></div>
   </div>
   <aside id="rail">
     <div class="rail-h">
@@ -771,7 +903,7 @@ window.ERSN_THUMB=function(p){ return window.ERSN_ASSET_MAP['thumb:'+p]||window.
         <button class="candy sm" id="nextBtn" style="flex:1">NEXT TURN ▸</button>
         <button class="candy alt sm" id="autoBtn">AUTO ▸</button>
       </div>
-      <div class="ctl-row"><button id="sheetBtn" style="flex:1">MY CHARACTER — abilities &amp; meters</button></div>
+      <div class="ctl-row"><button id="sheetBtn" style="flex:1">MY ABILITY CARD ▸</button></div>
       <div class="ctl-row speed">
         <span>SLOW</span><input type="range" id="speed" min="200" max="1600" value="650" style="flex:1"><span>FAST</span>
         <button class="candy sm" id="muteBtn" title="sound" style="margin-left:4px">🔊</button>
@@ -794,6 +926,9 @@ window.ERSN_THUMB=function(p){ return window.ERSN_ASSET_MAP['thumb:'+p]||window.
 </section>
 
 <!-- ===== HIDDEN-INFO REVEAL (Cloak of Moral Rectitude — target shows face-down Assets + hand) ===== -->
+<!-- CLARITY 1123 · the guided first round: a sign-off sheet that walks the table (see guideStart) -->
+<div id="guide"><div id="gFrame"></div><div id="gCard"><div id="gStep"></div><div id="gTtl"></div><div id="gTxt"></div>
+  <div id="gRow"><button id="gSkip">SKIP ORIENTATION</button><span id="gSig">initial here ____</span><button id="gNext">NEXT ▸</button></div></div></div>
 <div id="reveal"><div id="revealInner">
   <div id="revealClose">✕</div>
   <div id="revealTitle">—</div>
@@ -1284,7 +1419,8 @@ function load(src){ if(LOADING[src]) return LOADING[src];
   return LOADING[src]=new Promise(r=>{const i=new Image(); i.decoding='async';
     i.onload=()=>{ const ok=()=>r(i); (i.decode?i.decode():Promise.resolve()).then(ok,ok); };
     // a WebP that fails (a dropped request) is retried ONCE (cache-busted): the bundle ships WebP only (WEBP_ONLY 1120)
-    i.onerror=()=>{ if(i._fb!==1 && art(src)!==src){ i._fb=1; i.src=art(src)+'?r=1'; return; } delete LOADING[src]; r(null); };
+    // CLARITY 1123: any dropped request is retried 3x with backoff (cache-busted); was once, WebP only
+    i.onerror=()=>{ const n=(i._fb|0); if(n<3){ i._fb=n+1; setTimeout(()=>{ i.src=art(src)+'?r='+(n+1); },120*(n+1)*(n+1)); return; } delete LOADING[src]; r(null); };
     i.src=art(src); IMG[src]=i;}); }
 const A={board:'assets/board/blank-color.png', env:'assets/gateway/bh-wide.png', juice:'assets/juice_blob.png',
   pawn:'assets/sprites/BW PAWN.png', accr:'assets/fx/accretion.png',
@@ -1542,7 +1678,11 @@ function buildBoardSelect(){
     const t=document.createElement('div'); t.className='bthumb'+(S.board===b.f?' on':'');
     t.innerHTML=`<img src="${ERSN_THUMB(boardSrc(b.f))}" alt="${b.label}" loading="lazy" decoding="async" onerror="if(!this.dataset.r){this.dataset.r=1;this.src+='?r=1'}"><div class="bl">${b.label}</div>`;   // WEBP_ONLY 1120: one retry on a dropped request
     // self-hide a thumbnail whose art isn't present yet (e.g. Joe's 0614 boards before they're copied in)
-    t.querySelector('img').onerror=()=>{ t.remove(); if(S.board===b.f) setBoard('blank-color'); };
+    // CLARITY 1123: this handler REPLACED the inline one-retry onerror above, so one dropped request removed a board from the picker for
+    // good (the shipped picker lost EVENT HORIZON, the default, on a busy server). Retry once here, then hide.
+    // ...and a thumbnail that still fails only hides ITSELF: it never changes the board you chose (it used to fall back to the
+    // default board, which then showed under your game: the 1123 distortion2 flake)
+    t.querySelector('img').onerror=function(){ const n=+(this.dataset.r||0); if(n<5){ this.dataset.r=n+1; const im=this; setTimeout(()=>{ im.src=im.src.split('?')[0]+'?r='+(n+1); },120*(n+1)*(n+1)); return; } if(S.board!==b.f) t.remove(); };
     t.onclick=()=>{ setBoard(b.f); buildBoardSelect(); try{window.SFX&&SFX.play('select',0.4);}catch(e){} };
     seg.appendChild(t);
   });
@@ -1589,6 +1729,7 @@ $('#bootBtn').onclick=()=>{
 $('#muteBtn').onclick=()=>{if(!window.SFX)return;const m=SFX.toggle();$('#muteBtn').textContent=m?'🔇':'🔊';if(!m)SFX.play('select',0.5);};
 $('#startBtn').onclick=()=>{
   if(window.SFX)SFX.play('makeSel',0.6);
+  S.rolloffNext=true;   // CLARITY 1123: a game started from the table opens on the roll-off throw (the demo/capture hooks don't)
   // EXPANSION starts with a bang (dynamite); core start rides a JUICE wash into the board
   if(window.STAGE3D&&STAGE3D.on){ STAGE3D.takeSeat(S.expansion, startGame); } /*LAB3D*/
   else if(S.expansion && window.FX){ FX.dynamite(startGame); }
@@ -1890,9 +2031,162 @@ function startGame(){
   const humans=S.seats.filter(Boolean).length;
   logLine(`<span class="t">TABLE SET</span> · ${S.count} players (${humans} human) · ${S.expansion?'Core + Expansion':'Core only'} · ${S.edition==='benchmark'?'BENCHMARK':'Classic'} edition${game.rules.levels?' · LEVELS (the tower: REGULATION · CORRUPTION)':''}${game.rules.gauntlet?' · THE LOUNGE GAUNTLET (1113)':''}`);
   if(humans) logLine(`<span class="good">Press NEXT TURN to begin. On your turn the game will ask for your moves.</span>`);
+  if(S.rolloffNext || /rollofftest/.test(location.hash)){ S.rolloffNext=false; rollOffWhenSeated(); }
 }
 
-/* ---------- HUD ---------- */
+/* ===== CLARITY 1123 · THE ROLL-OFF THROW (docs/CLARITY-PASS-1123.md goal 1) =====
+   The rule sheet: "Each player will roll off, highest roll leads off, game continuing clockwise." The ENGINE already rolled
+   it (seeded; game.rolloff, ties re-roll: game.rolloffRounds, Joe 1123 Q3700) - this is the throw that shows it. Each seat in seat order picks up the die
+   and throws it: press and hold to shake, flick (or release) to throw; bots throw on their own. The flight is planned from
+   the throw (bounces off the tray rail, friction) and the cube's tumble is laid along that path so it SETTLES on the
+   engine's face. Render-only: no engine call, no engine RNG (the toss's own wobble uses Math.random, seeded in capture). */
+const RO={on:false, seat:0, held:null, anim:0, results:[], human:false, done:null};
+const RO_FACE={1:[0,0],6:[0,180],3:[0,-90],4:[0,90],2:[-90,0],5:[90,0]};   // [rotateX, rotateY] that turns face n up (toward the eye)
+const ordinal=n=>n+(['th','st','nd','rd'][(n%100>10&&n%100<14)?0:n%10<4?n%10:0]||'th');
+function roBuildCube(){ const c=$('#roCube'); if(c.children.length) return; const z=28;
+  [[1,'rotateY(0deg)'],[6,'rotateY(180deg)'],[3,'rotateY(90deg)'],[4,'rotateY(-90deg)'],[2,'rotateX(90deg)'],[5,'rotateX(-90deg)']].forEach(([n,t])=>{
+    const f=document.createElement('i'); f.dataset.face=n; f.style.backgroundImage=`url("${art(A.die[n-1])}")`; f.style.transform=`${t} translateZ(${z}px)`; c.appendChild(f); }); }
+// which face is UP right now: read the cube's real computed 3D transform and find the face whose normal points at the eye
+function roFaceUp(){ const m=new DOMMatrix(getComputedStyle($('#roCube')).transform); let best=0,bz=-9;
+  [[1,0,0,1],[6,0,0,-1],[3,1,0,0],[4,-1,0,0],[2,0,-1,0],[5,0,1,0]].forEach(([n,x,y,z])=>{ const q=m.transformPoint(new DOMPoint(x,y,z,0)); if(q.z>bz){bz=q.z;best=n;} }); return best; }
+function roPlace(x,y,h,rx,ry,rz){ const d=$('#roDie'), sh=$('#roShadow'), k=1+h/160;
+  d.style.transform=`translate(${x}px,${y-h}px) scale(${k})`; sh.style.transform=`translate(${x}px,${y+18}px) scale(${1/(1+h/90)})`; sh.style.opacity=String(0.9/(1+h/60));
+  $('#roCube').style.transform=`rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz||0}deg)`; }
+function roSeatChips(){ const w=$('#roSeats'); w.innerHTML=''; game.players.forEach((p,i)=>{ const d=document.createElement('div'); d.className='roS'; d.id='roS'+i;
+  d.innerHTML=`${pawnSVG(p.color,18,22)}<div class="rn">${p.name.split(' ')[0]}${p.isHuman?' (you)':''}</div><div class="rv">–</div><div class="rp"></div><div class="rt"></div>`; w.appendChild(d); }); }
+// every throw in the order the engine rolled it: round 0 = all seats, then each TIE re-roll (Joe 1123 Q3700: ties re-roll;
+// Q3701: Classic rolls off too, per the printed sheet)
+const roQueue=()=>(game.rolloffRounds||[game.rolloff]).flatMap((rd,r)=>rd.map((x,j)=>({round:r, first:j===0, seat:x.seat, roll:x.roll, tieOf:rd.tieOf, group:rd.map(y=>y.seat)})));
+function rollOffWhenSeated(){ if(!game||!game.rolloff) return;
+  const go=()=>{ if(document.body.classList.contains('s3-intro')) return setTimeout(go,200); rollOff(); };
+  setTimeout(go, (window.STAGE3D&&STAGE3D.on)?600:350); }
+function rollOff(){ if(!game||!game.rolloff) return; roBuildCube();
+  RO.on=true; RO.seat=0; RO.k=0; RO.q=roQueue(); RO.throws=[]; RO.results=[]; RO.auto=/rollofftest/.test(location.hash)&&!/rolloffhuman/.test(location.hash);
+  $('#rolloff').classList.add('on'); $('#roGo').classList.remove('on'); $('#roSkip').style.visibility=''; $('#roBig').classList.remove('on'); roSeatChips();
+  const T=$('#roTray'); roPlace(T.clientWidth/2,T.clientHeight/2,0,-20,25,0);
+  setControls(); roNext(); }
+function roNext(){ const T=$('#roTray');
+  if(RO.k>=RO.q.length) return roReveal();
+  const it=RO.q[RO.k], i=it.seat, p=game.players[i]; RO.seat=i;
+  if(it.round>0 && it.first && !it.flashed){   // a TIE: the tied seats' chips flash, then they throw again
+    it.flashed=true; $$('.roS').forEach(e=>e.classList.toggle('now',false));
+    it.group.forEach(s=>{ const c=$('#roS'+s); c.classList.toggle('tie',false); void c.offsetWidth; c.classList.add('tie'); c.querySelector('.rt').textContent='TIE · THROW AGAIN'; });
+    $('#roSub').innerHTML=`<b>TIE</b> on ${it.tieOf}: ${it.group.map(s=>game.players[s].name.split(' ')[0]).join(' and ')} throw again.`; $('#roHint').textContent=''; sfx('select',0.4);
+    return void setTimeout(()=>{ if(RO.on) roNext(); }, RO.auto?200:1300); }
+  $$('.roS').forEach((e,k)=>e.classList.toggle('now',k===i));
+  RO.human=!!p.isHuman && !RO.auto;
+  $('#roSub').innerHTML=RO.human?`<b>${p.name}</b>, it's your throw.`:`<b>${p.name}</b> throws…`;
+  $('#roHint').textContent=RO.human?(matchMedia('(pointer:coarse)').matches?'TOUCH THE DIE, HOLD TO SHAKE, FLICK TO THROW':'GRAB THE DIE · HOLD TO SHAKE · FLICK TO THROW  (or SPACE)'):'';
+  roPlace(T.clientWidth*0.22,T.clientHeight*0.62,0,-18,22,0);
+  if(!RO.human){   // a bot: picks it up, a short shake, a throw
+    setTimeout(()=>{ if(!RO.on) return; roPlace(T.clientWidth*0.22,T.clientHeight*0.6,26,-30,40,10); sfx('select',0.25);
+      setTimeout(()=>{ if(!RO.on) return; roThrow(T.clientWidth*0.22,T.clientHeight*0.6, 620+Math.random()*260, -140+Math.random()*280); }, RO.auto?120:420); }, RO.auto?60:380);
+  }
+}
+// the tray's input: press = pick up (it lifts and rattles while you hold), drag = carry, release = throw at the flick's speed
+(function(){ const T=$('#roTray'), pt=e=>{ const r=T.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top,t:performance.now()}; };
+  T.addEventListener('pointerdown',e=>{ if(!RO.on||!RO.human||RO.anim) return; e.preventDefault(); T.setPointerCapture(e.pointerId);
+    const q=pt(e); RO.held={trail:[q],shake:0,last:q}; T.classList.add('held'); $('#roHint').textContent='SHAKE IT… LET GO TO THROW';
+    const rattle=()=>{ if(!RO.held) return; RO.held.shake++; const L=RO.held.last; roPlace(L.x+(Math.random()-.5)*6,L.y+(Math.random()-.5)*6,28,RO.held.shake*47%360,RO.held.shake*71%360,RO.held.shake*29%360);
+      if(RO.held.shake%2===0) sfx('move',0.12); RO.held.tm=setTimeout(rattle,90); }; rattle(); });
+  T.addEventListener('pointermove',e=>{ if(!RO.held) return; const q=pt(e); RO.held.last=q; RO.held.trail.push(q); if(RO.held.trail.length>8) RO.held.trail.shift(); });
+  const up=e=>{ if(!RO.held) return; clearTimeout(RO.held.tm); T.classList.remove('held'); const tr=RO.held.trail, a=tr[0], b=RO.held.last; RO.held=null;
+    const dt=Math.max(16,b.t-a.t)/1000; let vx=(b.x-a.x)/dt, vy=(b.y-a.y)/dt;
+    const sp=Math.hypot(vx,vy); if(sp<380){ const k=sp<40?0:380/sp; vx=sp<40?560:vx*k; vy=sp<40?-60:vy*k; }   // a gentle release still throws
+    if(sp>2200){ vx*=2200/sp; vy*=2200/sp; }
+    roThrow(b.x,b.y,vx,vy); };
+  T.addEventListener('pointerup',up); T.addEventListener('pointercancel',up);
+  addEventListener('keydown',e=>{ if(!RO.on||!RO.human||RO.anim||RO.held) return; if(e.key===' '||e.key==='Enter'){ e.preventDefault(); const T2=$('#roTray'); roThrow(T2.clientWidth*0.22,T2.clientHeight*0.6,700,-90); } });
+  $('#roSkip').onclick=()=>roSkip();
+  $('#roGo').onclick=()=>roClose();
+})();
+// plan the flight (2D slide + hop height, rail bounces, friction), then lay the tumble along its length so it lands on `face`
+function roThrow(x,y,vx,vy){ const T=$('#roTray'), W=T.clientWidth, H=T.clientHeight, R=28, i=RO.seat, face=RO.q[RO.k].roll;
+  const path=[]; let h=34, vh=260, t=0, dist=0, bounces=[]; const dt=1/60;
+  while(t<4){ x+=vx*dt; y+=vy*dt; vh-=1500*dt; h+=vh*dt;
+    if(h<=0){ h=0; if(Math.abs(vh)>90){ vh=-vh*0.42; bounces.push(path.length); } else vh=0; const f=Math.pow(0.18,dt); vx*=f; vy*=f; }   // table friction while it rolls
+    else { vx*=Math.pow(0.9,dt); vy*=Math.pow(0.9,dt); }
+    if(x<R){x=R;vx=Math.abs(vx)*0.6;bounces.push(path.length);} if(x>W-R){x=W-R;vx=-Math.abs(vx)*0.6;bounces.push(path.length);}
+    if(y<R){y=R;vy=Math.abs(vy)*0.6;bounces.push(path.length);} if(y>H-R){y=H-R;vy=-Math.abs(vy)*0.6;bounces.push(path.length);}
+    const prev=path[path.length-1]; if(prev) dist+=Math.hypot(x-prev.x,y-prev.y);
+    path.push({x,y,h,d:dist}); t+=dt; if(h===0&&vh===0&&Math.hypot(vx,vy)<14&&t>0.5) break; }
+  // the tumble: whole turns about the axes the throw rolls it along, ending exactly on the engine's face
+  const [fx,fy]=RO_FACE[face], turns=2+Math.round(Math.min(4,dist/260)), sgx=vy>0?1:-1, sgy=vx>0?1:-1;
+  const r0x=-30, r0y=40, r0z=10, rfx=fx+sgx*360*turns, rfy=fy+sgy*360*Math.max(1,turns-1), rfz=0;
+  RO.anim=1; sfx('roll',0.7); const t0=performance.now(), N=path.length, D=Math.max(1,dist), bset=new Set(bounces);
+  $('#roHint').textContent='';
+  const step=()=>{ if(!RO.on){ RO.anim=0; return; } const k=Math.min(N-1,Math.floor((performance.now()-t0)/1000*60)), q=path[k], u=Math.min(1,q.d/D);
+    const e=1-Math.pow(1-u,1.6);   // the spin bleeds off with the speed
+    roPlace(q.x,q.y,q.h,r0x+(rfx-r0x)*e,r0y+(rfy-r0y)*e,r0z+(rfz-r0z)*e);
+    if(bset.has(k)){ bset.delete(k); sfx('move',0.22); }   // the clack
+    if(k<N-1) return void (RO.anim=requestAnimationFrame(step));
+    roPlace(q.x,q.y,0,fx,fy,0); RO.anim=0;
+    // the settle bounce, then the face reads on the seat's chip
+    const d=$('#roDie'); d.animate([{transform:d.style.transform+' scale(1.12)'},{transform:d.style.transform}],{duration:220,easing:'ease-out'});
+    roLanded(i, roFaceUp()); };
+  RO.anim=requestAnimationFrame(step); }
+function roLanded(i,shown){ const it=RO.q[RO.k], v=it.roll, c=$('#roS'+i);
+  RO.throws.push({round:it.round, seat:i, engine:v, shown});   // shown = the face the cube's real transform turned up (the gate holds it == engine)
+  if(it.round===0) RO.results[i]={engine:v, shown};
+  const rv=c.querySelector('.rv'); rv.textContent=it.round?rv.textContent+' → '+v:v; c.classList.toggle('tie',false); if(it.round) c.querySelector('.rt').textContent=''; sfx('select',0.35);
+  $('#roSub').innerHTML=`<b>${game.players[i].name}</b> ${it.round?'re-rolls':'rolls'} a <b>${v}</b>.`;
+  RO.k++; setTimeout(()=>{ if(RO.on) roNext(); }, RO.auto?150:(game.players[i].isHuman?900:650)); }
+function roReveal(){ $$('.roS').forEach(e=>e.classList.remove('now'));
+  const rolls=game.rolloff, order=game.order;
+  const seq=s=>roQueue().filter(t=>t.seat===s).map(t=>t.roll);
+  rolls.forEach(({seat})=>{ const c=$('#roS'+seat), pos=order.indexOf(seat)+1, sq=seq(seat);
+    c.classList.toggle('tie',false); c.querySelector('.rv').textContent=sq.join(' → '); c.querySelector('.rp').textContent=ordinal(pos);
+    c.querySelector('.rt').textContent=sq.length>1?'tie settled':''; });
+  const hum=game.players.map((p,i)=>({p,i})).filter(x=>x.p.isHuman);
+  const big=hum.length===1?`YOU GO ${ordinal(order.indexOf(hum[0].i)+1).toUpperCase()}`:`${game.players[order[0]].name.split(' ')[0].toUpperCase()} LEADS OFF`;
+  const rr=(game.rolloffRounds||[]).length-1;
+  $('#roSub').innerHTML=`Turn order: ${order.map(i=>game.players[i].name.split(' ')[0]).join(' → ')}`+(rr>0?` <i>(${rr} tie re-roll${rr>1?'s':''})</i>`:'');
+  $('#roBig').textContent=big; $('#roBig').classList.add('on'); sfx('makeSel',0.5);
+  $('#roGo').classList.add('on'); $('#roSkip').style.visibility='hidden'; $('#roHint').textContent='';
+  RO.revealed=true; if(RO.auto) setTimeout(roClose,300); }
+function roSkip(){ if(!RO.on) return; cancelAnimationFrame(RO.anim); RO.anim=0; RO.held=null;
+  game.rolloff.forEach(({seat,roll})=>{ if(!RO.results[seat]) RO.results[seat]={engine:roll,shown:null,skipped:true}; });
+  RO.k=RO.q.length; roPlace($('#roTray').clientWidth/2,$('#roTray').clientHeight/2,0,...RO_FACE[game.rolloff[game.order[0]].roll],0); roReveal(); }
+function roClose(){ RO.on=false; cancelAnimationFrame(RO.anim); RO.anim=0; $('#rolloff').classList.remove('on'); setControls();
+  const first=game.players[game.order[0]]; logLine(`<span class="t">ROLL-OFF</span> ${game.rolloff.map(r=>game.players[r.seat].name.split(' ')[0]+' '+roQueue().filter(t=>t.seat===r.seat).map(t=>t.roll).join('→')).join(' · ')} → ${first.name} leads off`);
+  if(typeof guideStart==='function') guideStart(); }
+/* ===== CLARITY 1123 goal 6 · THE GUIDED FIRST ROUND (Sharky's orientation) =====
+   On by default the first time a person plays (remembered per browser, try/catch: a blocked storage just means it shows again);
+   SKIP on every card; #guide forces it, any other debug hash keeps it off. A sign-off sheet that walks five stops, each one
+   framed on the real thing: your ledger, the roll, the TO MARKET door, your Final Favor, the IF YES / IF NO slip. Every line is
+   read from the same sources as the rail (LEDGER whys, the printed door rule), so it can't drift from the rules as written. */
+const GUIDE={on:false,i:0,steps:null};
+const guideSeen=()=>{ try{ return localStorage.getItem('ersn.guided')==='1'; }catch(e){ return false; } };
+const guideMark=()=>{ try{ localStorage.setItem('ersn.guided','1'); }catch(e){} };
+function guideWanted(){ const h=location.hash; if(/guide/.test(h)) return !/noguide/.test(h); if(/[a-z]/i.test(h)) return false; return !guideSeen(); }
+function guideStart(){ if(!game||GUIDE.on||!guideWanted()) return; const me=viewer&&viewer(); if(!me||!me.isHuman) return;
+  const door=[...DOORS][0];
+  GUIDE.steps=[
+    {t:'YOUR BOOKS', at:()=>$('.pl.me .ledger'), x:`Four levels run your whole game. <b>JUICE</b>: ${LEDGER.j.why(game).split('. ')[0]}. <b>RISK</b>: ${LEDGER.r.why(game).split('. ')[0]}. Tap any level, any time, for the rest.`},
+    {t:'YOUR TURN', at:()=>$('#nextBtn'), x:`When it says <b>YOUR TURN</b>, press it. You roll for Juice, then pick where to walk: the glowing spaces are every place you can legally land.`},
+    {t:'THE TO MARKET DOOR', at:()=>guideDoorRect(door), x:`The gold arrow is the door. Pay <b>1 Juice</b> to take it and you score <b>+1 Final Favor</b>. You can't stop on the door: you land on the space marked <b>LAND HERE</b>.`},
+    {t:'HOW YOU WIN', at:()=>$('.pl.me .lg.ff'), x:(game.rules.gauntlet?`The tower falls; you win by holding the best <b>Final Favor</b> when it does, once the Lounge is counted: anyone still in the <b>Executive Lounge</b> outranks everyone outside it, then the most collapse hearings held. (Or <b>MAKE IT OUT</b> first: 4 hearings in a row with 2+ Clean Assets.) `:`The tower falls; you win by holding the best <b>Final Favor</b> when it does. `)+`This box is your Favor right now and where you'd rank if it fell this turn.`},
+    {t:'BEFORE YOU COMMIT', at:()=>$('#players'), x:`Every yes/no shows its <b>IF YES</b> and <b>IF NO</b> on your books before you choose. That's the round. Go make a mess.`}];
+  $('#gNext').onclick=()=>{ if(GUIDE.i>=GUIDE.steps.length-1) guideEnd(); else { GUIDE.i++; guideShow(); } }; $('#gSkip').onclick=guideEnd;
+  GUIDE.on=true; GUIDE.i=0; setControls(); $('#guide').classList.add('on'); guideShow(); }
+function guideDoorRect(d){ if(d==null||!TILE_NORM||d>=TILE_NORM.length) return null; const r=cv.getBoundingClientRect(), k=r.width/cv.width, a=nodeXY(d), b=nodeXY((d+1)%LOOP_N_UI), R=boardRect().bw*k*0.07;
+  const x0=Math.min(a.x,b.x)*k+r.left-R, y0=Math.min(a.y,b.y)*k+r.top-R*1.6, x1=Math.max(a.x,b.x)*k+r.left+R, y1=Math.max(a.y,b.y)*k+r.top+R;
+  return {getBoundingClientRect:()=>({left:x0,top:y0,right:x1,bottom:y1,width:x1-x0,height:y1-y0})}; }
+function guideShow(){ const st=GUIDE.steps[GUIDE.i], last=GUIDE.i===GUIDE.steps.length-1;
+  $('#gStep').textContent=`ORIENTATION ${GUIDE.i+1} / ${GUIDE.steps.length}`; $('#gTtl').textContent=st.t; $('#gTxt').innerHTML=st.x;
+  $('#gNext').textContent=last?'SIGN OFF ▸':'NEXT ▸'; $('#gSkip').style.visibility=last?'hidden':'visible'; guidePlace(); }
+function guidePlace(){ if(!GUIDE.on) return; const st=GUIDE.steps[GUIDE.i], el=st.at&&st.at(), F=$('#gFrame'), C=$('#gCard'), W=innerWidth, H=innerHeight;
+  const r=el&&el.getBoundingClientRect(); if(!r||!r.width){ F.style.display='none'; C.style.left=Math.max(16,(W-C.offsetWidth)/2)+'px'; C.style.top=Math.max(16,(H-C.offsetHeight)/2)+'px'; return; }
+  F.style.display='block'; Object.assign(F.style,{left:(r.left-6)+'px',top:(r.top-6)+'px',width:(r.width+12)+'px',height:(r.height+12)+'px'});
+  const cw=C.offsetWidth, ch=C.offsetHeight; let x=r.left+r.width/2-cw/2, y=r.bottom+14; if(y+ch>H-12) y=r.top-ch-14; if(y<12) y=Math.max(12,Math.min(H-ch-12,r.top+r.height/2-ch/2)), x=(r.left>W/2)?r.left-cw-16:r.right+16;
+  C.style.left=Math.max(12,Math.min(W-cw-12,x))+'px'; C.style.top=Math.max(12,Math.min(H-ch-12,y))+'px'; }
+function guideEnd(){ GUIDE.on=false; guideMark(); $('#guide').classList.remove('on'); setControls(); logLine(`<span class="t">ORIENTATION</span> signed off. Sharky's cubicle (RULES) has the long version.`); }
+addEventListener('resize',()=>{ if(GUIDE.on) guidePlace(); });
+window.__guide=()=>({on:GUIDE.on, i:GUIDE.i, n:GUIDE.steps&&GUIDE.steps.length});
+window.__rolloff=()=>({on:RO.on, revealed:!!RO.revealed, results:RO.results, throws:RO.throws, rounds:game&&game.rolloffRounds&&game.rolloffRounds.map(rd=>({tieOf:rd.tieOf, rolls:rd.map(x=>({seat:x.seat,roll:x.roll}))})), engine:game&&game.rolloff, order:game&&game.order,
+  big:$('#roBig').textContent, chips:$$('.roS').map(c=>({v:c.querySelector('.rv').textContent,p:c.querySelector('.rp').textContent}))});
+
+/* ---------- HUD ---------- *//* ---------- HUD ---------- */
 function pipRow(el,val,cls){
   el.innerHTML=''; for(let i=0;i<8;i++){const d=document.createElement('div');
     d.className='pip'+(i<val?(' '+cls):'');el.appendChild(d);} }
@@ -1900,10 +2194,12 @@ function buildPlayerPanels(){
   const wrap=$('#players');wrap.innerHTML='';
   game.players.forEach(p=>{
     const d=document.createElement('div');d.className='pl';d.id='pl-'+cssId(p.name);
-    d.onclick=()=>openSheet(p);
+    d.onclick=()=>{ if(sheetFor===p) closeSheet(); else openSheet(p); };   // the seat = its ability card, one click (again = close)
+    const lg=k=>`<div class="lg ${k}" data-m="${k}"><b class="k">${LEDGER[k].name}</b><span class="v">0</span><i class="trk"><s></s>${LEDGER[k].marks(game).map(m=>`<u class="${m.bad?'bad':''}" style="left:${Math.min(100,m.at/8*100)}%"></u>`).join('')}</i><span class="st"></span></div>`;
     d.innerHTML=`<div class="top">${pawnSVG(p.color,24,30)}
       <span class="nm">${p.name}${p.isHuman?' <span style="color:#9fd06a">▸you</span>':''}</span>
-      <span class="loc">START</span><span class="seehint">SHEET ▸</span></div>
+      <span class="loc">START</span><span class="seehint" title="their ability card (abilities, Final Favor)">ABILITY CARD ▸</span><div class="ledger">${['j','t','h','r'].map(lg).join('')}<div class="lg ff" data-m="ff" title="FINAL FAVOR: your live score on the printed check-list. When the Tower collapses, Lounge seats outrank everyone outside it, then Final Favor decides (the top Final Favor wins most games)."><b class="k">FAVOR</b><span class="v">0</span><span class="st"></span></div></div></div>
+      <div class="lnote"></div><div class="tick"></div>
       <div class="stats">
         <div class="stat j"><div class="sv">0</div><div class="sn">JUICE</div></div>
         <div class="stat h"><div class="sv">0</div><div class="sn">HYPE</div></div>
@@ -1912,10 +2208,86 @@ function buildPlayerPanels(){
       </div>
       <div class="extra"><div class="coins"></div><div class="assets"></div></div>
       <div class="dossier"></div>`;
+    d.querySelectorAll('.lg:not(.ff)').forEach(c=>{ c.title=LEDGER[c.dataset.m].why(game);
+      // tap/click a level = its one-line meaning in this seat's ticker (phones have no hover); never opens the card
+      c.onclick=e=>{ e.stopPropagation(); ledgerSay(p, `<span class="why">${LEDGER[c.dataset.m].name}: ${LEDGER[c.dataset.m].why(game)}</span>`); }; });
+    { const f=d.querySelector('.lg.ff'); f.onclick=e=>{ e.stopPropagation(); ledgerSay(p, `<span class="why">${f.title}</span>`); }; }
     wrap.appendChild(d);
   });
+  ledgerPrev={}; ledgerLog=game.loglines.length; layoutLedger();
 }
 const cssId=s=>s.replace(/[^a-z0-9]/gi,'');
+/* ===== CLARITY 1123 · THE LEDGER (the meaning of each level, Benchmark as written: docs/BENCHMARK-RULES-1PAGE.md) =====
+   marks = the levels notched on the 0-8 track (bad = stamp red); why = the one-line hover/tap; st = where THIS seat stands. */
+const LEDGER={
+  j:{name:'JUICE', marks:g=>[{at:3},...(g&&g.rules.tallPoppy?[{at:g.rules.tallPoppyAt||8,bad:true}]:[])],
+     why:g=>'Fuel: 1 Juice moves 1 space, 3 buys a Bribe, you roll for more every turn.'+(g&&g.rules.tallPoppy?' The sole leader at '+(g.rules.tallPoppyAt||8)+'+ takes +1 Risk (Tall Poppy).':''),
+     st:(p,g)=>p.juice<=0?'broke':p.juice>=3?'bribe ok':(p.juice+' move'+(p.juice===1?'':'s'))},
+  t:{name:'TRUST', marks:()=>[{at:4},{at:6}],
+     why:()=>'4+ Trust walks you into the Tower, no roll. Tower checks pass on 5+, 4+ at Trust 4, 3+ at Trust 6. Hearings add Trust minus Risk.',
+     st:(p)=>p.trust>=6?'checks 3+':p.trust>=4?'walk in':(4-p.trust)+' to walk in'},
+  h:{name:'HYPE', marks:()=>[{at:8}],
+     why:()=>'8+ Hype also walks you into the Tower. Spend it: SPIN a hearing (1 Hype = +1) or POINT THE FINGER (2).',
+     st:(p)=>p.hype>=8?'walk in':(8-p.hype)+' to walk in'},
+  r:{name:'RISK', marks:g=>[...(g&&g.rules.shadowOnRisk&&g.expansion?[{at:g.rules.shadowRiskThreshold||6}]:[]),{at:8,bad:true}],
+     why:g=>'Danger: at 8 you BURN OUT (lose your Assets, Trust and Bribes; Risk resets to 5). Every Bribe you use adds +2. Hearings subtract it.'+(g&&g.rules.shadowOnRisk&&g.expansion?' End a turn at '+(g.rules.shadowRiskThreshold||6)+'+ and the Shadow SEC creeps up.':''),
+     st:(p)=>p.risk>=8?'BURNED':'burnout in '+(8-p.risk)},
+};
+let ledgerPrev={}, ledgerLog=0;
+// a seat's Final Favor as THIS viewer may know it + its standing "if the Tower collapsed now" (the Reckoning: Lounge seats first,
+// then Final Favor; ties share the better place). Your own seat: the full score. A rival: the public part (+? = maybe one more).
+function ledgerFF(p){ const v=viewer(), ff=q=>{ const b=ffBreakdown(q), own=!v||q===v;
+    const hid=!own && q.lineup.some(t=>!t.up && !iKnow(t.card,q));
+    const two=b.pos.find(r=>r[0]==='Exactly 2 Clean Assets'), net=b.net-(hid&&two?two[1]:0);
+    return {net, maybe:hid, key:(q.in_lounge?1000:0)+net}; };
+  const me=ff(p), rank=1+game.players.filter(q=>q!==p && ff(q).key>me.key).length; return {...me, rank}; }
+const LEDGER_KEY={j:'juice',t:'trust',h:'hype',r:'risk'};
+function ledgerMe(){ const v=viewer(); return v||(game&&game.activePlayer)||null; }
+function layoutLedger(){ if(!game) return; const me=ledgerMe();
+  game.players.forEach(p=>{ const d=$('#pl-'+cssId(p.name)); if(d){ d.classList.toggle('me',p===me); d.classList.toggle('opp',p!==me); } }); }
+// the reason a level moved: the newest NEW log line about this seat (the engine's own words: "rolls 4", "Leverage Loop", "buys a Bribe")
+function ledgerWhy(p,news,k){ const first=p.name.split(' ')[0], word=LEDGER[k].name.toLowerCase();
+  const tidy=l=>l.replace(/^[\s↳]+/,'').replace(/^\[[^\]]*\]\s*/,'').replace(new RegExp('^'+p.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+"('s)?\\s*"),'').replace(/^\s*:\s*/,'').replace(/\s+/g,' ').replace(/\s*->\s*(Juice|Trust|Hype|Risk)\s*-?\d+$/i,'').trim();
+  const act=game.activePlayer===p;   // the dice lines ("rolls 4 -> Juice 9") name nobody: they belong to the seat whose turn it is
+  const others=game.players.filter(q=>q!==p).map(q=>q.name.split(' ')[0]);
+  const mine=news.filter(l=>!/^\s*(--|\[Turn)/.test(l) && (l.includes(first)||(act&&!others.some(o=>l.includes(o)))));
+  const hit=[...mine].reverse().find(l=>l.toLowerCase().includes(word))||mine[mine.length-1]||'';   // no line about this seat = no reason (never a wrong one)
+  let w=tidy(hit); if(w.length>44) w=w.slice(0,42)+'…'; return w; }
+function ledgerSay(p,html){ const d=$('#pl-'+cssId(p.name)); if(!d) return; const t=d.querySelector('.tick'); t.classList.remove('old'); t.innerHTML=html;
+  clearTimeout(t._tm); t._tm=setTimeout(()=>t.classList.add('old'),3600); }
+function updateLedger(){
+  const news=game.loglines.slice(ledgerLog); ledgerLog=game.loglines.length; layoutLedger();
+  game.players.forEach(p=>{ const d=$('#pl-'+cssId(p.name)); if(!d) return; const prev=ledgerPrev[p.name], deltas=[];
+    for(const k of ['j','t','h','r']){ const v=p[LEDGER_KEY[k]], c=d.querySelector('.lg.'+k); if(!c) continue;
+      c.querySelector('.v').textContent=v;
+      c.querySelector('.trk s').style.width=(Math.max(0,Math.min(8,v))/8*100)+'%';
+      c.querySelector('.st').textContent=LEDGER[k].st(p,game);
+      if(prev && prev[k]!==v){ const dv=v-prev[k]; deltas.push(`<span class="d ${k}">${dv>0?'+':'−'}${Math.abs(dv)} ${LEDGER[k].name}</span>`);
+        c.classList.remove('up','dn'); void c.offsetWidth; c.classList.add(dv>0?'up':'dn'); c._why=ledgerWhy(p,news,k); } }
+    if(deltas.length){ const why=[...new Set([...d.querySelectorAll('.lg')].filter(c=>c.classList.contains('up')||c.classList.contains('dn')).map(c=>c._why).filter(Boolean))].slice(-1)[0];
+      ledgerSay(p, deltas.join(' ')+(why?` <span class="why">· ${why}</span>`:'')); setTimeout(()=>d.querySelectorAll('.lg').forEach(c=>c.classList.remove('up','dn')),950); }
+    ledgerPrev[p.name]={j:p.juice,t:p.trust,h:p.hype,r:p.risk};
+    // YOUR where-you-stand line: the Tower door, the burnout distance, what you hold toward the win (your own face-downs only)
+    const n=d.querySelector('.lnote'); if(n && d.classList.contains('me')){
+      const g=game, sep='<span class="sep">·</span>', bits=[];
+      if(p.in_lounge) bits.push(g.rules.gauntlet?`<b>LOUNGE</b> hearings held ${p._gStreak||0}/${g.rules.gExit}`:'<b>LOUNGE</b>');
+      else if(typeof p.pos==='string'&&p.pos[0]==='F') bits.push(`<b>TOWER</b> ${(ERSN_FLOORS.bands[+p.pos.slice(1)]||'').toLowerCase()} · climb: 1 Juice + a check`);
+      else bits.push((p.trust>=4||p.hype>=8)?'<b>TOWER</b> walk in at a ◆ staircase':'<b>TOWER</b> roll 5–6 or Bribe at a ◆');
+      bits.push(p.risk>=6?`<b class="bad">BURNOUT IN ${Math.max(0,8-p.risk)}</b>`:`burnout in ${8-p.risk}`);
+      const cl=g.victoryCleanCount?g.victoryCleanCount(p):p.clean_count(); bits.push(`clean ${cl}/2 to win`);
+      bits.push(`${p.bribes} bribe${p.bribes===1?'':'s'}`);
+      { const sc=ledgerFF(p), n=game.players.length; bits.push(`<span class="fell"><b>IF IT FELL NOW</b> ${ordinal(sc.rank)} of ${n}: ${p.in_lounge?'you are in the Lounge, then Final Favor decides':'Lounge seats outrank you, then Final Favor'}</span>`); }
+      n.innerHTML=bits.join(sep).replace(sep+'<span class="fell">','<span class="fell">'+sep); }
+    else if(n) n.innerHTML='';
+    // LIVE FINAL FAVOR (coordinator 1123, from _BONES/BONES-1123.md: the top Final Favor picks the winner 83% of the time).
+    // A display of the existing score (ffBreakdown().net == p.final_favor()). Hidden info: "Exactly 2 Clean Assets" reads a
+    // seat's face-down cards, so a rival's shows only the public part, "+?" while any of their face-downs is unknown to you.
+    { const f=d.querySelector('.lg.ff'); if(f){ const sc=ledgerFF(p); f.querySelector('.v').textContent=(sc.net>0?'+':'')+sc.net+(sc.maybe?'?':'');
+      f.querySelector('.st').textContent=ordinal(sc.rank)+' now'; f.title='FINAL FAVOR'+(sc.maybe?' (public part; +? = one more if their face-down Assets make exactly 2 Clean)':'')+': the score on the printed check-list. If the Tower collapsed now this seat stands '+ordinal(sc.rank)+': Lounge seats outrank everyone outside it, then Final Favor decides (the top Final Favor wins most games).'; } }
+    const sh=d.querySelector('.seehint'); if(sh){ const open=sheetFor===p; sh.classList.toggle('open',open); sh.textContent=open?'CARD OPEN ▾':'ABILITY CARD ▸'; }
+  });
+  const sb=$('#sheetBtn'); if(sb){ const open=!!sheetFor; sb.classList.toggle('open',open); sb.textContent=open?'ABILITY CARD OPEN: CLOSE ▾':'MY ABILITY CARD ▸'; }
+}
 const CARD_BY_NAME={}; (window.CARDS||[]).forEach(c=>CARD_BY_NAME[c.name]=c);
 let spotTimer=0;
 function spotlight(cardName,who){
@@ -1938,14 +2310,16 @@ function updateHUD(){
     loc.textContent=p.in_lounge?(game.rules.gauntlet?`LOUNGE ⚖${p._gStreak||0}/${game.rules.gExit}`:'LOUNGE'):(p.pos==='START'?'START':(typeof p.pos==='string'&&p.pos[0]==='F')?(ERSN_FLOORS.bands[+p.pos.slice(1)]||'TOWER'):'SPACE '+p.pos);
     loc.classList.toggle('lounge',p.in_lounge);
     const sv=d.querySelectorAll('.sv');
-    sv[0].textContent=p.juice; sv[1].textContent=p.hype; sv[2].textContent=p.trust; sv[3].textContent=p.risk;
+    sv[0].textContent=p.juice; sv[1].textContent=p.hype; sv[2].textContent=p.trust; sv[3].textContent=p.risk;   // (hidden: THE LEDGER below shows them)
     const coins=d.querySelector('.coins');coins.innerHTML='';
     for(let i=0;i<p.bribes;i++){const c=document.createElement('div');c.className='coin';coins.appendChild(c);}
     const as=d.querySelector('.assets');as.innerHTML='';
     p.lineup.forEach(t=>{const a=document.createElement('div');
-      const dirty=p.effDirty(t);            // effective tag respects place-on-top modifiers
+      // Joe 1123 Q3702: show only what the table can SEE: a place-on-top modifier card (a printed card) if one is on it, else the
+      // asset's own printed Clean / Dirty; a status the print has no marker or word for (a changed or neutral one) shows nothing
+      const m=p.topMod&&p.topMod(t), shownTag=m&&(m.tag==='clean'||m.tag==='dirty')?m.tag:({Clean:'clean',Dirty:'dirty'}[t.card.ctype]||'');
       const seen=!t.up&&iKnow(t.card,p);    // face-down, but this viewer has been shown it
-      a.className='acard '+(!t.up?('fd'+(seen?' seen':'')):(dirty?'dirty':'clean'));
+      a.className='acard '+(!t.up?('fd'+(seen?' seen':'')):shownTag);
       if((t.up||seen)&&t.card.art) a.style.backgroundImage=`url("${art(t.card.art)}")`;
       // NEVER leak a face-down name through the tooltip either
       a.title=(t.up||seen)?(t.card.name+(seen?' — you\u2019ve seen this':'')+(t.mods&&t.mods.length?' (modified)':'')):'Face-down Asset';
@@ -1955,6 +2329,7 @@ function updateHUD(){
         `<span class="dc${k.hand?' hand':''}" title="${k.name} — ${k.where}">${k.name}</span>`).join(''):'';
     }
   });
+  updateLedger();
   updateReactReady();
 }
 function logLine(html,cls){const l=$('#log');const e=document.createElement('div');if(cls)e.className=cls;e.innerHTML=html;l.appendChild(e);l.scrollTop=l.scrollHeight;
@@ -1981,7 +2356,7 @@ function ffBreakdown(p){
   ];
   const pen=[
     ['Bribed your way through', p.ff_bribe_used||0],
-    ['Let a Clean Asset go Dirty', p.ff_clean_turned_dirty||0],
+    ['Clean Asset turned Dirty', p.ff_clean_turned_dirty||0],   // the printed meter's own words (FF checklist), not a card marker (Q3702)
     ['Burned out', p.ff_burnout||0],
   ];
   if(typeof game!=='undefined'&&game&&game.ffExtras) game.ffExtras(p).forEach(r=>pos.push(r));   // Benchmark lines beyond the printed checklist (net = game.ff(p), the number that decides)
@@ -2059,8 +2434,9 @@ function openSheet(player){
   renderSheetAbilities(p);
   $('#sheet').classList.add('on');
   try{window.SFX&&SFX.play('makeSel',0.4);}catch(e){}
+  if(game) updateLedger();
 }
-function closeSheet(){ $('#sheet').classList.remove('on'); sheetFor=null; }
+function closeSheet(){ $('#sheet').classList.remove('on'); sheetFor=null; if(game) updateLedger(); }
 
 /* ---------- hidden-info REVEAL (Cloak of Moral Rectitude) ---------- */
 function showReveal(ev){
@@ -2331,7 +2707,7 @@ function checkTails(name){
 
 /* ---------- turn driver (async — the turn can pause for human input) ---------- */
 async function playTurn(){
-  if(!game||game.done||busy)return;
+  if(!game||game.done||busy||RO.on||GUIDE.on)return;
   busy=true; setControls();
   try{ await game.step(); }
   catch(e){ logLine(`<span class="sec">engine error: ${e.message}</span>`); console.error(e); }
@@ -2342,7 +2718,7 @@ async function playTurn(){
 }
 function setControls(){
   const human=game&&game.activePlayer&&game.activePlayer.isHuman;
-  const n=$('#nextBtn'); if(n){ n.disabled=busy; n.textContent = (human&&!busy)?'YOUR TURN ▸':'NEXT TURN ▸'; }
+  const n=$('#nextBtn'); if(n){ n.disabled=busy||RO.on||GUIDE.on; n.textContent = (human&&!busy)?'YOUR TURN ▸':'NEXT TURN ▸'; }
 }
 function showBanner(t){const b=$('#banner');b.textContent=t;b.style.display='block';}
 let flashT=0;
@@ -2452,11 +2828,35 @@ function updateReactReady(){
   el.classList.add('on');
 }
 
+/* CLARITY 1123 goal 5 · PAYOFF / RISK BEFORE YOU COMMIT. Each yes/no prompt that moves your ledger gets a ledger slip: what YES does
+   and what NO does, in the rail's own words (Juice / Trust / Hype / Risk / Favor), plus the odds when a die decides it. Numbers come
+   from the same state the engine reads (p, game._towerPassOn) and the printed costs; nothing here is a rule, it reads them out. */
+let PROMPT_PREVIEW='';
+function promptPreview(req,p){
+  if(!p||!p.isHuman) return '';
+  const odds=n=>`${Math.max(0,7-n)} in 6`, risk=d=>{ const r=p.risk+d; return `Risk ${p.risk}→<b class="${r>=6?'bad':''}">${r}</b>${r>=8?' · BURNED OUT':' · burnout in '+(8-r)}`; };
+  const J=d=>`Juice ${p.juice}→<b>${Math.max(0,p.juice+d)}</b>`, row=(k,t)=>`<div class="pv ${k}"><span class="pvk">${k==='y'?'IF YES':k==='n'?'IF NO':k==='p'?'PASS':'FAIL'}</span><span>${t}</span></div>`;
+  switch(req.kind){
+    case 'bribe': return row('y',`${J(-3)} · Bribes ${p.bribes|0}→<b>${(p.bribes|0)+1}</b> · no Risk yet (spending one later: +2 Risk, −1 Favor)`)+row('n',`${J(0)} · nothing changes`);
+    case 'door': return row('y',`${J(-1)} · Favor <b>+1</b> (passed to Market) · you land on the space beyond the door`)+row('n',`${J(0)} · you still pass the door, no Favor`);
+    case 'climbTier':{ const on=game._towerPassOn(p), fr=game.rules.levelsClimbRisk===false?0:1;
+      return row('y',`${J(-req.cost)} · then a Trust Check: pass on ${on}+ = <b>${odds(on)}</b>`)+row('p',req.toLounge?'into the Executive Lounge':'up one tier')+row('f',fr?risk(1)+' · you stay put':'you stay put')+row('n',`${J(0)} · you hold this tier`); }
+    case 'enterLounge':
+      if(game&&game.rules.levels&&!game.collapsed) return row('y',`${J(-1)} · into the tower`)+row('n','you stay on the loop');
+      if(req.qualifies) return row('y',`${J(-1)} · straight into the Lounge (you qualify)`)+row('n','you stay out');
+      return row('y',`${J(-1)} · WHY ASK? roll: 5+ = <b>${odds(5)}</b>`)+row('p','into the Lounge')+row('f',risk(1))+row('n','nothing changes');
+    case 'bribeEntry': case 'bribeClimb':
+      return row('y',`Bribes ${p.bribes|0}→<b>${Math.max(0,(p.bribes|0)-1)}</b> · ${risk(2)} · Favor <b>−1</b> · no roll`)+row('n','you take the roll instead');
+    case 'goldenWalk': return row('y','free: no Juice, no roll')+row('n','you play the board instead');
+    case 'tipOff': return row('y',`${risk(1)} · your pick rolls a Trust Check or falls a tier`)+row('n','you take the SEC card yourself');
+  }
+  return '';
+}
 let promptResolve=null;   // {r,safe} — the live prompt's resolver + its safe "decline" value
 function settlePrompt(val){ if(!promptResolve)return; const pr=promptResolve; promptResolve=null; closePrompt(); pr.r(val); }
 function declinePrompt(){ if(promptResolve) settlePrompt(promptResolve.safe); }   // Esc / backdrop backstop
 function openPrompt(title,sub,opts,resolve){
-  $('#pTtl').textContent=title; $('#pSub').textContent=sub||'';
+  $('#pTtl').textContent=title; $('#pSub').textContent=sub||''; $('#pPrev').innerHTML=PROMPT_PREVIEW||''; PROMPT_PREVIEW='';
   const box=$('#pOpts'); box.innerHTML='';
   // safe fallback = the explicit decline option (cls 'no'), else the first option — so Esc/backdrop
   // can ALWAYS resolve the turn with a value the engine accepts (a turn can never hard-stick on a prompt).
@@ -2475,8 +2875,10 @@ function openPrompt(title,sub,opts,resolve){
           `<div class="cx">you haven\u2019t seen this one</div>`;
       } else {
         b.className+=' card '+cls4(c.ctype)+(t.up?'':' knownfd');
-        const tag=t.up?(game.activePlayer&&t.dirty?'DIRTY':(t.dirty?'DIRTY':'CLEAN')):'FACE-DOWN \u00b7 SEEN';
-        b.innerHTML=`<div class="ct">${ow?ow.name+' \u00b7 ':''}${tag}</div><div class="cn">${c.name}</div>`;
+        // Joe 1123 Q3702: the print has no marker for a changed Clean/Dirty status and no word for neutral, so a card shows only what
+        // is PRINTED on it (Clean / Dirty); anything else shows no status word at all. The engine still tracks the change internally.
+        const tag=t.up?({Clean:'CLEAN',Dirty:'DIRTY'}[c.ctype]||''):'FACE-DOWN \u00b7 SEEN';
+        b.innerHTML=`<div class="ct">${ow?ow.name:''}${ow&&tag?' \u00b7 ':''}${tag}</div><div class="cn">${c.name}</div>`;
       }
     } else {
       b.innerHTML=`${o.label}${o.sub?`<span class="os">${o.sub}</span>`:''}`;
@@ -2664,6 +3066,7 @@ function presentPrompt(req,p,resolve){
   // NEXT disabled, no way to resolve). Guarantee a resolvable fallback for every decision.
   if(!opts.length) opts=[{label:'Continue ▸',value:null,cls:'no'}];
   promptKind=req.kind; boardHints=computeHints(req,p);
+  PROMPT_PREVIEW=promptPreview(req,p);   // CLARITY 1123 goal 5: what YES / NO does to your ledger, before you commit
   openPrompt(title,sub,opts,resolve);
   $('#prompt').classList.toggle('react', req.kind==='react');   // gold-ring emphasis on a reaction window
   if(req.kind==='react'){ try{window.SFX&&SFX.play('makeSel',0.5);}catch(e){} }
@@ -2698,7 +3101,7 @@ if(CAL){
     if(e.key==='['||e.key===']'||k==='s')calSave();
     if(k==='r'){ try{localStorage.removeItem('ersnHole.'+S.board);}catch(_){} if(BOARD_HOLE[S.board])HOLE_NORM={...BOARD_HOLE[S.board]}; } });
 }
-$('#sheetBtn').onclick=()=>openSheet();
+$('#sheetBtn').onclick=()=>{ if(sheetFor) closeSheet(); else openSheet(); };
 $('#sheetClose').onclick=closeSheet;
 $('#sheet').addEventListener('click',e=>{ if(e.target.id==='sheet') closeSheet(); });
 $('#revealClose').onclick=closeReveal; $('#revealOk').onclick=closeReveal;
@@ -2722,10 +3125,16 @@ function loop(){
   // PERF 1120: no board on screen (title / setup / verdict / a hidden tab) → draw nothing. The 3D edition's stage
   // owns its own visibility, so it always runs.
   if((document.hidden || !BOARDWRAP || !BOARDWRAP.clientWidth) && !(window.STAGE3D&&STAGE3D.on)) return;
+  ledgerWatch();
   fitCanvas();
   drawBoard();
   if(window.STAGE3D&&STAGE3D.on) STAGE3D.afterBoard(); /*LAB3D*/
 }
+// CLARITY 1123: the engine moves a level between the events the HUD listens to (an async step mid-way); 4x a second, if any seat's
+// level differs from what the ledger shows, refresh it (a handful of integer compares; no DOM work when nothing moved)
+let ledgerT=0;
+function ledgerWatch(){ const t=performance.now(); if(!game||t-ledgerT<250) return; ledgerT=t;
+  if(game.players.some(p=>{ const q=ledgerPrev[p.name]; return !q||q.j!==p.juice||q.t!==p.trust||q.h!==p.hype||q.r!==p.risk; })) updateLedger(); }
 function fitCanvas(){ if(window.STAGE3D&&STAGE3D.on){ STAGE3D.fitBoard(cv,$('#boardwrap')); return; } /*LAB3D*/
   // Fill the whole board pane (no CSS letterbox) and match the buffer to its aspect so the
   // in-world environment can paint the side pillars; the PORTRAIT board is letterboxed inside
@@ -2912,6 +3321,7 @@ function drawBoard(ts){
 
   // ---- the 12 SPACE PLAQUES + serpentine bead-trail (black-hole boards; under halos + pawns) ----
   drawSpaces(now);
+  drawDoorMarks(now);   // CLARITY 1123: the TO MARKET door answers "where do I land?" on the board itself
   drawTowerTrack(now);   // LEVELS on a board with no painted tower bands: the programmed tier track (render-only)
   drawFloors3D();   // ?levels&art=3d: Blender tier pieces on the tower spots (render-only)
   // ---- ASSET / MARKET / SEC deck-pile marker chips (black-hole boards) ----
@@ -3725,6 +4135,28 @@ function drawSpaces(now){
 // SPIRAL LIFT teleport flourish — when a pawn enters the Lounge from a Golden Staircase, the painted
 // beam materialises where it stood (lift1 bare pads -> lift5 full spiral) and rides up + fades as the
 // pawn tweens to the Lounge platform. Additive blit = pure gold light over the board. Render-only.
+/* CLARITY 1123 goal 7 · THE BOARD ANSWERS THE TABLE'S QUESTION. Playtest: "the TO MARKET door says space on the other side of the
+   door" and nobody knew where they'd stand. The rule as written (Benchmark sheet, MOVEMENT): pay 1 Juice to enter, saunter to the next
+   space beyond the Tower, you may not end your turn on a door space. So every door gets a gold arrow to the space beyond it, a
+   LAND HERE tag there and a PASS THROUGH tag on the door; when that landing is one of your legal moves right now (the same halo
+   set as the move prompt, gated by scripts/movement-test.js) it burns bright. Plain strokes, no shadowBlur (perf budget). */
+function doorTag(x,y,txt,fs,hot){ ctx.save(); ctx.font=`900 ${fs}px Georgia,serif`; const w=ctx.measureText(txt).width+fs*0.9, h=fs*1.45;
+  ctx.globalAlpha=hot?1:0.94; ctx.fillStyle=hot?'#f9e9ab':'#efe3c4'; ctx.fillRect(x-w/2,y-h/2,w,h);
+  ctx.strokeStyle='#1c1409'; ctx.lineWidth=Math.max(1,fs*0.09); ctx.strokeRect(x-w/2,y-h/2,w,h);
+  ctx.fillStyle=hot?'#a3221c':'#1c1409'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(txt,x,y+fs*0.04); ctx.restore(); }
+function drawDoorMarks(now){ if(!game||!TILE_NORM||!DOORS.size) return; const N=LOOP_N_UI, R=boardRect(), BW=R.bw, fs=Math.max(8,BW*0.018), CX=R.bx+R.bw/2, CY=R.by+R.bh/2;
+  for(const d of DOORS){ if(d>=TILE_NORM.length) continue; const land=(d+1)%N, a=nodeXY(d), b=nodeXY(land);
+    const hot=!!(boardHints&&boardHints.spaces&&boardHints.spaces.has(land)), pulse=hot?0.6+0.4*Math.sin(now/220):0.55;
+    const dx=b.x-a.x, dy=b.y-a.y, L=Math.hypot(dx,dy)||1, ux=dx/L, uy=dy/L, nx=-uy, ny=ux, bow=L*0.22;
+    const sx=a.x+ux*BW*0.03, sy=a.y+uy*BW*0.03, ex=b.x-ux*BW*0.035, ey=b.y-uy*BW*0.035, cx=(sx+ex)/2+nx*bow, cy=(sy+ey)/2+ny*bow;
+    ctx.save(); ctx.globalAlpha=pulse; ctx.strokeStyle=hot?'#ffe08a':'#e2b552'; ctx.lineWidth=Math.max(2,BW*(hot?0.007:0.005)); ctx.lineCap='round';
+    ctx.setLineDash([BW*0.014,BW*0.01]); ctx.lineDashOffset=-(now/40)%1000; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.quadraticCurveTo(cx,cy,ex,ey); ctx.stroke(); ctx.setLineDash([]);
+    const tx=ex-cx, ty=ey-cy, tl=Math.hypot(tx,ty)||1, hx=tx/tl, hy=ty/tl, hs=BW*0.022;   // the arrowhead, along the curve's end tangent
+    ctx.fillStyle=ctx.strokeStyle; ctx.beginPath(); ctx.moveTo(ex+hx*hs*0.4,ey+hy*hs*0.4); ctx.lineTo(ex-hx*hs+(-hy)*hs*0.6,ey-hy*hs+hx*hs*0.6); ctx.lineTo(ex-hx*hs-(-hy)*hs*0.6,ey-hy*hs-hx*hs*0.6); ctx.closePath(); ctx.fill(); ctx.restore();
+    // tags sit clear of each other: LAND HERE toward the board's middle from the landing space, the door's own tag outside the loop
+    const lx=CX-b.x, ly=CY-b.y, ll=Math.hypot(lx,ly)||1, ox=a.x-CX, oy=a.y-CY, ol=Math.hypot(ox,oy)||1;
+    doorTag(b.x+lx/ll*BW*0.115, b.y+ly/ll*BW*0.03, 'LAND HERE', fs, hot);
+    doorTag(a.x+ox/ol*BW*0.01, a.y-BW*0.06, '1 JUICE = +1 FAVOR', fs*0.82, false); } }
 let liftFX=null;   // {x,y,start} set in handleEvent('enter_lounge')
 // TO MARKET DOOR flare — set when a pawn's hop reaches the door space. The doorway breathes light
 // open as it passes through; TAKING it (1 Juice → +1 Final Favor) floats the trade off the door.
@@ -4139,7 +4571,7 @@ window.addEventListener('keydown',e=>{
 // Boot sequence: tower LOADING screen (preloads art) → CASTLE KILLSCREEN cold-open → boot.
 // Debug hashes skip straight to their screen; '#introtest' forces the ident, '#loadertest' holds the loader.
 (function(){ const h=location.hash;
-  const dbg=/setup|demo|human|fxtest|boxback|boxshow|hinttest|barkshot|handshot|wipetest|implodetest|drawtest|sheettest|overtest|reacttest|revealtest|hiddentest|pawntest|burntest|idletest|floorprompt/.test(h);
+  const dbg=/setup|demo|human|fxtest|boxback|boxshow|hinttest|barkshot|handshot|wipetest|implodetest|drawtest|sheettest|overtest|reacttest|revealtest|hiddentest|pawntest|burntest|idletest|floorprompt|rollofftest/.test(h);
   const off=()=>{const l=document.getElementById('loader');if(l)l.classList.add('off');};
   window.addEventListener('load',()=>{
     if(h.indexOf('loadertest')>=0) return;                 // hold the loader on screen for capture
@@ -4214,6 +4646,11 @@ if(location.hash.indexOf('demo')>=0 && location.hash.indexOf('human')<0){
     spotlight('Sacrificial Lamb','demo · drawn'); clearTimeout(spotTimer);
     window.__shotReady=true;   // the capture rig waits for this instead of racing a fixed sleep
   },700));
+}
+// CLARITY 1123: #rollofftest[&np=N][&rolloffhuman] = a fresh human table straight into the roll-off (auto-throws unless &rolloffhuman)
+if(location.hash.indexOf('rollofftest')>=0){
+  window.addEventListener('load',()=>setTimeout(()=>{ const npm=location.hash.match(/np=(\d)/);
+    S.count=npm?+npm[1]:4; S.expansion=expDefault(); buildSetup(); dealChars(); S.seats=dealt.map((_,i)=>i===0); startGame(); window.__shotReady=true; },600));
 }
 // debug: paced bots-only run so voice barks stay on-screen (for capture)
 if(location.hash.indexOf('barkshot')>=0){
@@ -4358,7 +4795,8 @@ if(location.hash.indexOf('drawtest')>=0){
 if(location.hash.indexOf('humandemo')>=0){
   window.addEventListener('load',()=>setTimeout(async ()=>{
     const m=location.hash.match(/humandemo(\d+)/); const n=m?+m[1]:18;
-    S.count=4;S.expansion=expDefault();buildSetup();dealChars(); S.seats=dealt.map((_,i)=>i===0);
+    const npm=location.hash.match(/np=(\d)/);   // &np=6: the seat count (CLARITY 1123 rail gate)
+    S.count=npm?+npm[1]:4;S.expansion=expDefault();buildSetup();dealChars(); S.seats=dealt.map((_,i)=>i===0);
     startGame();
     // &climb: the human camps the START CIRCLE (answers 'Stay') so the Golden Staircase offers the tower every turn — drives the LEVELS prompts end to end
     const camp=/climb/.test(location.hash);
