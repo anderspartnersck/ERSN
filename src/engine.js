@@ -136,7 +136,7 @@
   //   docs/BENCHMARK-1112-WHAT-CHANGED.md has the paired-seed numbers behind every knob.
   const BENCHMARK_PLAY = {
     levels: true, levelsTrustEase: 2,
-    levelsClimbRisk: { byPlayers: { 3: false, 4: false, default: true } },
+    levelsClimbRisk: { byPlayers: { 2: false, 3: false, 4: false, default: true } },   // 1124 pc: E-4012 (Joe's default from Order 10 E-4006): a missed climb costs +1 Risk only at 5-6 players, as the Benchmark sheet says (was also on at 2p)
     levelsLastElevator: { byPlayers: { 3: true, 4: true, default: false } },
     benchmarkDeck: 'v4', benchmarkChars: 'v4', ffCleanDirty: 1,
     staircaseEntry: true, repeatBurnout: true, doughOwnTurns: true, assetEffects: true, ffBurn8: 'move',
@@ -2278,16 +2278,21 @@
       // ("least-dirty-at-collapse is the real scoreboard"): the CLEANEST survivor wins — [FF, -Risk, Clean, Juice].
       // LEVELS levelsTieTier: on an FF tie the tower counts BEFORE Risk — how high you got (peak_level: 1 = the tiers,
       // 2 = the Lounge) outranks how clean you stayed. A/B lever for the loop-camper edge (docs/BENCHMARK-LEVELS.md).
-      const tier = (this.rules.levels && this.rules.levelsTieTier) ? (p => p.peak_level >= this.rules.levelsTieTier ? p.peak_level : 0) : (() => 0);
-      const inL = this.rules.gReckon ? (p => (p.in_lounge ? 100 : 0) + (this.rules.gReckon >= 2 ? (p._gHeld || 0) : 0)) : (() => 0);   // 1113 THE RECKONING: still in the Lounge outranks outside; gReckon 2: then the longest-held tenure
-      const key = this.rules.cleanestSurvives
-        ? p => [inL(p), this.ff(p), tier(p), -this.effRisk(p), this.victoryCleanCount(p), p.juice]
-        : p => [this.ff(p), p.juice, -this.effRisk(p)];
       return this.alive_players().slice().sort((a, b) => {
-        const ka = key(a), kb = key(b);
+        const ka = this.standingKey(a), kb = this.standingKey(b);
         for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return kb[i] - ka[i];
         return 0;
       })[0];
+    }
+    // The order the books close in when nobody met a victory condition (score_on_timeout sorts on it, highest first).
+    // Pure: no RNG, no log. The UI reads it for IF IT FELL NOW (1124); ffOverride = the Final Favor the viewer can see.
+    standingKey(p, ffOverride) {
+      const ff = ffOverride != null ? ffOverride : this.ff(p);
+      const tier = (this.rules.levels && this.rules.levelsTieTier) ? (p.peak_level >= this.rules.levelsTieTier ? p.peak_level : 0) : 0;
+      const inL = this.rules.gReckon ? (p.in_lounge ? 100 : 0) + (this.rules.gReckon >= 2 ? (p._gHeld || 0) : 0) : 0;   // 1113 THE RECKONING: still in the Lounge outranks outside; gReckon 2: then the longest-held tenure
+      return this.rules.cleanestSurvives
+        ? [inL, ff, tier, -this.effRisk(p), this.victoryCleanCount(p), p.juice]
+        : [ff, p.juice, -this.effRisk(p)];
     }
 
     // step ONE player's turn (async); returns the player who just acted (for the UI animator)
