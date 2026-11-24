@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- ER$N 3D EDITION: cut by 3D PIPELINE games/ersn/lab/tools/make_lab_page.py from index.html (this bundle) sha256 8806bd93b90aef93; 27 /*LAB3D*/ hooks. -->
+<!-- ER$N 3D EDITION: cut by 3D PIPELINE games/ersn/lab/tools/make_lab_page.py from index.html (this bundle) sha256 8ece321d369bda95; 27 /*LAB3D*/ hooks. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -2240,7 +2240,7 @@ function ledgerFF(p){ const v=viewer(), ff=q=>{ const b=ffBreakdown(q), own=!v||
     const two=b.pos.find(r=>r[0]==='Exactly 2 Clean Assets'), net=b.net-(hid&&two?two[1]:0);
     return {net, maybe:hid, key:(q.in_lounge?1000:0)+net}; };
   const me=ff(p); let rank=1+game.players.filter(q=>q!==p && ff(q).key>me.key).length;
-  // ?ffrank (1124, Final Favor visibility): rank by the engine's OWN closing order (game.standingKey = what score_on_timeout sorts on):
+  // DEFAULT since 1124 E-4005b (?ffrank=0 = the old key above): rank by the engine's OWN closing order (game.standingKey = what score_on_timeout sorts on):
   // Classic = Final Favor, then Juice, then lower Risk (the Lounge doesn't outrank anyone); Benchmark = Lounge seats, then collapse
   // hearings held, then Final Favor, then lower Risk. Rivals' Final Favor stays the public part; the Clean-count tiebreak (it reads
   // face-downs) is blanked for everyone so the rank never leaks a hidden card.
@@ -2248,11 +2248,14 @@ function ledgerFF(p){ const v=viewer(), ff=q=>{ const b=ffBreakdown(q), own=!v||
     const gt=(a,b)=>{ for(let i=0;i<a.length;i++) if(a[i]!==b[i]) return a[i]>b[i]; return false; }, mk=kp(p);
     rank=1+game.players.filter(q=>q!==p && q.alive!==false && gt(kp(q),mk)).length; }
   return {...me, rank}; }
-const FF_RANK=/[?&#]ffrank\b/i.test(location.search+location.hash);
-// the IF IT FELL NOW reason, worded for the edition being played (?ffrank; the default keeps the 1123 words)
+// 1124 E-4005b (Joe: GO): the engine's own closing order is the DEFAULT ranking; ?ffrank=0 keeps the 1123 ranking for A/B (PC Order 22B)
+const FF_RANK=!/[?&#]ffrank=0\b/i.test(location.search+location.hash);
+// the IF IT FELL NOW reason, worded for the edition being played (?ffrank=0 keeps the 1123 words)
 function fellWhy(p){ if(!FF_RANK) return p.in_lounge?'you are in the Lounge, then Final Favor decides':'Lounge seats outrank you, then Final Favor';
   if(!game.rules.gReckon) return 'Final Favor decides (tie: more Juice, then lower Risk)';
-  return p.in_lounge?'Lounge seats first, then collapse hearings held, then Final Favor':'Lounge seats outrank you, then Final Favor, then lower Risk'; }
+  // E-4021: with gReckon 2 the hearings a seat has held count before Final Favor, in or out of the Lounge (standingKey), so say so
+  const order=game.rules.gReckon>=2?'hearings held first, then Final Favor, then lower Risk':'then Final Favor, then lower Risk';
+  return (p.in_lounge?'Lounge seats first; ':'Lounge seats outrank you; ')+order; }
 const LEDGER_KEY={j:'juice',t:'trust',h:'hype',r:'risk'};
 function ledgerMe(){ const v=viewer(); return v||(game&&game.activePlayer)||null; }
 function layoutLedger(){ if(!game) return; const me=ledgerMe();
@@ -2295,7 +2298,7 @@ function updateLedger(){
     // A display of the existing score (ffBreakdown().net == p.final_favor()). Hidden info: "Exactly 2 Clean Assets" reads a
     // seat's face-down cards, so a rival's shows only the public part, "+?" while any of their face-downs is unknown to you.
     { const f=d.querySelector('.lg.ff'); if(f){ const sc=ledgerFF(p); f.querySelector('.v').textContent=(sc.net>0?'+':'')+sc.net+(sc.maybe?'?':'');
-      f.querySelector('.st').textContent=ordinal(sc.rank)+' now'; f.title='FINAL FAVOR'+(sc.maybe?' (public part; +? = one more if their face-down Assets make exactly 2 Clean)':'')+': the score on the printed check-list. If the Tower collapsed now this seat stands '+ordinal(sc.rank)+': Lounge seats outrank everyone outside it, then Final Favor decides (the top Final Favor wins most games).'; } }
+      f.querySelector('.st').textContent=ordinal(sc.rank)+' now'; f.title='FINAL FAVOR'+(sc.maybe?' (public part; +? = one more if their face-down Assets make exactly 2 Clean)':'')+': the score on the printed check-list. If the Tower collapsed now this seat stands '+ordinal(sc.rank)+': '+(p===ledgerMe()?fellWhy(p):fellWhy(p).replace(/\byou are\b/,'this seat is').replace(/\byou\b/,'this seat'))+'.'; } }   // E-4022: the hover reads the same words as IF IT FELL NOW
     const sh=d.querySelector('.seehint'); if(sh){ const open=sheetFor===p; sh.classList.toggle('open',open); sh.textContent=open?'CARD OPEN ▾':'ABILITY CARD ▸'; }
   });
   const sb=$('#sheetBtn'); if(sb){ const open=!!sheetFor; sb.classList.toggle('open',open); sb.textContent=open?'ABILITY CARD OPEN: CLOSE ▾':'MY ABILITY CARD ▸'; }
@@ -2681,8 +2684,14 @@ function handleEvent(ev){
     case 'burnout': logLine(`&nbsp;&nbsp;↳ <span class="sec">🔥 BURNOUT — ${ev.player}</span>`); sfx('burnout'); duck(0.12,1300); vortexKick=1; bark(ev.player,'burnout',1); sharkySay('burnout',0.6);
       { const pw=pawns[ev.player]; if(pw&&!pw.burn&&CAP.at==null&&(boardVortex||boardPlate)){ pw.burn={start:clock(),k:0,spin:0}; spawnJuiceFlow(14); } }   // suck the pawn into the hole, spit it back out slumped (only boards with a hole; skip in frozen-capture). Non-hole boards just slump the burned pawn in place.
       break;
-    case 'trustCheck': { const ok=ev.pass; logLine(`&nbsp;&nbsp;↳ <span class="${ok?'good':'sec'}">WHY ASK? Trust Check — rolled ${ev.roll} · ${ok?'PASS ✓':'FAIL ✗ (+1 Risk)'}</span>`);
-      sfx(ok?'golden1':'trustFail',ok?0.5:0.7); if(!ok)duck(0.14,900); showBanner(ok?'WHY ASK? — PASS ✓':'WHY ASK? — DENIED'); bark(ev.player,ok?'lounge':'burnout',0.5); break; }
+    // 1124 pc (E-4005): the roll itself = sound + banner only; the LOG line waits for trustCheckDone, which knows which check it
+    // was and what it really cost (docs/PLAIN-WORDS-1124.md). "WHY ASK?" is the staircase roll's name only.
+    case 'trustCheck': { const ok=ev.pass, why=ev.what==='staircase · WHY ASK?';
+      sfx(ok?'golden1':'trustFail',ok?0.5:0.7); if(!ok)duck(0.14,900); showBanner((why?'WHY ASK? — ':'TRUST CHECK — ')+(ok?'PASSED':'MISSED')); bark(ev.player,ok?'lounge':'burnout',0.5); break; }
+    case 'trustCheckDone': { const ok=ev.pass, NOTE={grace:'no Risk (Grace Period: already in the hole)', phantom:'no Risk (Phantom Holdings: +2 Juice)',
+        climb24:'no Risk (a missed climb costs Risk only at 5–6 players)', climb:'no Risk (a missed climb costs no Risk here)'};
+      const cost = ok ? 'PASSED' : 'MISSED, ' + (ev.risk>0 ? `+${ev.risk} Risk` : (NOTE[ev.note] || 'no Risk'));
+      logLine(`&nbsp;&nbsp;↳ <span class="${ok?'good':'sec'}">TRUST CHECK${ev.what?` (${ev.what})`:''}: ${ev.player} rolled ${ev.roll}${ev.note==='reroll'?' on the re-roll':''}, needed ${ev.need}+ · ${cost}${ev.burnout?' → BURNOUT':''}</span>`); break; }
     case 'enter_lounge': { logLine(`&nbsp;&nbsp;↳ <span class="good">${ev.player} enters the Executive Lounge</span>`); sfx(ev.player==='Benny Boye'?'golden1':'lounge'); duck(ev.player==='Benny Boye'?0.08:0.18, ev.player==='Benny Boye'?3000:1200); bark(ev.player,'lounge',0.55);
       const pp=game.players.find(x=>x.name===ev.player), pw=pp&&pawns[pp.name];
       // SPIRAL LIFT ride: erupt the painted beam where the pawn is standing (the Golden Staircase pad)

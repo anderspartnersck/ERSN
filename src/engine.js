@@ -767,7 +767,7 @@
     // a card-driven knock-out: a tower resident passes a Trust Check (no fail Risk) or falls one tier
     async _towerAudit(q, why, by) {
       if (this.floorOf(q) === null) return;
-      const held = this.rules.charAwareTrust ? await this.charTrustResolve(q, 5, null, false) : (this.rng.randint(1, 6) >= 5);
+      const held = this.rules.charAwareTrust ? await this.charTrustResolve(q, 5, null, false, `hold your tier · ${why}`, 'fall') : (this.rng.randint(1, 6) >= 5);
       this.emit('tipoff', { player: by ? by.name : q.name, target: q.name, card: why });
       if (held) this.log(`    ${q.name} holds their tier (${why})`); else this._knockDown(q, why);
     }
@@ -850,7 +850,8 @@
         if (bribed) { this.spendBribe(p); this.emit('spendBribe', { player: p.name }); this.log(`    ${p.name} spends a Bribe past ${what}`); }
         const auto = !bribed && this._castle('auto') && p.abilityName === 'Benny Boye';   // CASTLE DOCTRINE: "No Trust Check. No die roll. Ever." — inside his own tower too
         if (auto) { this.log(`    Benny CASTLE DOCTRINE: walks past ${what} — no check`); if (this.rules.bennyAutoRisk) this.add_risk(p, this.rules.bennyAutoRisk, 'Castle Doctrine (the free pass is noticed)'); }
-        const ok = bribed || auto || (this.rules.charAwareTrust ? await this.charTrustResolve(p, base, `failed ${what}`, failRisk) : (failRisk ? await this.trust_check(p, base) : this.rng.randint(1, 6) >= this.effPassOn(p, base)));
+        const tcWhat = toLounge ? 'into the Lounge' : `climb to ${FLOORS.bands[at + 1]}`;   // 1124 pc: log label (observer-only)
+        const ok = bribed || auto || (this.rules.charAwareTrust ? await this.charTrustResolve(p, base, `failed ${what}`, failRisk, tcWhat, failRisk ? null : (this.players.length <= 4 ? 'climb24' : 'climb')) : (failRisk ? await this.trust_check(p, base, tcWhat) : this.rng.randint(1, 6) >= this.effPassOn(p, base)));
         if (!ok) { this.log(`    ${p.name} fails ${what} (stays on ${band})`); break; }
         if (this.floorOf(p) !== at) break;   // a reaction moved them
         if (toLounge) { this._ascend(p); if (this.rules.gPerk) this._assetFlowDraw(p, "the Lounge's welcome package"); this.log(`    ${p.name} passes the ANDERS APPROVED TRUST CHECK -> Executive Lounge`); this.emit('enter_lounge', { player: p.name }); await this._bennyDefends(p, top); return true; }
@@ -903,7 +904,7 @@
       this.log(`    ${p.name} TIPS OFF THE SEC about ${q.name} (${c.name})`);
       this.emit('tipoff', { player: p.name, target: q.name, card: c.name });
       this.add_risk(p, this.rules.levelsTipRisk, 'tipped off the SEC');
-      const ok = this.rules.charAwareTrust ? await this.charTrustResolve(q, 5, null, false) : (this.rng.randint(1, 6) >= 5);
+      const ok = this.rules.charAwareTrust ? await this.charTrustResolve(q, 5, null, false, 'hold your tier · SEC tip-off', 'fall') : (this.rng.randint(1, 6) >= 5);
       if (ok) this.log(`    ${q.name} holds their floor`);
       else this._knockDown(q, `${p.name} tipped off the SEC`);
     }
@@ -936,7 +937,8 @@
         if (this.rules.gSubpoena) { const band = FLOORS.bands[this.floorOf(q)]; q.pos = 'LOUNGE'; q.in_lounge = true; q.peak_level = 2; q._gStreak = 0; this.log(`    SUBPOENA: ${q.name} is hauled up from ${band} into the hearing room`); this.emit('enter_lounge', { player: q.name, via: 'subpoena' }); continue; }
         if (this.rules.levelsLastElevator) {
           const need = this._towerPassOn(q), roll = this.rng.randint(1, 6);
-          this.emit('trustCheck', { player: q.name, roll, pass: roll >= need, need });
+          this.emit('trustCheck', { player: q.name, roll, pass: roll >= need, need, what: 'the last elevator' });
+          this._tcClose(this._tcOpen(q), q, 'the last elevator', roll, need, roll >= need, roll >= need ? null : 'start');   // 1124 pc: log line (observer-only)
           if (roll >= need) { this._ascend(q); this.log(`    THE LAST ELEVATOR: ${q.name} rolls ${roll} — makes the Lounge as the tower comes down`); this.emit('enter_lounge', { player: q.name }); continue; }
         }
         if (q.abilityName === 'Vonda Vouch' && this._cv('charVonda', 3) >= 2 && this._leakyBucket(q, 'the tower comes down')) { this._ascend(q); this.log(`    ${q.name} rides the bucket up into the Lounge`); continue; }
@@ -1001,21 +1003,34 @@
       return base;
     }
 
-    async trust_check(p, pass_on) {
+    // what: a plain-words label for the log ("Danny Reflux", "stamp the books", a card name ...): observer-only (1124 pc, E-4005)
+    async trust_check(p, pass_on, what = null) {
       pass_on = this.effPassOn(p, pass_on || 5);
       let roll = this.rng.randint(1, 6);
       let ok = roll >= pass_on;
+      const tc = this._tcOpen(p), done = (pass, note) => { this._tcClose(tc, p, what, roll, pass_on, pass, note); return pass; };
       if (!ok) {
         // failed-trust-check reactions (re-roll / phantom)
         const r = await this.offerReaction('failedTrustCheck', { player: p, pass_on });
-        if (r === 'reroll') { roll = this.rng.randint(1, 6); ok = roll >= pass_on; if (ok) return true; }
-        else if (r === 'phantom') { p.juice += 2; this.log(`    ${p.name} Phantom Holdings: +2 Juice, ignores the Risk`); return false; }
+        if (r === 'reroll') { roll = this.rng.randint(1, 6); ok = roll >= pass_on; if (ok) return done(true, 'reroll'); }
+        else if (r === 'phantom') { p.juice += 2; this.log(`    ${p.name} Phantom Holdings: +2 Juice, ignores the Risk`); return done(false, 'phantom'); }
         // Benchmark floor (L4): rock-bottom (Juice ≤ 0) gets one Grace per turn so a fail can't compound you into burnout
-        if (this.rules.floor && p.juice <= 0 && !p._graceUsed) { p._graceUsed = true; this.log(`    Grace Period (Benchmark): ${p.name} is already in the hole — failed check adds no Risk`); return false; }
+        if (this.rules.floor && p.juice <= 0 && !p._graceUsed) { p._graceUsed = true; this.log(`    Grace Period (Benchmark): ${p.name} is already in the hole — failed check adds no Risk`); return done(false, 'grace'); }
         this.add_risk(p, 1, 'failed Trust Check');
         if (p.hasConstant('CONSTANT_FAIL_TRUSTCHECK_RISK2')) this.add_risk(p, 1, 'Toxic Asset (extra Risk on fail)');
+        return done(false, r === 'reroll' ? 'reroll' : null);
       }
-      return ok;
+      return done(ok);
+    }
+
+    // 1124 pc (E-4005): observer-only bookkeeping so the log can say what a Trust Check ACTUALLY did. No RNG, no game
+    // state: _tcOpen starts counting the Risk that lands on p (add_risk feeds it), _tcClose emits `trustCheckDone`
+    // { what, roll (the final die), need, pass, risk (the real Risk change, 0 for GRACE / a 2–4p climb / Phantom), note, burnout }.
+    // The golden master hashes the log lines, not events, so engine outcomes are untouched.
+    _tcOpen(p) { const prev = this._tcAcc || null; this._tcAcc = { p, risk: 0, ffb: p.ff_burnout || 0, prev }; return this._tcAcc; }
+    _tcClose(acc, p, what, roll, need, pass, note) {
+      if (this._tcAcc === acc) this._tcAcc = acc.prev;
+      this.emit('trustCheckDone', { player: p.name, what: what || null, roll, need, pass: !!pass, risk: acc.risk, note: note || null, burnout: (p.ff_burnout || 0) > acc.ffb });
     }
 
     // Character/ability-aware Lounge & eviction Trust Check (Benchmark charAwareTrust). Mirrors trust_check's
@@ -1025,24 +1040,28 @@
     // applyFailRisk=false: the caller's fail consequence is NOT a Risk hit (collapse eviction boots to START),
     // so skip the +1 Risk / Raptor / floor and just report the pass/fail of the roll (still honoring effPassOn
     // + a reroll reaction). Returns true iff the check passes.
-    async charTrustResolve(p, base_pass_on, failCause, applyFailRisk = true) {
+    // what: plain-words label for the log (observer-only, 1124 pc E-4005). noRiskNote: why a miss costs no Risk here
+    // (e.g. '2–4 players' for a climb), shown in the log when applyFailRisk is false.
+    async charTrustResolve(p, base_pass_on, failCause, applyFailRisk = true, what = null, noRiskNote = null) {
       const pass_on = this.effPassOn(p, base_pass_on);
       let roll = this.rng.randint(1, 6);
-      this.emit('trustCheck', { player: p.name, roll, pass: roll >= pass_on, need: pass_on });
-      if (roll >= pass_on) return true;
+      this.emit('trustCheck', { player: p.name, roll, pass: roll >= pass_on, need: pass_on, what });
+      const tc = this._tcOpen(p), done = (pass, note) => { this._tcClose(tc, p, what, roll, pass_on, pass, note); return pass; };
+      if (roll >= pass_on) return done(true);
       const r = await this.offerReaction('failedTrustCheck', { player: p, pass_on });
-      if (r === 'reroll') { roll = this.rng.randint(1, 6); if (roll >= pass_on) return true; }
-      else if (r === 'phantom') { p.juice += 2; this.log(`    ${p.name} Phantom Holdings: +2 Juice, ignores the penalty`); return false; }
-      if (!applyFailRisk) return false;
-      if (this.rules.floor && p.juice <= 0 && !p._graceUsed) { p._graceUsed = true; this.log(`    Grace Period (Benchmark): ${p.name} is already in the hole — failed check adds no Risk`); return false; }
+      if (r === 'reroll') { roll = this.rng.randint(1, 6); if (roll >= pass_on) return done(true, 'reroll'); }
+      else if (r === 'phantom') { p.juice += 2; this.log(`    ${p.name} Phantom Holdings: +2 Juice, ignores the penalty`); return done(false, 'phantom'); }
+      if (!applyFailRisk) return done(false, noRiskNote || (r === 'reroll' ? 'reroll' : null));
+      if (this.rules.floor && p.juice <= 0 && !p._graceUsed) { p._graceUsed = true; this.log(`    Grace Period (Benchmark): ${p.name} is already in the hole — failed check adds no Risk`); return done(false, 'grace'); }
       this.add_risk(p, 1, failCause);
       if (p.hasConstant('CONSTANT_FAIL_TRUSTCHECK_RISK2')) this.add_risk(p, 1, 'Toxic Asset (extra Risk on fail)');
-      return false;
+      return done(false, r === 'reroll' ? 'reroll' : null);
     }
 
     add_risk(p, amt, why) {
       if (amt <= 0) { p.risk = Math.max(0, p.risk + amt); return; }
       p.risk += amt;
+      for (let a = this._tcAcc; a; a = a.prev) if (a.p === p) { a.risk += amt; break; }   // 1124 pc: observer-only Risk tally for the Trust Check log
       if (p.hasConstant('CONSTANT_RISK_GIVES_HYPE')) {
         p.hype += amt;
         this.log(`    ${p.name} Toxic Merger: +${amt} Hype from risk gain`);
@@ -1282,7 +1301,7 @@
       const lt = (q, amt, why, by) => this.lose_trust(q, amt, why, by);
       if (fx.startsWith('MANUAL')) return await this._resolveManual(card, p, others);
       switch (fx) {
-        case 'ALL_JUICE-1_TRUSTCHECK_FAILHYPE': for (const q of alive()) { q.juice -= 1; if (!(await this.trust_check(q))) { q.hype -= 2; if (this.rules.levels && this.floorOf(q) !== null) this._knockDown(q, 'Anonymous Board Letter'); } } break;   // LEVELS card: a fail in the tower also falls a tier
+        case 'ALL_JUICE-1_TRUSTCHECK_FAILHYPE': for (const q of alive()) { q.juice -= 1; if (!(await this.trust_check(q, undefined, card.name))) { q.hype -= 2; if (this.rules.levels && this.floorOf(q) !== null) this._knockDown(q, 'Anonymous Board Letter'); } } break;   // LEVELS card: a fail in the tower also falls a tier
         case 'ALL_DISCARD_ELSE_RISK1': for (const q of alive()) { if (q.hand.length) q.hand.splice(R.randrange(q.hand.length), 1); else this.add_risk(q, 1, 'Audit Panic'); } break;
         case 'ROLL_SELF_OR_ALL_TRUST2': if (R.randint(1, 6) <= 3) await lt(p, 2, 'CEO Forfeits'); else for (const q of alive()) await lt(q, 2, 'CEO Forfeits'); break;
         case 'ALL_HYPE-2_DIRTY_DISCARD': for (const q of alive()) { q.hype -= 2; if (q.faceup_dirty().length) { if (this.rules.faithfulCards && q.isHuman) { const a = await this.pick_asset(q, q.lineup.slice(), 'compliance-sweep'); if (a) this._discard_asset(q, a); else await this.loseDirtyAsset(q, q.faceup_dirty()[0]); } else await this.loseDirtyAsset(q, q.faceup_dirty()[0]); } } break;   // faithful: discard an Asset of THEIR choice
@@ -1320,7 +1339,7 @@
         case 'ALL_ROLL_DISCARD_HAND_OR_ASSET': for (const q of alive()) if (q.hand.length) { if (R.randint(1, 6) <= 4) q.hand.splice(R.randrange(q.hand.length), 1); else if (q.lineup.length) D(q, q.lineup[0]); else if (q.asset_count() === 0) this.add_risk(q, 2, 'Spreadsheet'); } break;
         case 'SHIFT_RISK_ELSE_TRUST-1': if (others.length) { const tgt = await this.pick_target(p, others, undefined, card); if (tgt) { if (this.rules.faithfulCards) { const shift = Math.min(1, Math.max(0, p.risk)); this.add_risk(p, -shift); this.add_risk(tgt, shift, 'Token Diversion'); } else { this.add_risk(p, -1); this.add_risk(tgt, 1, 'Token Diversion'); }
             // LEVELS card (Benchmark Core): diverting it onto someone IN THE TOWER is a tip-off — they pass a Trust Check or fall a tier
-            if (this.rules.levels && this.floorOf(tgt) !== null) { const held = this.rules.charAwareTrust ? await this.charTrustResolve(tgt, 5, null, false) : (R.randint(1, 6) >= 5);
+            if (this.rules.levels && this.floorOf(tgt) !== null) { const held = this.rules.charAwareTrust ? await this.charTrustResolve(tgt, 5, null, false, `hold your tier · ${card.name}`, 'fall') : (R.randint(1, 6) >= 5);
               this.emit('tipoff', { player: p.name, target: tgt.name, card: card.name }); if (held) this.log(`    ${tgt.name} holds their floor`); else this._knockDown(tgt, `${p.name}'s Token Diversion`); } } } if (p.bribes === 0) await lt(p, 1, 'Token Diversion'); break;   // faithful: SHIFT risk (don't create it) + wardable
         case 'SELF_RISK_PER_DIRTY': { const per = (this.rules.faithfulCards && p.ff_bribe_used > 0) ? 2 : 1; this.add_risk(p, p.faceup_dirty().length * per, 'What the Hell'); break; }   // faithful: +2/Asset if you have used a Bribe
         case 'SELF_JUICE1': p.juice += 1; break;
@@ -1337,7 +1356,7 @@
         case 'LATE_DISCLOSURE': this.learnAll(p.hand, p, 'Late Disclosure'); if (p.hand.length === 0) for (const q of others) this.add_risk(q, 1, 'Late Disclosure'); break;   // you show your whole hand — that IS the card
         case 'PIGS': if (p.asset_count() >= 3) { const tgt = p.faceup_clean().length ? p.faceup_clean()[0] : p.lineup[0]; D(p, tgt); await lt(p, 1, 'Pigs Get Slaughtered'); } break;
         case 'PUMP_DITCH': if (p.lineup.length) { D(p, p.lineup[0]); p.hype += 3; } break;
-        case 'SHORT_SELLER': if (others.length) { const tgt = await this.pick_target(p, others, undefined, card); if (tgt) { tgt.juice -= 1; p.juice += 1; if (!(await this.trust_check(tgt))) this.add_risk(tgt, 2, 'Short-Seller'); } } break;
+        case 'SHORT_SELLER': if (others.length) { const tgt = await this.pick_target(p, others, undefined, card); if (tgt) { tgt.juice -= 1; p.juice += 1; if (!(await this.trust_check(tgt, undefined, card.name))) this.add_risk(tgt, 2, 'Short-Seller'); } } break;
         case 'STOCK_INFLATE': p.hype *= 2; await lt(p, 1, 'Stock Inflation'); break;
         case 'TOWER_TOUR': p.pos = 'START'; p.in_lounge = false; break;
         case 'TRADING_WEATHER': if (R.randint(1, 6) >= 4) for (const q of alive()) q.juice += 2; else for (const q of alive()) this.add_risk(q, 1, 'Trading Weather'); break;
@@ -1438,11 +1457,12 @@
         case 'PALACE_SKY': {   // VIP staircase: enter for 0 Juice; if under threshold the Trust Check passes on 4+ (fail = +1 Risk)
           if (p.trust >= 4 || p.hype >= 8) { this._ascend(p); this.log(`    Palace in the Sky: ${p.name} strides into ${this._where(p)}`); this.emit('enter_lounge', { player: p.name }); }
           else if (this.rules.charAwareTrust) {   // Benchmark: the printed "passes on 4+, fail penalties still apply" as a real Trust Check
-            if (await this.charTrustResolve(p, 4, 'Palace in the Sky failed check')) { this._ascend(p); this.log(`    Palace in the Sky: ${p.name} passes the check -> Lounge`); this.emit('enter_lounge', { player: p.name }); }
+            if (await this.charTrustResolve(p, 4, 'Palace in the Sky failed check', true, 'Palace in the Sky')) { this._ascend(p); this.log(`    Palace in the Sky: ${p.name} passes the check -> Lounge`); this.emit('enter_lounge', { player: p.name }); }
             else this.log(`    Palace in the Sky: ${p.name} fails the check -> +1 Risk`); }
-          else { const roll = R.randint(1, 6), pass = roll >= 4; this.emit('trustCheck', { player: p.name, roll, pass, need: 4 });
+          else { const roll = R.randint(1, 6), pass = roll >= 4; this.emit('trustCheck', { player: p.name, roll, pass, need: 4, what: 'Palace in the Sky' }); const tcP = this._tcOpen(p);   // 1124 pc: log line (observer-only)
+            if (pass) this._tcClose(tcP, p, 'Palace in the Sky', roll, 4, true);
             if (pass) { this._ascend(p); this.log(`    Palace in the Sky: ${p.name} passes the 4+ check (${roll}) -> Lounge`); this.emit('enter_lounge', { player: p.name }); }
-            else { this.add_risk(p, 1, 'Palace in the Sky failed check'); this.log(`    Palace in the Sky: ${p.name} fails the 4+ check (${roll}) -> +1 Risk`); } }
+            else { this.add_risk(p, 1, 'Palace in the Sky failed check'); this.log(`    Palace in the Sky: ${p.name} fails the 4+ check (${roll}) -> +1 Risk`); this._tcClose(tcP, p, 'Palace in the Sky', roll, 4, false); } }
           break;
         }
         case 'QUICK_RINSE': { const t = await this.pickOrDefault(p, p.faceup_dirty(), 'quick-rinse'); if (t) { t.mods.push({ tag: 'clean', turns: Infinity, src: card.name }); this.log(`    Quick Rinse: a Dirty Asset now counts CLEAN`); } if (this.rules.faithfulCards) { for (let i = p.lineup.length - 1; i >= 0; i--) if (p.lineup[i].card === card) { p.lineup.splice(i, 1); this.discards[this._discard_key(card)].push(card); break; } } break; }   // faithful: Quick Rinse is a retag overlay, not a duplicate Asset
@@ -1650,7 +1670,7 @@
       const b = this.alive_players().find(x => x.abilityName === 'Benny Boye' && (x.in_lounge || this.floorOf(x) !== null)); if (!b) return;
       if (!(await this.decide(b, { kind: 'ability', ability: 'CastleDefend', cost: `call Security on ${q.name} (+1 Risk to you)`, target: q }))) return;
       this.add_risk(b, 1, 'Castle Doctrine (called Security)');
-      const held = await this.charTrustResolve(q, 5, null, false);
+      const held = await this.charTrustResolve(q, 5, null, false, 'hold the Lounge · Castle Doctrine', 'fall');
       this.emit('tipoff', { player: b.name, target: q.name, card: 'Castle Doctrine' });
       if (held) { this.log(`    Benny calls Security on ${q.name} — they hold the Lounge`); return; }
       q.in_lounge = false; q.pos = 'F' + top; q.lounge_streak = 0; this.log(`    Benny calls Security on ${q.name} — escorted back down to ${FLOORS.bands[top]}`); this.emit('fall', { player: q.name, why: 'Castle Doctrine', to: q.pos });
@@ -1813,20 +1833,21 @@
         // Benchmark: the WHY ASK? gamble is a real Trust Check — threshold + reactions + fail penalty all
         // honor the player's cards/abilities (Class Ring, The Safe, reroll/Phantom, Raptor, the floor).
         if (this.rules.charAwareTrust) {
-          if (await this.charTrustResolve(p, 5, 'failed Why Ask? roll')) {
+          if (await this.charTrustResolve(p, 5, 'failed Why Ask? roll', true, 'staircase · WHY ASK?')) {
             this._ascend(p); this.log(`    ${p.name} passes the Why Ask? check -> ${this._where(p)}`); this.emit('enter_lounge', { player: p.name }); return true; }
           this.log(`    ${p.name} fails the Why Ask? check -> +1 Risk`); return false;
         }
         const roll = this.rng.randint(1, 6), pass = roll >= 5;
-        this.emit('trustCheck', { player: p.name, roll, pass, need: 5 });
+        this.emit('trustCheck', { player: p.name, roll, pass, need: 5, what: 'staircase · WHY ASK?' }); const tcW = this._tcOpen(p);   // 1124 pc: log line (observer-only)
+        if (pass) this._tcClose(tcW, p, 'staircase · WHY ASK?', roll, 5, true);
         if (pass) { this._ascend(p); this.log(`    ${p.name} passes the Why Ask? check (rolled ${roll}) -> ${this._where(p)}`); this.emit('enter_lounge', { player: p.name }); return true; }
-        this.log(`    ${p.name} fails the Why Ask? check (rolled ${roll}) -> +1 Risk`); this.add_risk(p, 1, 'failed Why Ask? roll'); return false;
+        this.log(`    ${p.name} fails the Why Ask? check (rolled ${roll}) -> +1 Risk`); this.add_risk(p, 1, 'failed Why Ask? roll'); this._tcClose(tcW, p, 'staircase · WHY ASK?', roll, 5, false); return false;
       }
       // BOTS: bribe if held, else the WHY ASK? roll. Classic path is parity-locked (raw 5+); Benchmark
       // routes the roll through the character-aware check so bot Class Ring / The Safe / Raptor also apply.
       if (p.bribes > 0 && !(this.rules.gauntlet && !(await this.decide(p, { kind: 'bribeEntry' })))) { this.spendBribe(p); this._ascend(p); return true; }   // 1113: a gauntlet bot may keep its Bribe for the hearings
       if (this.rules.charAwareTrust) {
-        if (await this.charTrustResolve(p, 5, 'failed Why Ask? roll')) { this._ascend(p); return true; }
+        if (await this.charTrustResolve(p, 5, 'failed Why Ask? roll', true, 'staircase · WHY ASK?')) { this._ascend(p); return true; }
         return false;
       }
       if (this.rng.randint(1, 6) >= 5) { this._ascend(p); return true; }
@@ -1860,7 +1881,7 @@
       if (p.abilityName === 'Danny Dough' && hypeAtStart >= 7) {
         const hi = this.highest_trust();
         if (hi && hi !== p) { const top = this.alive_players().filter(q => q !== p && q.trust === hi.trust);
-          for (const q of top) { this.log(`    Danny Reflux: ${q.name} (top Trust) must roll a Trust Check`); await this.trust_check(q); } }
+          for (const q of top) { this.log(`    Danny Reflux: ${q.name} (top Trust) must roll a Trust Check`); await this.trust_check(q, undefined, 'Danny Reflux'); } }
       }
       // Vonda — Notary Public: spend 2 Trust to discard 1 of your own played Assets
       // chars v4 (charVonda): Notary Public can notarize an ALIBI instead — spend 2 Trust to remove -1 Risk
@@ -2122,7 +2143,7 @@
       // a TRUST CHECK"). One attempt per qualifying turn-end; a fail carries the standard +1 Risk.
       if (this.rules.faithfulCards && !this.rules.gauntlet && p.in_lounge && !this.collapsed && !p._stamped &&
           this.victoryCleanCount(p) === 2 && p.lounge_streak >= 1) {
-        if (await this.trust_check(p)) { p._stamped = true; this.log(`    ${p.name} STAMPS THE BOOKS (Trust Check passed) — victory pending`); }
+        if (await this.trust_check(p, undefined, 'stamp the books')) { p._stamped = true; this.log(`    ${p.name} STAMPS THE BOOKS (Trust Check passed) — victory pending`); }
       }
 
       // DURING COLLAPSE (print): "On collapse turn 1 each player MUST draw and resolve a SEC Card to end their turn (if any remain)"
@@ -2151,7 +2172,7 @@
           // Benchmark charAwareTrust: the eviction check honors effPassOn (Class Ring / The Safe) + a reroll
           // reaction (fail = booted to START, so no Risk penalty). Classic keeps the frozen raw roll.
           let r, survived;
-          if (this.rules.charAwareTrust) { survived = await this.charTrustResolve(q, pass_on, null, false); }
+          if (this.rules.charAwareTrust) { survived = await this.charTrustResolve(q, pass_on, null, false, 'stay in the Lounge · eviction', 'start'); }
           else { r = R.randint(1, 6); survived = r >= pass_on; }
           if (survived) { q.ff_survived_collapse_round += 1; continue; }
           // Vonda — Leaky Bucket: stay anyway by discarding an Asset AND passing a (fee-free) Trust Check
@@ -2159,7 +2180,7 @@
           if (q.abilityName === 'Vonda Vouch' && (q.lineup.length || (lbv2 && q.juice >= 2)) &&
             await this.decide(q, { kind: 'ability', ability: 'LeakyBucket', cost: lbv2 ? 'discard an Asset OR pay 2 Juice + pass a Trust Check to STAY' : 'discard an Asset + pass a Trust Check to STAY' })) {
             const a = (lbv2 && q.juice >= 2) ? null : await this.pick_asset(q, q.lineup, 'leaky-bucket'); if (a) this._discard_asset(q, a); else if (lbv2) q.juice -= 2;
-            if (await this.trust_check(q)) { q.ff_survived_collapse_round += 1; this.log(`    Vonda Leaky Bucket: discards ${a ? a.card.name : 'an Asset'}, passes — STAYS in the Lounge`); continue; }
+            if (await this.trust_check(q, undefined, 'stay in the Lounge · Leaky Bucket')) { q.ff_survived_collapse_round += 1; this.log(`    Vonda Leaky Bucket: discards ${a ? a.card.name : 'an Asset'}, passes — STAYS in the Lounge`); continue; }
           }
           q.in_lounge = false; q.pos = 'START'; q.lounge_streak = 0; this.log(`    COLLAPSE EVICTION: ${q.name} failed check${r !== undefined ? ` (rolled ${r})` : ''}, booted to START`); this.emit('evict', { player: q.name });
         }
@@ -2210,11 +2231,11 @@
         if (useBribe) { this.spendBribe(q); this.log(`    ${q.name} bribes Security and stays`); return 'bribed'; }
       }
       let r, ok;
-      if (this.rules.charAwareTrust) ok = await this.charTrustResolve(q, passOn, null, false); else { r = this.rng.randint(1, 6); ok = r >= passOn; }
+      if (this.rules.charAwareTrust) ok = await this.charTrustResolve(q, passOn, null, false, 'stay in the Lounge · eviction', 'start'); else { r = this.rng.randint(1, 6); ok = r >= passOn; }
       if (ok) return 'passed';
       if (q.abilityName === 'Vonda Vouch' && q.lineup.length && await this.decide(q, { kind: 'ability', ability: 'LeakyBucket', cost: 'discard an Asset + pass a Trust Check to STAY' })) {
         const a = await this.pick_asset(q, q.lineup, 'leaky-bucket'); if (a) this._discard_asset(q, a);
-        if (await this.trust_check(q)) { this.log(`    Vonda Leaky Bucket: discards ${a ? a.card.name : 'an Asset'}, passes — STAYS in the Lounge`); return 'passed'; }
+        if (await this.trust_check(q, undefined, 'stay in the Lounge · Leaky Bucket')) { this.log(`    Vonda Leaky Bucket: discards ${a ? a.card.name : 'an Asset'}, passes — STAYS in the Lounge`); return 'passed'; }
       }
       q.in_lounge = false; q.pos = 'START'; q.lounge_streak = 0; q._stamped = false;
       this.log(`    COLLAPSE EVICTION: ${q.name} failed the check${r !== undefined ? ` (rolled ${r})` : ''} — Security escorts them to the START CIRCLE`); this.emit('evict', { player: q.name });
