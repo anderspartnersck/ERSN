@@ -4975,6 +4975,31 @@ window.__perf={ c:[], r:[], on:false, _last:0, _w:false,
     return 1; } };
 })();
 </script>
+<script>/* WINDOW FIT (1125, Joe: "coming in a little big for a window that is unmaximized"). The boot / setup / over
+   screens are centred columns built for a tall window; on a short one (1280×650, a laptop with browser chrome)
+   the column ran off the top and bottom. When a column is taller than the window, the whole screen is
+   scaled down (CSS zoom) until it fits, on show and on every resize. Never scales up; the game table is untouched. */
+(function(){
+  var IDS=['boot','setup','over'];
+  function fit(){
+    for(var i=0;i<IDS.length;i++){ var s=document.getElementById(IDS[i]); if(!s) continue;
+      s.style.zoom=''; if(!s.classList.contains('on')) continue;
+      var k=s.children, top=1e9, bot=-1e9;
+      for(var j=0;j<k.length;j++){ var r=k[j].getBoundingClientRect(); if(!r.height) continue;
+        var cs=getComputedStyle(k[j]); top=Math.min(top,r.top-(parseFloat(cs.marginTop)||0)); bot=Math.max(bot,r.bottom+(parseFloat(cs.marginBottom)||0)); }
+      var need=bot-top, room=innerHeight*0.97;
+      if(need>room && need>0) s.style.zoom=String(Math.max(0.4,room/need));
+    }
+    // the 300px box spins inside a stage that is only 40vh tall: on a short window it crossed the tagline. Shrink it to the stage.
+    var st=document.querySelector('#boot .stage3d');
+    if(st){ var k=Math.min(1,(Math.min(innerHeight*0.4,380)-16)/300);   /* the stage's own CSS height: min(40vh,380px) */ ['box3d','box3dExp'].forEach(function(id){ var b=document.getElementById(id); if(b) b.style.zoom=k<1?String(Math.max(0.4,k)):''; }); }
+  }
+  addEventListener('resize',fit);
+  var mo=new MutationObserver(function(){ requestAnimationFrame(fit); });
+  IDS.forEach(function(id){ var s=document.getElementById(id); if(s) mo.observe(s,{attributes:true,attributeFilter:['class']}); });
+  addEventListener('load',fit); fit();
+})();
+</script>
 <script src="src/menu.js"></script>
 </body>
 </html>

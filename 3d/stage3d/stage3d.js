@@ -51,8 +51,14 @@
   const boardKey = () => { if (opt.board !== 'auto') return opt.board; const L = global.__lab, S = L && L.S;
     if (!S || S.edition === 'classic') return 'core'; return FILE2KEY(S.board) || 'core'; };
   S3.boardKey = boardKey;
+  // 1119 THE HOUSE LOOK (PREVIEW, opt-in: ?look=1119 / #look=1119; #look=off forces plain): the same board + camera re-lit in
+  // the house look (3D PIPELINE games/ersn/blender/look_1119.py: matte LIT print, a pool on the board, the room in shadow).
+  // Same registration as the built hold; boards without a look hold fall back to their built hold. Render-only.
+  const LOOK1119 = /look=1119/i.test(qs) && !/look=off/i.test(qs);
+  S3.look = LOOK1119 ? '1119' : '';
   const curHold = () => { const H = S3.man && S3.man.holds; if (!H) return S3.man && S3.man.hold;
-    return (!plaque() && H[camKey() + '_' + boardKey() + '_' + opt.art]) || H[(plaque() ? opt.fit : 'inset') + '_' + opt.cam + '_' + plateName()] || S3.man.hold; };
+    return (!plaque() && LOOK1119 && opt.art === 'built' && H[camKey() + '_' + boardKey() + '_look1119'])
+      || (!plaque() && H[camKey() + '_' + boardKey() + '_' + opt.art]) || H[(plaque() ? opt.fit : 'inset') + '_' + opt.cam + '_' + plateName()] || S3.man.hold; };
   const curPawns = () => (S3.man && S3.man.pawnsets && S3.man.pawnsets[camKey()]) || (S3.man && S3.man.pawns);
   const curDice = () => (S3.man && S3.man.dicesets && S3.man.dicesets[camKey()]) || null;
   const loungeSeq = () => (opt.lounge === 'stairs' && S3.man && S3.man.seqs.lounge_set) ? 'lounge_set' : 'lounge';
