@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- ER$N 3D EDITION: cut by 3D PIPELINE games/ersn/lab/tools/make_lab_page.py from index.html (this bundle) sha256 b1bd279359629705; 27 /*LAB3D*/ hooks. -->
+<!-- ER$N 3D EDITION: cut by 3D PIPELINE games/ersn/lab/tools/make_lab_page.py from index.html (this bundle) sha256 a80b0b9aa5dfdc32; 27 /*LAB3D*/ hooks. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -1159,7 +1159,7 @@ window.ERSN_THUMB=function(p){ return window.ERSN_ASSET_MAP['thumb:'+p]||window.
         <ul><li><b>Final Favor</b> assures your books are Partner Perfect</li><li class="arr">Card effect may assign it</li><li class="arr">Rule events may impact it <span class="chg">— each collapse <b><i>HEARING</i></b> you hold on the dice scores +1; a Bribe does not. Riding Hype 5+ into the collapse without cashing out (Juice 25 or less, not the richest) scores +1.</span></li><li>If multiple players meet Victory Conditions in the same round <b><i>FINAL FAVOR</i></b> decides who wins <span class="chg">— still tied? the <b><i>LOWER RISK</i></b> wins</span></li><li class="arr"><b><i>CANNOT</i></b> be traded, reassigned, or stolen unless a card allows it</li></ul>
         <p style="text-align:center"><b><i>PROVEN FALSIFIED RECORDS = INSTANT BURNOUT + EXPULSION TO START CIRCLE</i></b></p>
         <p style="text-align:center"><b><i>DISPUTED FAVOR CLAIM?</i></b> Players enter "<b><i>WHY ASK?</i></b>" roll-offs (Fail penalties apply)</p>
-        <p class="fine"><span class="chg">Benchmark cards and characters: the v4 errata sheet, core cards (docs/benchmark-v4-errata-print.html), plus 1113: Claudia's <b><i>AUDIT TRACE</i></b> — whoever points the finger at her takes +1 Risk; Wu's Fade doesn't work in the Lounge; no Risk on Benny's Golden Walk; Danny's Doughmination costs Risk only at small tables (+2 at 2p, +1 at 3p), and Benny's ORDER costs +1 Risk at 2–3p; 1116: Mark's <b><i>HYPE-MAN</i></b> also pays +1 Hype when he HOLDS A HEARING (at 5+ Hype it costs +1 Risk); Vonda's <b><i>NOTARY</i></b> alibi costs 1 Trust at 4p+; Danny's Doughmination gift is 5 Juice at 5p, 6 at 6p. docs/BENCHMARK-LOUNGE-1113.md.</span></p>
+        <p class="fine"><span class="chg">Benchmark cards and characters: the card text and your ability card on screen ARE the errata (src/errata.js; print it: pnp/out/ERSN-BENCHMARK-ERRATA.pdf, tools/build_errata.py), plus 1113: Claudia's <b><i>AUDIT TRACE</i></b> — whoever points the finger at her takes +1 Risk; Wu's Fade doesn't work in the Lounge; no Risk on Benny's Golden Walk; Danny's Doughmination costs Risk only at small tables (+2 at 2p, +1 at 3p), and Benny's ORDER costs +1 Risk at 2–3p; 1116: Mark's <b><i>HYPE-MAN</i></b> also pays +1 Hype when he HOLDS A HEARING (at 5+ Hype it costs +1 Risk); Vonda's <b><i>NOTARY</i></b> alibi costs 1 Trust at 4p+; Danny's Doughmination gift is 5 Juice at 5p, 6 at 6p. docs/BENCHMARK-LOUNGE-1113.md.</span></p>
       </div>
     </div>
     <div class="foot">Make Finance <br>A Family Affair!</div>
@@ -1239,7 +1239,7 @@ window.ERSN_THUMB=function(p){ return window.ERSN_ASSET_MAP['thumb:'+p]||window.
         <ul><li><b>Final Favor</b> assures your books are Partner Perfect</li><li class="arr">Card effect may assign it</li><li class="arr">Rule events may impact it <span class="chg">— a <b><i>PASSED</i></b> raid check scores +1; a Bribe past Security does not. Riding Hype 5+ into the collapse without cashing out (Juice 25 or less, not the richest) scores +1.</span></li><li>If multiple players meet Victory Conditions in the same round <b><i>FINAL FAVOR</i></b> decides who wins <span class="chg">— still tied? the <b><i>LOWER RISK</i></b> wins</span></li><li class="arr"><b><i>CANNOT</i></b> be traded, reassigned, or stolen unless a card allows it</li></ul>
         <p style="text-align:center"><b><i>PROVEN FALSIFIED RECORDS = INSTANT BURNOUT + EXPULSION TO START CIRCLE</i></b></p>
         <p style="text-align:center"><b><i>DISPUTED FAVOR CLAIM?</i></b> Players enter "<b><i>WHY ASK?</i></b>" roll-offs (Fail penalties apply)</p>
-        <p class="fine"><span class="chg">Benchmark cards and characters: see the v4 errata sheet (docs/benchmark-v4-errata-print.html).</span></p>
+        <p class="fine"><span class="chg">Benchmark cards and characters: the card text and your ability card on screen ARE the errata (src/errata.js; print it: pnp/out/ERSN-BENCHMARK-ERRATA.pdf).</span></p>
       </div>
     </div>
     <div class="foot">Make Finance <br>A Family Affair!</div>
@@ -1348,6 +1348,7 @@ window.ERSN_THUMB=function(p){ return window.ERSN_ASSET_MAP['thumb:'+p]||window.
 <canvas id="fxcanvas"></canvas>
 
 <script src="src/data.js"></script>
+<script src="src/errata.js"></script>
 <script src="src/engine.js"></script>
 <script src="src/voices.js"></script>
 <script src="src/sfx.js"></script>
@@ -2778,12 +2779,7 @@ HumanAgent.prototype.decide=function(req,g,p){ return new Promise(res=>presentPr
 const cls4=t=>({Clean:'clean',Dirty:'dirty',Conditional:'cond'}[t]||'neutral');
 const typeColor=t=>({Clean:'#9fd06a',Dirty:'#e0a06a',Conditional:'#c79be8'}[t]||'#9aa3b4');
 const playShort=p=>({Immediate:'PLAY',KeepInHand:'HOLD',FaceUp:'FACE-UP',FaceDown:'FACE-DOWN'}[p]||p);
-function cardText(c){ const lv=(game&&game.rules&&game.rules.gauntlet&&window.ERSN_LOUNGE_TEXT&&ERSN_LOUNGE_TEXT[c&&c.name])   // 1113 gauntlet card text first
-    ||(game&&game.rules&&game.rules.levels&&window.ERSN_LEVELS_TEXT&&ERSN_LEVELS_TEXT[c&&c.name])
-    ||(game&&game.edition==='benchmark'&&game.rules&&game.rules.assetFlow&&window.ERSN_ASSET_FLOW_TEXT&&ERSN_ASSET_FLOW_TEXT[c&&c.name])
-    ||(game&&game.edition==='benchmark'&&game.rules&&game.rules.benchmarkDeck==='v4'&&window.ERSN_V4_TEXT&&ERSN_V4_TEXT[c&&c.name])
-    ||(game&&game.edition==='benchmark'&&game.rules&&game.rules.camperCards&&window.ERSN_CAMPER&&ERSN_CAMPER[c&&c.name]&&(game.rules.camperCards&ERSN_CAMPER[c.name].bit)&&ERSN_CAMPER[c.name].text);   // LEVELS tower riders, then the ASSET FLOW rewrite
-  const ov=(game&&game.edition==='benchmark'&&window.ERSN_BENCHMARK_TEXT&&ERSN_BENCHMARK_TEXT[c&&c.name]); return lv||ov||(c&&c.text)||''; }
+function cardText(c){ return window.ERSN_ERRATA?ERSN_ERRATA.cardText(c,game):((c&&c.text)||''); }   // 1127: ONE source with the print errata (src/errata.js)
 function shortText(c){const t=cardText(c);return t.length>78?t.slice(0,76)+'…':t;}
 function findOwner(t){ if(!game)return null; return game.players.find(q=>q.lineup.includes(t))||null; }
 /* ---------- HIDDEN INFO (the viewer's side) ----------
@@ -2811,6 +2807,7 @@ function renderHand(forP){
   lbl.textContent=`${p.name.toUpperCase()} · YOUR HAND (${p.hand.length})`; lbl.classList.add('on');
   hd.innerHTML='';
   p.hand.forEach(c=>{ const d=document.createElement('div'); d.className='hcard '+cls4(c.ctype)+(isReactionCard(c)?' reaction':'');
+    d.title=c.name+': '+cardText(c);   // 1127: hover = the whole rule (the face is cut at 78 characters)
     d.innerHTML=(isReactionCard(c)?`<div class="rb">⚡ REACT</div>`:'')+
       `<div class="ht" style="color:${typeColor(c.ctype)}">${c.ctype.toUpperCase()} · ${playShort(c.play)}</div>`+
       `<div class="hn">${c.name}</div><div class="hx">${shortText(c)}</div>`;
@@ -2885,7 +2882,7 @@ function openPrompt(title,sub,opts,resolve){
   promptResolve={r:resolve, safe:decline?decline.value:null};
   opts.forEach(o=>{
     const b=document.createElement('button'); b.className='opt'+(o.cls?' '+o.cls:'');
-    if(o.card){ const c=o.card; b.className+=' card '+cls4(c.ctype);
+    if(o.card){ const c=o.card; b.className+=' card '+cls4(c.ctype); b.title=c.name+': '+cardText(c);
       b.innerHTML=`<div class="ct" style="color:${typeColor(c.ctype)}">${c.ctype.toUpperCase()} · ${playShort(c.play)}</div>`+
         `<div class="cn">${c.name}</div><div class="cx">${shortText(c)}</div>`;
     } else if(o.assetEntry){ const t=o.assetEntry, c=t.card, ow=findOwner(t);
@@ -3033,7 +3030,7 @@ function presentPrompt(req,p,resolve){
       title='React now?'; sub=`${who} · you may trigger ${req.card.name} in response.`;
       opts=[{card:req.card,value:req.card,cls:'go'},{label:'Pass',value:null,cls:'no'}]; break;
     case 'target':
-      title='Choose a target'; sub=who;
+      title=req.ctx==='private-dance'?'Who dances for you?':'Choose a target'; sub=req.ctx==='private-dance'?`${who} · they show you their whole Asset Lineup`:who;   // 1126 order 88 wuDance
       opts=req.candidates.map(q=>({label:q.name,sub:`J${q.juice} T${q.trust} H${q.hype} R${q.risk}`,value:q})); break;
     case 'asset':
       title='Choose an asset'; sub=who;
@@ -3043,7 +3040,7 @@ function presentPrompt(req,p,resolve){
       title='Bail them out?'; sub=`Give 1 of your Hype to ${req.target?req.target.name:'them'} so they dodge The Benchmark?`;
       opts=[{label:'Give 1 Hype',value:true,cls:'go'},{label:'Refuse',value:false,cls:'no'}]; break;
     case 'ability':
-      title=`Use ${req.ability==='CastleOrder'?'Castle Doctrine':req.ability}?`; sub=`${who}${req.cost?' · '+req.cost:''}`;
+      title=`Use ${req.ability==='CastleOrder'?'Castle Doctrine':req.ability==='PrivateDance'?'Private Dance':req.ability}?`; sub=`${who}${req.cost?' · '+req.cost:''}`;   // 1126 order 88 wuDance: readable name
       opts=[{label:'Use it',value:true,cls:'go'},{label:'Skip',value:false,cls:'no'}]; break;
     case 'hearing':{   // 1113 THE LOUNGE GAUNTLET: one Lounge turn = one hearing
       const g=game.rules, need=Math.max(1,req.need), pass=need<=1?'any roll but a 1':need>6?'NOTHING — add more':`${need}+`;

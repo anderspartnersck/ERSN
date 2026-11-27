@@ -392,6 +392,14 @@
 
   // threat score for "target the leader" — closeness to a clean Lounge win dominates
   function threat(g, q) { return (q.in_lounge ? 6 : 0) + (g.floorOf(q) !== null ? 3 : 0) + q.clean_count() * 2 + q.trust * 0.3 + q.hype * 0.12 + q.juice * 0.1 - q.risk * 0.2; }
+  // botNotary (1126 PC order 88, bot habit, default OFF): the own-Asset NOTARY PUBLIC is worth 2 Trust only to strike an Asset that is hurting
+  // Vonda: one charging her Risk every turn; a 3rd Clean where the win needs EXACTLY 2 (not the gauntlet); or, under the printed Stamp, the one
+  // face-down Asset that blocks it while she holds 2+ face-up Dirty. Same policy as POLICY.NOTARY_OWN in scripts/fable1126/task1.js. No RNG.
+  function notaryWant(g, p) { const L = p.lineup;
+    const up = L.find(t => t.mods.some(m => m.riskPerTurn && (m.turns === Infinity || m.turns > 0))); if (up) return up;
+    if (!g.rules.gauntlet && p.clean_count() > 2) return L.find(t => p.effClean(t));
+    if (g._cv('charVonda', 3) < 2 && p.facedown_count() === 1 && p.faceup_dirty().length >= 2 && p.clean_count() < 2) return L.find(t => !t.up);
+    return null; }
 
   // 1113 GAUNTLET bot policy. HEARING: buy +1s until the die needs 3+ (a 67% hearing) — or 2+ in the collapse, where a fail is
   // the end — paying from whichever pocket the character can spare (Mark/Claudia spend Hype first: Mark has it, Claudia is
@@ -436,7 +444,7 @@
         case 'steps':       { const s = game._stairSteps(p, ((p.trust >= 4 || p.hype >= 8) && persona.enterLounge(p, game)) || (game.rules.gWhyAsk && !game.collapsed && p.juice >= 3 && p.risk <= 5)); return s !== null ? s : persona.steps(p, game); }   // 1113: under the gauntlet everyone heads for a staircase
         case 'door':        return persona.door(p, game);
         case 'enterLounge': return game.rules.gWhyAsk ? true : persona.enterLounge(p, game);   // 1113: under the gauntlet every bot takes the tower (pass 2 fix: a seat that QUALIFIED used to fall back to its persona — Mark at Trust 4+ refused)
-        case 'climbTier':   return true;                                              // up is the only way to the Lounge
+        case 'climbTier':   return !(game.rules.botBennyWait && p.name === 'Benny Boye');   // up is the only way to the Lounge. botBennyWait (1126 PC order 88, bot habit, default OFF; byPlayers-scalable, spec: 6p only): Benny's bot waits on REGULATION for the SUBPOENA
         case 'tipOff': {    // desperation: snitch on a tower resident only when they're beating you and you can carry the Risk
           const cs = req.candidates; if (!cs || !cs.length || p.risk > 5) return null;
           const t = cs.reduce((m, x) => threat(game, x) > threat(game, m) ? x : m);
@@ -482,13 +490,17 @@
         case 'ability':     // in-character use of the printed secondary abilities
           if (req.ability === 'Unimpeachable') return p.trust < 4 && p.juice >= (req.juiceCost || 5) + 2;  // only buy Trust to clear the Lounge bar, and only with spare Juice
           if (req.ability === 'Doughmination') return p.juice >= 10 && p.hype >= 2; // Danny converts a Juice surplus to a Hype spike
-          if (req.ability === 'Notary') return false;                       // Vonda keeps her Assets (the Stamp wants them)
+          if (req.ability === 'Notary') return !!(game.rules.botNotary && p.trust >= 4 && notaryWant(game, p));   // Vonda keeps her Assets (the Stamp wants them); botNotary: strike the one that hurts her, keeping 2+ Trust
+          if (req.ability === 'PrivateDance') { const os = game.others_of(p), top = os.length ? os.reduce((m, x) => threat(game, x) > threat(game, m) ? x : m) : null;   // wuDance: the first turn the top threat sits in the tower/Lounge with a face-down Asset (no RNG)
+            return !!(top && req.candidates && req.candidates.includes(top) && (top.in_lounge || game.floorOf(top) !== null)); }
           if (req.ability === 'NotaryAlibi') return game._cv('charVonda', 3) >= 2 ? (p.risk >= 2 && p.trust >= 3) : (p.risk >= 3 && p.trust >= 4);   // v4: buy down Risk only with Trust to spare (v2 kit: a looser notary)
           if (req.ability === 'LeakyBucket') return true;                   // Vonda always clings to the Lounge
           if (req.ability === 'CastleOrder') return p.risk <= (game.rules.gauntlet ? 3 : 5);   // Benny orders the help around while he can carry the Risk (1113: Risk is his hearing edge now)
           if (req.ability === 'CastleDefend') return p.risk <= 5;            // his building, his Security — while he can carry the Risk
           if (req.ability === 'FeedRaptors') return game._v4Deck() && p.risk >= 2;   // v4 Round 6: feed the raptors to dump Risk (pre-v4 bots never fed: the card was dead)
           return false;
+        case 'asset':       if (game.rules.botNotary && req.ctx === 'notary') { const a = notaryWant(game, p); if (a) return a; }   // botNotary: discard the Asset that hurts her
+                            return this.bot.decide(req, game, p);
         default:            return this.bot.decide(req, game, p);   // asset/hand/choice/giveHype
       }
     }
@@ -641,6 +653,8 @@
         if (!this.rules.seatJuiceWho || q.name === this.rules.seatJuiceWho) q.juice += k * this.rules.seatJuice; });
       this.idx = 0; this.done = false;
       this.maxTurns = opts.maxTurns || 120;
+      // logRiskWhy: observer-only switch (see add_risk). opts.logRiskWhy, or ruleOverrides { logRiskWhy: true } (web: ?ro=). Default OFF.
+      this.logRiskWhy = !!(opts.logRiskWhy || this.rules.logRiskWhy);
       // decks
       this.seen = new Map();   // hidden-info knowledge: playerName -> Map<card, holder>  (see knows/learn)
       this.decks = {}; this.discards = {};
@@ -1061,6 +1075,9 @@
     add_risk(p, amt, why) {
       if (amt <= 0) { p.risk = Math.max(0, p.risk + amt); return; }
       p.risk += amt;
+      // logRiskWhy (1126 PC order 80, OBSERVER-ONLY, default OFF): write the reason for every Risk gain to the log, so a log-reading
+      // tool can see Risk the log never named (Tall Poppy). One log line, no RNG, no state. OFF = byte-identical log.
+      if (this.logRiskWhy) this.log(`    [Risk +${amt} -> ${p.risk}] ${p.name}: ${why || '(no reason given)'}`);
       for (let a = this._tcAcc; a; a = a.prev) if (a.p === p) { a.risk += amt; break; }   // 1124 pc: observer-only Risk tally for the Trust Check log
       if (p.hasConstant('CONSTANT_RISK_GIVES_HYPE')) {
         p.hype += amt;
@@ -1599,24 +1616,57 @@
     // bennyCastle is a '+'-joined set: ease (tower checks pass on 3+) · auto (NO tower Trust Check: his name is the check) ·
     // order (hand his SEC file to an opponent) · defend (call Security on a new Lounge arrival) · both = order+defend
     // the ability lines a character sheet shows for THIS game (the printed card, with Benchmark rule changes folded in)
+    // 1127: this is ALSO the print errata's source for the character cards (src/errata.js kitCard -> tools/build_errata.py).
     abilitiesText(p, base) {
+      if (this.edition === 'benchmark') base = this._benchKitText(p, base);
       if (this.rules.gauntlet) base = this._gauntletAbilityText(p, base);
       if (p.abilityName !== 'Benny Boye' || !this.rules.bennyCastle) return base;
       const ease = this._castle('ease2') ? 2 : this._castle('ease') ? 3 : 0, sic = this._castle('sic');
       const cost = this.rules.bennySicCost != null ? this.rules.bennySicCost : 2, rk = this.rules.bennySicRisk != null ? this.rules.bennySicRisk : 1;
-      const extra = [ease ? `his Tower Trust Checks pass on ${ease}+` : '', sic ? `from the Tower or the Lounge, at the start of his turn he may pay ${cost} Juice${rk ? ` + take ${rk} Risk` : ''} to ORDER a loop player to answer to the SEC (they draw an SEC card)` : ''].filter(Boolean).join('; ');
-      return base.map(a => /^Castle Doctrine/.test(a) ? `${a.replace(/\.$/, '')}. It's his building: ${extra}.` : a);
+      const extra = [ease ? `Your Trust Checks in THE TOWER pass on a roll of ${ease} or more.` : '', sic ? `Before the collapse, at the start of your turn in THE TOWER or THE LOUNGE, you may pay ${cost} Juice${rk ? ` and gain ${rk} Risk` : ''} to make a player on THE LOOP draw an SEC card.` : ''].filter(Boolean).join(' ');
+      return base.map(a => /^Castle Doctrine/.test(a) ? `${a.replace(/\.?$/, '.')} ${extra}` : a);   // 1127 card-text pass: whole sentences
     }
     // 1113: the character lines the gauntlet changes (the rest of each card stands as printed / v4)
     _gauntletAbilityText(p, base) {
       const r = this.rules, n = p.abilityName;
       return base.map(a => {
-        if (n === 'Claudia Numbers' && r.gClaudiaTrace && /^Audit Trace/.test(a)) return 'Audit Trace: anyone who POINTS THE FINGER at you takes +1 Risk (you trace it back).';
-        if (n === 'Wu Drainer' && r.gWuFadeLoop && /^Strategic Fade/.test(a)) return a.replace(/\.$/, '') + ' — not in the Lounge (nobody moves at a hearing).';
-        if (n === 'Benny Boye' && r.gBennyHeld && /^Castle Doctrine/.test(a)) return a.replace(/ENDS 3 consecutive turns in the Executive Lounge/, 'HOLDS 3 consecutive HEARINGS in the Executive Lounge');
-        if (n === 'Danny Dough' && r.gDannyGift && r.gDannyGift !== 4 && /^Doughmination/.test(a)) return a.replace(/\b4 Juice/, `${r.gDannyGift} Juice`);
-        if (n === 'Mark Markit' && r.gMarkRally && /^Hype-Man/.test(a)) return `Hype-Man: when you play a Market card OR HOLD A HEARING, gain +${r.gMarkRally} Hype${r.gMarkRallyTax ? ` (at ${this._cv('charMark', 7)}+ Hype it also costs +1 Risk)` : ''}.`;
-        if (n === 'Vonda Vouch' && r.gVondaAlibi && r.gVondaAlibi !== 2 && /^Notary Public/.test(a)) return a.replace(/spend 2 Trust/, `spend 2 Trust (or ${r.gVondaAlibi} Trust to notarize an ALIBI: −1 Risk)`);
+        // 1127 card-text pass (docs/CARD-TEXT-1127.md): whole sentences, WHO/WHEN first; same rules, same knobs
+        if (n === 'Claudia Numbers' && r.gClaudiaTrace && /^Audit Trace/.test(a)) return 'Audit Trace: When anyone POINTS THE FINGER at you, they gain 1 Risk.';
+        if (n === 'Wu Drainer' && r.gWuFadeLoop && /^Strategic Fade/.test(a))   // take_turn end (Wu): no fade in the Lounge
+          return /^Strategic Fade: At the end/.test(a) ? `${a} It does not work in THE LOUNGE.` : 'Strategic Fade: At the end of your turn, if you did not move, remove 1 Risk. It does not work in THE LOUNGE.';
+        if (n === 'Benny Boye' && r.gBennyHeld && /^Castle Doctrine/.test(a)) return 'Castle Doctrine: If you end your turn in THE LOUNGE after holding 3 HEARINGS in a row, the collapse begins.';
+        if (n === 'Danny Dough' && r.gDannyGift && /^Doughmination/.test(a))   // 1127: also at 4 Juice, so every table size reads the same sentence
+          return /^Doughmination: At the start/.test(a) ? a.replace(/\b4 Juice/, `${r.gDannyGift} Juice`) : `Doughmination: At the start of your turn, you may give ${r.gDannyGift} Juice to an opponent to double your Hype.`;
+        if (n === 'Mark Markit' && r.gMarkRally && /^Hype-Man/.test(a)) return `Hype-Man: When you play a Market card or pass a HEARING roll, gain ${r.gMarkRally} Hype.${r.gMarkRallyTax ? ` Then, if you have ${this._cv('charMark', 7)} or more Hype, gain 1 Risk.` : ''}`;
+        if (n === 'Vonda Vouch' && r.gVondaAlibi && r.gVondaAlibi !== 2 && /^Notary Public/.test(a) && !/ALIBI/.test(a)) return a.replace(/spend 2 Trust/, `spend 2 Trust (or ${r.gVondaAlibi} Trust to notarize an ALIBI: −1 Risk)`);
+        return a; });
+    }
+    // 1127: the Benchmark character KIT (benchmarkChars v4 + the 1112 knobs) — rules this engine already runs that the sheet never
+    // said. TEXT ONLY: nothing reads this but the character sheet and the print errata. Each line reads the SAME knob, with the
+    // SAME default, as the code that runs it (cited); a knob at its printed value leaves the printed line alone.
+    _benchKitText(p, base) {
+      const r = this.rules, n = p.abilityName, np = this.players.length;
+      const wuFade = this._cv('charWuFade', np >= 5 ? 2 : 0);                      // take_turn end (Wu): charWuFade 2 = every turn, 1 = also a turn ended in the tower
+      const vonda = this._cv('charVonda', 3);                                        // victoryCleanCount (Stamp) · startAbilities (alibi) · _leakyBucket · ffExtras
+      const va = r.gVondaAlibi || 2;                                                 // startAbilities: the alibi's Trust cost
+      const dx = r.doughExposure || this._cv('charDanny', np <= 3 ? 2 : 1);          // startAbilities: Doughmination exposure Risk
+      const uc = this._cv('charClaudia', 3) || 5;                                    // take_turn: Unimpeachable's Juice
+      const br = this._cv('charBenny', 1);                                           // take_turn: Golden Walk Risk (LEVELS only)
+      return base.map(a => {
+        if (n === 'Wu Drainer' && /^Strategic Fade/.test(a)) {
+          if (wuFade >= 2) return 'Strategic Fade: At the end of each of your turns, moved or not, remove 1 Risk.';
+          if (wuFade) return 'Strategic Fade: At the end of your turn, if you did not move or you are in THE TOWER, remove 1 Risk.';
+        }
+        if (n === 'Vonda Vouch' && vonda >= 2 && /^The Stamp/.test(a))
+          return 'The Stamp: Every 2 Dirty Assets in your Lineup, face-up or face-down, count as 1 Clean Asset.' + (vonda >= 3 ? ' At Final Favor, every 2 Dirty Assets in your Lineup also score 1 Final Favor.' : '');
+        if (n === 'Vonda Vouch' && vonda && /^Notary Public/.test(a))
+          return `Notary Public: At the start of your turn, you may do one: spend 2 Trust to discard 1 of your own Assets in play, or spend ${va} Trust to remove 1 Risk (an ALIBI).`;
+        if (n === 'Vonda Vouch' && vonda >= 2 && /^Leaky Bucket/.test(a))
+          return 'Leaky Bucket: When you would leave THE TOWER or THE LOUNGE, pay 2 Juice and stay. If you can\'t, discard an Asset and stay. When THE TOWER comes down, pay the same way to move up into THE LOUNGE. It does not stop a BURNOUT.';
+        if (n === 'Danny Dough' && dx && /^Doughmination/.test(a)) return `Doughmination: At the start of your turn, you may give 4 Juice to an opponent to double your Hype. If you do, gain ${dx} Risk.`;   // "4 Juice": _gauntletAbilityText swaps in gDannyGift
+        if (n === 'Claudia Numbers' && uc !== 5 && /^Unimpeachable/.test(a)) return `Unimpeachable: Before you roll to move, you may give ${uc} Juice to an opponent. If you do, gain 1 Trust.`;
+        if (n === 'Benny Boye' && r.levels && /^The Golden Walk/.test(a))
+          return `The Golden Walk: At the start of your turn, if you are on a Golden Staircase, you may climb free onto REGULATION, the bottom tier of THE TOWER. It costs no Juice and no Trust Check.${br ? ` Gain ${br} Risk.` : ''}`;
         return a; });
     }
     _castle(t) { const m = this.rules.bennyCastle; if (!m) return false; const set = String(m).split('+'); return set.includes(t) || (m === 'both' && (t === 'order' || t === 'defend')); }
@@ -1907,6 +1957,25 @@
           if (this._v4Deck()) feed._fed = true;
           if (this._v4Deck()) this.emit('cardFire', { player: p.name, card: 'Feeding the Raptors' });
           this.log(`    Feeding the Raptors: ${p.name} feeds ${t.name} — ${j} Juice, ${r} Risk, + the Asset`);
+        }
+      }
+      // Wu — PRIVATE DANCE (wuDance, 1126 PC order 88, default OFF; printed: "1 use per game, name a player. They must show Wu their whole
+      // Asset Lineup"). Once a game, at the start of his turn before he moves, Wu names one other player and is shown every Asset in their
+      // Lineup; he keeps knowing each card while it stays in that Lineup (the knowledge layer, knows/learn). Nobody else sees them, no
+      // meter moves, no RNG is drawn. Not a hostile card effect: no reaction window, no Iron-Clad Juice. Bots never act on what they saw.
+      // "1 use per game" belongs to the ability, not the seat: if Executive Shuffling lends Wu's abilities out, the borrower shares the one use.
+      const wuSeat = this.players.find(q => q.name === 'Wu Drainer');
+      if (this.rules.wuDance && p.abilityName === 'Wu Drainer' && !this._privateDanceUsed && !p.private_dance_used) {
+        const shown = opps.filter(q => q.facedown_count());
+        if (shown.length && await this.decide(p, { kind: 'ability', ability: 'PrivateDance', cost: 'once a game: name a player, they show you their whole Asset Lineup', candidates: shown })) {
+          const tgt = await this.decide(p, { kind: 'target', candidates: shown, others: shown, ctx: 'private-dance' });
+          if (tgt && shown.includes(tgt)) {
+            p.private_dance_used = true; this._privateDanceUsed = true; if (wuSeat) wuSeat.private_dance_used = true;   // the sheet's USED tag reads the Wu seat
+            this.learn(p, tgt.lineup.filter(t => !t.up).map(t => t.card), tgt, 'Private Dance');
+            this.log(`    Wu Private Dance: ${tgt.name} shows ${p.name} their whole Asset Lineup (${tgt.facedown_count()} face-down; only ${p.name} sees them)`);
+            this.emit('cardFire', { player: p.name, card: 'Private Dance', target: tgt.name });
+            if (p.isHuman) this.emit('reveal', { by: p.name, target: tgt.name, card: 'Private Dance', hand: [], facedown: tgt.lineup.filter(t => !t.up).map(t => t.card.name) });   // the page's existing reveal panel (showReveal), as Cloak / Rank and Yank
+          }
         }
       }
     }
